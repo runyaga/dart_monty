@@ -124,13 +124,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-Frame",
-    "body": "Frame? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "Frame"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-FunctionSnapshot",
     "body": "FunctionSnapshot? value;",
     "inventory": "core-surface.tsv",
@@ -187,13 +180,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyCrashedError",
-    "body": "MontyCrashedError? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyCrashedError"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontyDate",
     "body": "MontyDate? value;",
     "inventory": "core-surface.tsv",
@@ -212,13 +198,6 @@
     "body": "MontyEllipsis? value;",
     "inventory": "core-surface.tsv",
     "symbol": "MontyEllipsis"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyExceptionValue",
-    "body": "MontyExceptionValue? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyExceptionValue"
   },
   {
     "phase": "D2",
@@ -271,13 +250,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontyRuntimeError",
-    "body": "MontyRuntimeError? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyRuntimeError"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontySet",
     "body": "MontySet? value;",
     "inventory": "core-surface.tsv",
@@ -299,13 +271,6 @@
   },
   {
     "phase": "D2",
-    "id": "core-surface-MontySyntaxError",
-    "body": "MontySyntaxError? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontySyntaxError"
-  },
-  {
-    "phase": "D2",
     "id": "core-surface-MontyTime",
     "body": "MontyTime? value;",
     "inventory": "core-surface.tsv",
@@ -324,13 +289,6 @@
     "body": "MontyTimeZone? value;",
     "inventory": "core-surface.tsv",
     "symbol": "MontyTimeZone"
-  },
-  {
-    "phase": "D2",
-    "id": "core-surface-MontyTypingError",
-    "body": "MontyTypingError? value;",
-    "inventory": "core-surface.tsv",
-    "symbol": "MontyTypingError"
   },
   {
     "phase": "D2",

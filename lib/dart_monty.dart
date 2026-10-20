@@ -11,7 +11,7 @@
 library;
 
 export 'package:dart_monty_core/dart_monty_core.dart'
-        // Keep the order of the approved 18-name facade.
+        // Keep the order of the approved 25-name facade.
         // ignore: combinators_ordering
         show
         Monty,
@@ -31,7 +31,14 @@ export 'package:dart_monty_core/dart_monty_core.dart'
         MontyList,
         MontyTuple,
         MontyDict,
-        MontyBytes;
+        MontyBytes,
+        Frame,
+        MontyRuntimeError,
+        MontySyntaxError,
+        MontyTypingError,
+        MontyCrashedError,
+        MontyExceptionValue,
+        FrameTooLargeException;
 
 export 'src/bridge/bridge.dart' show MontyBridge;
 export 'src/bridge/event.dart'
@@ -59,7 +66,11 @@ export 'src/extensions/run_script.dart' show buildRunScriptFunction;
 export 'src/extensions/sandbox.dart' show SandboxExtension;
 export 'src/host/context.dart' show HostContext, HostSubExecutor;
 export 'src/host/function.dart'
-    show DispatchMode, HostFunction, HostFunctionHandler;
+    show
+        DispatchMode,
+        HostFunction,
+        HostFunctionHandler,
+        ParityHostFunctionHandler;
 export 'src/host/param.dart' show HostParam;
 export 'src/host/param_type.dart' show HostParamType;
 export 'src/host/schema.dart' show HostFunctionSchema;

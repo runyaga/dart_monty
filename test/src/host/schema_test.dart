@@ -1,5 +1,6 @@
 import 'package:dart_monty/dart_monty.dart';
-import 'package:dart_monty/src/host/schema.dart' show mapAndValidate;
+import 'package:dart_monty/src/host/schema.dart'
+    show ParityBindingException, mapAndValidate, mapAndValidateParity;
 import 'package:test/test.dart';
 
 void main() {
@@ -375,6 +376,185 @@ void main() {
 
       final result = mapAndValidate(emptySchema, args, kwargs);
       expect(result, isEmpty);
+    });
+  });
+
+  group('mapAndValidateParity', () {
+    const twoSchema = HostFunctionSchema(
+      name: 'two',
+      params: [
+        HostParam(name: 'a', type: HostParamType.integer),
+        HostParam(name: 'b', type: HostParamType.integer),
+      ],
+    );
+    const threeSchema = HostFunctionSchema(
+      name: 'three',
+      params: [
+        HostParam(name: 'a', type: HostParamType.integer),
+        HostParam(name: 'b', type: HostParamType.integer),
+        HostParam(name: 'c', type: HostParamType.integer),
+      ],
+    );
+
+    Matcher throwsParityMessage(String expectedMessage) => throwsA(
+      isA<ParityBindingException>().having(
+        (e) => e.message,
+        'message',
+        expectedMessage,
+      ),
+    );
+
+    test('unexpected keyword throws ParityBindingException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {'tag': MontyString('first')},
+        ),
+        throwsParityMessage(
+          "two() got an unexpected keyword argument 'tag'",
+        ),
+      );
+    });
+
+    test('multiple values for argument throws ParityBindingException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {'a': MontyInt(4)},
+        ),
+        throwsParityMessage("two() got multiple values for argument 'a'"),
+      );
+    });
+
+    test('reports binding errors in upstream Monty 1.1.0 order', () {
+      const cases = [
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'a': MontyInt(4)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1)],
+          kwargs: {'a': MontyInt(4), 'zzz': MontyInt(5)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1)],
+          kwargs: {'zzz': MontyInt(5), 'a': MontyInt(4)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2)],
+          kwargs: {'zzz': MontyInt(5), 'a': MontyInt(4)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'zzz': MontyInt(5)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'b': MontyInt(5)},
+          expectedMessage: "two() got multiple values for argument 'b'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3), MontyInt(4)],
+          kwargs: {'a': MontyInt(1)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: <String, MontyInt>{},
+          expectedMessage:
+              'two() takes 2 positional arguments but 3 were given',
+        ),
+        (
+          args: <MontyInt>[],
+          kwargs: {'b': MontyInt(1)},
+          expectedMessage: "two() missing 1 required positional argument: 'a'",
+        ),
+        (
+          args: <MontyInt>[],
+          kwargs: {'zzz': MontyInt(5)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+      ];
+
+      for (final (:args, :kwargs, :expectedMessage) in cases) {
+        expect(
+          () => mapAndValidateParity(twoSchema, args, kwargs),
+          throwsParityMessage(expectedMessage),
+        );
+      }
+    });
+
+    test('missing 1, 2, and 3 required arguments throw upstream texts', () {
+      expect(
+        () => mapAndValidateParity(twoSchema, const [MontyInt(1)], const {}),
+        throwsParityMessage(
+          "two() missing 1 required positional argument: 'b'",
+        ),
+      );
+      expect(
+        () => mapAndValidateParity(twoSchema, const [], const {}),
+        throwsParityMessage(
+          "two() missing 2 required positional arguments: 'a' and 'b'",
+        ),
+      );
+      const expectedThree =
+          "three() missing 3 required positional arguments: 'a', 'b', and 'c'";
+      expect(
+        () => mapAndValidateParity(threeSchema, const [], const {}),
+        throwsParityMessage(expectedThree),
+      );
+    });
+
+    test('too many positional arguments use singular and plural forms', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyInt(1), MontyInt(2), MontyInt(3)],
+          const {},
+        ),
+        throwsParityMessage(
+          'two() takes 2 positional arguments but 3 were given',
+        ),
+      );
+      const oneSchema = HostFunctionSchema(
+        name: 'one',
+        params: [HostParam(name: 'a', type: HostParamType.integer)],
+      );
+      expect(
+        () => mapAndValidateParity(
+          oneSchema,
+          const [MontyInt(1), MontyInt(2)],
+          const {},
+        ),
+        throwsParityMessage(
+          'one() takes 1 positional argument but 2 were given',
+        ),
+      );
+      const zeroSchema = HostFunctionSchema(name: 'zero');
+      expect(
+        () => mapAndValidateParity(zeroSchema, const [MontyInt(1)], const {}),
+        throwsParityMessage(
+          'zero() takes 0 positional arguments but 1 was given',
+        ),
+      );
+    });
+
+    test('schema type mismatch still throws FormatException', () {
+      expect(
+        () => mapAndValidateParity(
+          twoSchema,
+          const [MontyString('bad'), MontyInt(2)],
+          const {},
+        ),
+        throwsFormatException,
+      );
     });
   });
 }

@@ -1,6 +1,6 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 112,
+  "_grand_total": 116,
   "checks": {
     "calculate-metrics": {
       "by_file": {
@@ -58,13 +58,13 @@
     },
     "check-unnecessarily-public-code": {
       "by_file": {
-        "lib/src/bridge/event.dart": 12,
+        "lib/src/bridge/event.dart": 15,
         "lib/src/bridge/struct_log_logger.dart": 1,
         "lib/src/extension/extension.dart": 1,
         "lib/src/extensions/event_loop.dart": 20,
         "lib/src/extensions/sandbox.dart": 5,
         "lib/src/host/context.dart": 3,
-        "lib/src/host/function.dart": 2,
+        "lib/src/host/function.dart": 3,
         "lib/src/host/param.dart": 1,
         "lib/src/host/schema.dart": 1,
         "lib/src/introspection_functions.dart": 1,
@@ -74,9 +74,9 @@
         "lib/src/runtime/value_x.dart": 9
       },
       "by_rule": {
-        "unnecessarily-public-issue": 71
+        "unnecessarily-public-issue": 75
       },
-      "total": 71
+      "total": 75
     },
     "check-unused-code": {
       "by_file": {

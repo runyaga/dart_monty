@@ -26,6 +26,7 @@
   "HostContext": "class HostContext",
   "DispatchMode": "enum DispatchMode",
   "HostFunctionHandler": "typedef HostFunctionHandler = Future < MontyValue > Function ( Map < String , MontyValue > args , HostContext ctx ) ;",
+  "ParityHostFunctionHandler": "typedef ParityHostFunctionHandler = FutureOr < Object ? > Function ( Map < String , MontyValue > args , HostContext ctx ) ;",
   "HostFunction": "class HostFunction",
   "HostParam": "class HostParam",
   "HostParamType": "enum HostParamType",

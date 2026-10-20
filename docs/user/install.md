@@ -1,7 +1,7 @@
 # Installation
 
-`dart_monty` and `dart_monty_core` version `0.110.0-dev.3` resolve from
-their Git tags. `dart_monty_core` is not available from pub.dev, and
+`dart_monty` and `dart_monty_core` resolve from their Git tags.
+`dart_monty_core` is not available from pub.dev, and
 `dependency_overrides` in a dependency's pubspec do not apply to your package,
 so the root pubspec overrides the core source:
 
@@ -10,17 +10,17 @@ dependencies:
   dart_monty:
     git:
       url: https://github.com/runyaga/dart_monty.git
-      ref: v0.110.0-dev.3
+      ref: v0.110.0-dev.4
 
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: v0.110.0-dev.3
+      ref: v0.110.0-dev.4
 ```
 
 A package that imports core names directly also lists
-`dart_monty_core: ^0.110.0-dev.3` under `dependencies`.
+`dart_monty_core: ^0.110.0-dev.4` under `dependencies`.
 
 Run `dart pub get` after editing `pubspec.yaml`.
 

@@ -1,4 +1,5 @@
 import 'package:dart_monty/dart_monty.dart' show HostContext;
+import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty/src/host/context.dart' show HostContext;
 import 'package:dart_monty_core/dart_monty_core.dart';
 
@@ -79,6 +80,41 @@ class BridgeRunError extends BridgeEvent {
   /// are lost in the [message] string. Null when the error is not a
   /// Python exception (e.g. infrastructure errors).
   final MontyError? exception;
+
+  /// Formatted diagnostic message for Dart-host inspection:
+  /// - `display()` for syntax, runtime, and typing errors;
+  /// - `toString()` for crashes;
+  /// - [message] for infrastructure-only or unassociated events.
+  String get displayMessage => switch (exception) {
+    final MontySyntaxError e => e.display(),
+    final MontyRuntimeError e => e.display(),
+    final MontyTypingError e => e.display(),
+    final MontyCrashedError e => e.toString(),
+    null => message,
+  };
+
+  /// The underlying [MontyError] for Python failures, the recorded throw for
+  /// infrastructure failures, or `null` for manually constructed events
+  /// without an associated cause.
+  Object? get cause => exception ?? runFailureOf(this)?.$1;
+
+  /// The captured catch stack trace when recorded by the bridge, or `null`.
+  StackTrace? get causeStack => runFailureOf(this)?.$2;
+
+  /// Rethrows [cause] with [causeStack] via [Error.throwWithStackTrace] when a
+  /// stack was captured, throws [cause] directly when only [exception] is
+  /// present, or throws `StateError(message)` for unassociated manual events.
+  Never throwCause() {
+    if (cause case final target?) {
+      if (causeStack case final stack?) {
+        Error.throwWithStackTrace(target, stack);
+      }
+      if (exception case final montyError?) {
+        throw montyError;
+      }
+    }
+    throw StateError(message);
+  }
 }
 
 /// A host function call started (wraps start through result).

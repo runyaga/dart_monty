@@ -124,3 +124,103 @@ void validateDefaults(HostFunctionSchema schema) {
     if (param.defaultValue case final value?) param.validate(value);
   }
 }
+
+/// Thrown by [mapAndValidateParity] when positional or keyword binding fails
+/// with an upstream-compatible Python `TypeError`.
+@internal
+@immutable
+final class ParityBindingException implements Exception {
+  const ParityBindingException._(this.message);
+
+  /// Upstream-compatible `TypeError` message (without `'TypeError: '` prefix).
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+String _formatMissingNames(List<String> quoted) => switch (quoted.length) {
+  1 => quoted.single,
+  2 => '${quoted.first} and ${quoted[1]}',
+  _ => '${quoted.sublist(0, quoted.length - 1).join(', ')}, and ${quoted.last}',
+};
+
+void _checkPositionalCount(String name, int expected, int given) {
+  if (given <= expected) return;
+  final expectedNoun = expected == 1 ? 'argument' : 'arguments';
+  final givenVerb = given == 1 ? 'was' : 'were';
+  throw ParityBindingException._(
+    '$name() takes $expected positional $expectedNoun '
+    'but $given $givenVerb given',
+  );
+}
+
+void _checkKeywordArgs(
+  String name,
+  List<HostParam> params,
+  Map<String, MontyValue> raw,
+  Map<String, MontyValue> kwargs,
+) {
+  final paramNames = params.map((p) => p.name).toSet();
+  for (final key in kwargs.keys) {
+    if (!paramNames.contains(key)) {
+      throw ParityBindingException._(
+        "$name() got an unexpected keyword argument '$key'",
+      );
+    }
+    if (raw.containsKey(key)) {
+      throw ParityBindingException._(
+        "$name() got multiple values for argument '$key'",
+      );
+    }
+  }
+}
+
+void _checkMissingArgs(
+  String name,
+  List<HostParam> params,
+  Map<String, MontyValue> raw,
+) {
+  final missing = <String>[
+    for (final param in params)
+      if (param.isRequired && !raw.containsKey(param.name)) "'${param.name}'",
+  ];
+  if (missing.isEmpty) return;
+  final noun = missing.length == 1 ? 'argument' : 'arguments';
+  final names = _formatMissingNames(missing);
+  throw ParityBindingException._(
+    '$name() missing ${missing.length} required positional $noun: $names',
+  );
+}
+
+/// Parity-mode binder for `HostFunction.parity`.
+///
+/// Throws [ParityBindingException] with Monty 1.1.0 `TypeError` text for too
+/// many positional arguments, unexpected keyword arguments, or missing required
+/// arguments. Delegates value/type checks to [HostParam.validate], which
+/// continues to throw [FormatException].
+@internal
+Map<String, MontyValue> mapAndValidateParity(
+  HostFunctionSchema schema,
+  List<MontyValue> args,
+  Map<String, MontyValue> kwargs,
+) {
+  final HostFunctionSchema(:name, :params) = schema;
+  final raw = <String, MontyValue>{
+    for (var i = 0; i < params.length && i < args.length; i++)
+      params[i].name: args[i],
+  };
+
+  _checkKeywordArgs(name, params, raw, kwargs);
+  _checkPositionalCount(name, params.length, args.length);
+  raw.addAll(kwargs);
+  _checkMissingArgs(name, params, raw);
+
+  return {
+    for (final param in params)
+      param.name: param.validate(
+        raw[param.name],
+        isPresent: raw.containsKey(param.name),
+      ),
+  };
+}
