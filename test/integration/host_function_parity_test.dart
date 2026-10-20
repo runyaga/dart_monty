@@ -326,7 +326,7 @@ r
   );
 
   test(
-    'schema type mismatch on a parity function stays RuntimeError',
+    'D-3 schema type mismatch on a parity function stays RuntimeError',
     () async {
       bridge.register(
         HostFunction.parity(

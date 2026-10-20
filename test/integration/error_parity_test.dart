@@ -17,7 +17,7 @@ void main() {
       (step) => step.display?.badFormat != null,
     );
     final testName = hasBadFormat
-        ? '${testCase.id} (DIV: display bad format throws ArgumentError '
+        ? '${testCase.id} (C-12: display bad format throws ArgumentError '
               'instead of ValueError)'
         : testCase.id;
 

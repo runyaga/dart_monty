@@ -85,6 +85,7 @@ plugins:
         Technical Reference:
           - reference/bridge-integration.md
           - reference/internals.md
+          - reference/upstream-divergences.md
         Contributing:
           - contributor/setup.md
           - contributor/testing.md
@@ -115,6 +116,7 @@ nav:
   - Technical Reference:
       - Bridge Integration: reference/bridge-integration.md
       - Internals: reference/internals.md
+      - Upstream Divergences: reference/upstream-divergences.md
   - Contributing:
       - Development Setup: contributor/setup.md
       - Testing: contributor/testing.md
