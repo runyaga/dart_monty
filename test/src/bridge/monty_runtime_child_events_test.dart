@@ -34,7 +34,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(captured, hasLength(1));
-      final event = captured.single;
+      final [event] = captured;
       expect(event, isA<BridgeChildEvent>());
       event as BridgeChildEvent;
       expect(event.childHandle, '42');

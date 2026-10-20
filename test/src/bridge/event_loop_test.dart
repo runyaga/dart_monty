@@ -87,10 +87,14 @@ void main() {
         // Verify the result settled the awaited future.
         final resolvedResults = _returnAnswers(fake);
         expect(resolvedResults, hasLength(1));
-        expect(_dart(resolvedResults.single), isA<Map<String, Object?>>());
-        final resultMap = _dart(resolvedResults.single)! as Map;
-        expect(resultMap['type'], 'button_press');
-        expect(resultMap['id'], 'ok');
+        expect(
+          resolvedResults.map(_dart),
+          [
+            isA<Map<String, Object?>>()
+                .having((m) => m['type'], 'type', 'button_press')
+                .having((m) => m['id'], 'id', 'ok'),
+          ],
+        );
       },
     );
 
@@ -124,8 +128,13 @@ void main() {
         final resolvedResults = _returnAnswers(fake);
         expect(resolvedResults, hasLength(2));
         // Second answer (recv) should contain the queued event.
-        final waitResult = _dart(resolvedResults[1])! as Map;
-        expect(waitResult['type'], 'early_click');
+        expect(
+          resolvedResults.map(_dart),
+          [
+            anything,
+            isA<Map>().having((m) => m['type'], 'type', 'early_click'),
+          ],
+        );
       },
     );
 
@@ -155,9 +164,7 @@ void main() {
         // All three resolves should contain events in FIFO order.
         final results = _returnAnswers(fake);
         expect(results, hasLength(3));
-        expect((_dart(results.first)! as Map)['order'], 1);
-        expect((_dart(results[1])! as Map)['order'], 2);
-        expect((_dart(results[2])! as Map)['order'], 3);
+        expect(results.map((r) => (_dart(r)! as Map)['order']), [1, 2, 3]);
       },
     );
 
@@ -192,10 +199,7 @@ void main() {
       // Both resolves should have the correct events.
       final answers = _returnAnswers(fake);
       expect(answers, hasLength(2));
-      final first = _dart(answers.first)! as Map;
-      expect(first['cycle'], 1);
-      final second = _dart(answers[1])! as Map;
-      expect(second['cycle'], 2);
+      expect(answers.map((a) => (_dart(a)! as Map)['cycle']), [1, 2]);
     });
   });
 
@@ -431,7 +435,11 @@ void main() {
 
         // Initial null + one update from emit.
         expect(emitted.where((e) => e != null), hasLength(1));
-        expect((emitted.last!.dartValue! as Map)['type'], 'label');
+        expect(
+          emitted.lastOrNull,
+          isA<MontyDict>()
+              .having((e) => (e.dartValue! as Map)['type'], 'type', 'label'),
+        );
       },
     );
   });
@@ -495,7 +503,10 @@ void main() {
         expect(plugin.channelState, const EventLoopCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
-        expect(errors.first.message, contains('script died unexpectedly'));
+        expect(
+          errors.map((e) => e.message),
+          [contains('script died unexpectedly')],
+        );
       },
     );
 
@@ -526,7 +537,7 @@ void main() {
         expect(plugin.channelState, const EventLoopCompleted());
         final errors = events.whereType<BridgeRunError>().toList();
         expect(errors, hasLength(1));
-        expect(errors.first.message, contains('script crashed'));
+        expect(errors.map((e) => e.message), [contains('script crashed')]);
       },
     );
   });
@@ -577,9 +588,13 @@ void main() {
       // An unmarked handler is answered in place, not through a future.
       final answers = _returnAnswers(syncMock);
       expect(answers, hasLength(1));
-      expect(_dart(answers.single), isA<Map<String, Object?>>());
-      final result = _dart(answers.single)! as Map;
-      expect(result['type'], 'sync_click');
+      expect(
+        answers.map(_dart),
+        [
+          isA<Map<String, Object?>>()
+              .having((m) => m['type'], 'type', 'sync_click'),
+        ],
+      );
     });
   });
 
@@ -777,7 +792,7 @@ void main() {
 
         expect(plugin.isWaiting, isFalse);
         await done;
-        expect(_dart(_returnAnswers(fake).single), {'k': 1});
+        expect(_returnAnswers(fake).map(_dart), [{'k': 1}]);
       },
     );
 
@@ -802,7 +817,7 @@ void main() {
       plugin.dispatch(MontyValue.fromDart({'fresh': true}) as MontyDict);
       await second;
 
-      expect(_dart(_returnAnswers(fake).single), {'fresh': true});
+      expect(_returnAnswers(fake).map(_dart), [{'fresh': true}]);
     });
 
     test('a run that ends with el_recv pending fails that call', () async {
@@ -846,7 +861,7 @@ void main() {
       final answer = fake.answers
           .map((a) => a.answer)
           .whereType<ExternalException>()
-          .single;
+          .singleOrNull;
       expect(
         answer,
         isA<ExternalException>()
@@ -899,7 +914,7 @@ void main() {
       child.dispatch(MontyValue.fromDart({'child': 1}) as MontyDict);
       await done;
 
-      expect(_dart(_returnAnswers(childFake).single), {'child': 1});
+      expect(_returnAnswers(childFake).map(_dart), [{'child': 1}]);
       expect(child.lastEmitted, isNull);
     });
 

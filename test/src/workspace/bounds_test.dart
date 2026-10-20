@@ -250,7 +250,8 @@ void registerBoundsTests({String? Function()? backing}) {
     final w = await transfers.copyIn(
       sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
-        if (name == 'Path.is_symlink' && args.first.dartValue == '/out/b') {
+        if (name == 'Path.is_symlink' &&
+            args.firstOrNull?.dartValue == '/out/b') {
           return const MontyBool(true);
         }
         if (name == 'Path.mkdir' || name == 'Path.write_bytes') writes++;

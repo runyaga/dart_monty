@@ -39,7 +39,7 @@ void main() {
       expect(plugin.namespace, 'my_ns');
       expect(plugin.systemPromptContext, 'Does cool things.');
       expect(plugin.functions, hasLength(1));
-      expect(plugin.functions.first.schema.name, 'do_thing');
+      expect(plugin.functions.map((f) => f.schema.name), ['do_thing']);
     });
 
     test('onAttach default implementation is a no-op', () async {

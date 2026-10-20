@@ -113,7 +113,7 @@ void main() {
         LogManager.instance,
       ).child('a').child('b').info('hi');
 
-      expect(sink.records.single.loggerName, 'monty.a.b');
+      expect(sink.records.map((r) => r.loggerName), ['monty.a.b']);
     });
 
     test('close silences the logger and every child it made', () {

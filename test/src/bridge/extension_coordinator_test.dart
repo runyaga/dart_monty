@@ -79,7 +79,7 @@ void main() {
       registry.register(plugin);
 
       expect(registry.extensions, hasLength(1));
-      final registered = registry.extensions.first;
+      final [registered] = registry.extensions;
       expect(registered.namespace, 'alpha');
       expect(registered.systemPromptContext, 'Alpha operations.');
     });
@@ -92,8 +92,7 @@ void main() {
         );
 
       expect(registry.extensions, hasLength(2));
-      expect(registry.extensions.first.namespace, 'aaa');
-      expect(registry.extensions[1].namespace, 'bbb');
+      expect(registry.extensions.map((e) => e.namespace), ['aaa', 'bbb']);
     });
 
     test('accepts plugins with disjoint namespaces and function names', () {
@@ -319,7 +318,7 @@ void main() {
         );
 
         expect(registry.extensions, hasLength(1));
-        expect(registry.extensions.first.namespace, 'alpha');
+        expect(registry.extensions.map((e) => e.namespace), ['alpha']);
       });
     });
 
@@ -855,7 +854,8 @@ void main() {
             throwsStateError,
           );
 
-          expect(ok.clones.single.disposed, isTrue);
+          final [clone] = ok.clones;
+          expect(clone.disposed, isTrue);
         },
       );
 
