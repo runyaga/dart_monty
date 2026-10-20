@@ -1365,7 +1365,7 @@ void main() {
         ..willReturn(const MontyNone());
 
       final events = await bridge.execute('absent()').toList();
-      final [error] = events.whereType<BridgeRunError>();
+      final [error] = events.whereType<BridgeRunError>().toList();
 
       expect(error.exception?.exception.excType, 'NameError');
       // The session answers "not found" itself: no dm code runs, so no call
@@ -1406,7 +1406,7 @@ void main() {
         fake.willReturn(result);
 
         final events = await bridge.execute('[1, "a"]').toList();
-        final [finished] = events.whereType<BridgeRunFinished>();
+        final [finished] = events.whereType<BridgeRunFinished>().toList();
 
         expect(finished.montyValue, result);
         expect(finished.value, [1, 'a']);
@@ -1438,7 +1438,7 @@ void main() {
 
       final events = await bridge.execute('None').toList();
 
-      final [finished] = events.whereType<BridgeRunFinished>();
+      final [finished] = events.whereType<BridgeRunFinished>().toList();
       expect(finished.printOutput, isNull);
     });
 
@@ -1467,7 +1467,7 @@ void main() {
 
       final events = await bridge.execute('1').toList();
 
-      final [error] = events.whereType<BridgeRunError>();
+      final [error] = events.whereType<BridgeRunError>().toList();
       expect(error.exception, isA<MontyCrashedError>());
       expect(events.lastOrNull, same(error));
     });
@@ -1483,7 +1483,7 @@ void main() {
 
       final events = await b.execute('1').toList();
 
-      final [error] = events.whereType<BridgeRunError>();
+      final [error] = events.whereType<BridgeRunError>().toList();
       expect(error.exception, isNull);
       expect(error.message, original.toString());
       expect(() => extractBridgeResult(events), throwsA(same(original)));
@@ -1695,7 +1695,7 @@ void main() {
 
       final events = await bridge.execute('os.environ').toList();
 
-      final [start] = events.whereType<BridgeOsCallStart>();
+      final [start] = events.whereType<BridgeOsCallStart>().toList();
       expect(start.argumentSummary, isNull);
     });
 
@@ -1730,7 +1730,7 @@ void main() {
 
         final events = await bridge.execute('os.getenv("X")').toList();
 
-        final [result] = events.whereType<BridgeOsCallResult>();
+        final [result] = events.whereType<BridgeOsCallResult>().toList();
         expect(result.result, 'late');
         expect(result.durationMs, greaterThanOrEqualTo(15));
         expect(_returnAnswers(fake), [const MontyString('late')]);
@@ -1755,7 +1755,7 @@ void main() {
         // Declined: the worker computes the default, so the answer is
         // not_handled (null).
         expect([for (final a in fake.answers) a.answer], [null]);
-        final [result] = events.whereType<BridgeOsCallResult>();
+        final [result] = events.whereType<BridgeOsCallResult>().toList();
         expect(result.result, 'Declined');
         expect(
           result.callId,
