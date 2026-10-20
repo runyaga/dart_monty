@@ -30,7 +30,7 @@ Future<MontyValue> _eval(String expr) async {
 }
 
 /// The pool every runtime in this file checks out from.
-late Monty pool;
+late final Monty pool;
 
 void main() {
   setUpAll(() async => pool = await startTestPool());

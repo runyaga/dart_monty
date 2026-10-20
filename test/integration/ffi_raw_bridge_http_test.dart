@@ -40,7 +40,7 @@ HostFunction _httpGetFn() => HostFunction(
 const _url = 'https://demo.toughserv.com/api/v1/installation/versions';
 
 /// The pool the runtime tests check out from.
-late Monty pool;
+late final Monty pool;
 
 void main() {
   setUpAll(() async => pool = await startTestPool());

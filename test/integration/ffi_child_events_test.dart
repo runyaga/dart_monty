@@ -27,7 +27,7 @@ Future<MontyRuntime> _runtimeWithSandbox() =>
 Future<void> _settle() => Future.delayed(const Duration(milliseconds: 300));
 
 /// The pool every runtime in this file checks out from.
-late Monty pool;
+late final Monty pool;
 
 void main() {
   setUpAll(
