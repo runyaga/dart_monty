@@ -167,6 +167,7 @@ void main() {
             args.first.dartValue == '/parent/b') {
           throw const ExternalException('OSError', 'destination unavailable');
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -219,6 +220,7 @@ void main() {
                 os: w.call,
               ),
             );
+
             return const MontyNone();
           },
         ),
@@ -228,6 +230,7 @@ void main() {
           schema: const HostFunctionSchema(name: 'collect_output'),
           handler: (_, _) async {
             await transfers.collect(captured!, {'in': '/parent/out'});
+
             return const MontyNone();
           },
         ),
@@ -286,6 +289,7 @@ collect_output()
         schema: const HostFunctionSchema(name: 'collect_live'),
         handler: (_, _) async {
           await transfers.collect(w, {'in': '/parent/out'});
+
           return const MontyNone();
         },
       ),
@@ -306,6 +310,7 @@ collect_output()
           admitted.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
     );

@@ -80,6 +80,7 @@ void main() {
         final result = await helpFn.handler!({
           'name': MontyValue.fromDart(name),
         }, _testCtx);
+
         return (result as MontyString).value;
       }
 
@@ -304,6 +305,7 @@ class _FakeBridge implements MontyBridge {
       }
       if (schemas.isNotEmpty) result[entry.key] = schemas;
     }
+
     return result;
   }
 

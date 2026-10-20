@@ -80,6 +80,7 @@ void main() {
           ctx
             ..emitText('Hello ')
             ..emitText('world');
+
           return const MontyString('done');
         });
       await h.setup();
@@ -171,6 +172,7 @@ void main() {
       h = MontyHarness()
         ..registerTool('capture_id', (args, ctx) async {
           execIds.add(ctx.executionId);
+
           return MontyValue.fromDart(ctx.executionId);
         });
       await h.setup();

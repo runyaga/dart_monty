@@ -21,6 +21,7 @@ void main() {
           buildRunScriptFunction((path) async {
             final code = vfs[path];
             if (code == null) throw Exception('file not found: $path');
+
             return code;
           }),
         );

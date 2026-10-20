@@ -40,6 +40,7 @@ void main() {
               fake.willReturn(const MontyInt(42));
               final session = RecordingSession(fake);
               sessions.add(session);
+
               return session;
             },
           );
@@ -115,6 +116,7 @@ void main() {
                 await pool.checkout(limits: limits),
               );
               sessions.add(session);
+
               return session;
             },
           );

@@ -200,6 +200,7 @@ void main() {
           schema: const HostFunctionSchema(name: 'fn', description: ''),
           handler: (_, _) async {
             called = true;
+
             return const MontyString('ok');
           },
         ),
@@ -245,6 +246,7 @@ void main() {
           if (operation == 'os.getenv') {
             return const MontyString('production');
           }
+
           return const MontyNone();
         });
 
@@ -378,6 +380,7 @@ void main() {
             schema: const HostFunctionSchema(name: 'peek', description: ''),
             handler: (_, ctx) async {
               captured = ctx.os;
+
               return const MontyNone();
             },
           ),
@@ -419,6 +422,7 @@ void main() {
             schema: const HostFunctionSchema(name: 'peek_os', description: ''),
             handler: (_, ctx) async {
               capturedOs = ctx.os;
+
               return const MontyNone();
             },
           ),
@@ -495,6 +499,7 @@ void main() {
             ctx
               ..emitText('progress 1')
               ..emitText('progress 2');
+
             return const MontyString('done');
           },
         ),
@@ -513,6 +518,7 @@ void main() {
             ctx
               ..emitText('one')
               ..emitText('two');
+
             return const MontyString('done');
           },
         ),
@@ -550,6 +556,7 @@ void main() {
                   argumentSummary: "'HOME'",
                 ),
               );
+
               return const MontyNone();
             },
           ),
@@ -578,6 +585,7 @@ void main() {
             ctx
               ..emitText('first')
               ..emitText('second');
+
             return const MontyString('done');
           },
         ),
@@ -1494,15 +1502,19 @@ void main() {
         b
           ..addStreamWrapper((code, stream) {
             order.add('first');
+
             return stream.map((e) {
               order.add('inner:${e.runtimeType}');
+
               return e;
             });
           })
           ..addStreamWrapper((code, stream) {
             order.add('second');
+
             return stream.map((e) {
               order.add('outer:${e.runtimeType}');
+
               return e;
             });
           });
@@ -1529,6 +1541,7 @@ void main() {
       var wrapperCalls = 0;
       b.addStreamWrapper((code, stream) {
         if (wrapperCalls++ == 0) throw StateError('wrapper failure');
+
         return stream;
       });
       fake.willReturn(const MontyInt(2));
@@ -1670,6 +1683,7 @@ void main() {
       () async {
         bridge.registerOs((name, args, kwargs) async {
           await Future<void>.delayed(const Duration(milliseconds: 20));
+
           return const MontyString('late');
         });
         fake
@@ -1801,6 +1815,7 @@ void main() {
         addTearDown(bridge.dispose);
         bridge.registerOs((name, args, kwargs) {
           called.complete();
+
           return pending.future;
         });
         fake

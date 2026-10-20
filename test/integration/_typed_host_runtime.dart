@@ -59,6 +59,7 @@ void registerTypedHostRuntimeTests() {
   Future<MontyRuntime> start({bool sandbox = false}) async {
     final runtime = await MontyRuntime.start(pool: pool, sandbox: sandbox);
     addTearDown(runtime.dispose);
+
     return runtime;
   }
 
@@ -78,6 +79,7 @@ void registerTypedHostRuntimeTests() {
             ) async {
               final value = args['x']!;
               seen.add(value);
+
               return MontyBool(identical(value, sentinel));
             }
 
@@ -161,6 +163,7 @@ void registerTypedHostRuntimeTests() {
               handler: (_, ctx) async {
                 expect(Zone.current[key], same(marker));
                 tokens.add(ctx.cancelToken);
+
                 return const MontyNone();
               },
             ),
@@ -202,6 +205,7 @@ void registerTypedHostRuntimeTests() {
           handler: (_, ctx) async {
             entered.complete();
             await ctx.cancelToken.future;
+
             return const MontyNone();
           },
         ),
@@ -305,6 +309,7 @@ void registerTypedHostRuntimeTests() {
           dispatch: mode,
           handler: (args, _) async {
             seen.add(args['x']!);
+
             return args['x']!;
           },
         ),

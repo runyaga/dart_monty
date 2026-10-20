@@ -39,6 +39,7 @@ void main() {
     var called = false;
     final os = w.compose((name, args, kwargs) {
       called = true;
+
       return const MontyString('parent secret');
     });
     expect(

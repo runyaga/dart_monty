@@ -1116,6 +1116,7 @@ class _MockBridge implements MontyBridge {
       }
       if (schemas.isNotEmpty) result[entry.key] = schemas;
     }
+
     return result;
   }
 

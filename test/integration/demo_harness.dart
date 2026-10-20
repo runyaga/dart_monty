@@ -89,6 +89,7 @@ class DemoServer {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final demo = DemoServer._(server, p.canonicalize(root));
     unawaited(demo._accept());
+
     return demo;
   }
 
@@ -238,6 +239,7 @@ class PageLoad {
     for (final e in examples.where((e) => !e.ok)) {
       buffer.writeln('example:     $e');
     }
+
     return buffer.toString();
   }
 }
@@ -333,6 +335,7 @@ class Chrome {
         if (path.isNotEmpty) return path;
       }
     }
+
     return null;
   }
 
@@ -365,6 +368,7 @@ class Chrome {
           final socket = await WebSocket.connect(
             'ws://127.0.0.1:${lines[0]}${lines[1]}',
           );
+
           return Chrome._(process, socket, profile);
         }
       }
@@ -409,6 +413,7 @@ class Chrome {
         'sessionId': ?sessionId,
       }),
     );
+
     return completer.future.timeout(timeout);
   }
 
@@ -427,6 +432,7 @@ class Chrome {
               const <String, dynamic>{},
         );
       }
+
       return;
     }
     _events.add(message);
@@ -583,6 +589,7 @@ class Chrome {
     try {
       final value = await _evaluateString(sessionId, _bootProbeJs);
       if (value == null) return null;
+
       return jsonDecode(value) as Map<String, dynamic>;
     } on Object catch (_) {
       return null;
@@ -595,6 +602,7 @@ class Chrome {
       final text = entry as String;
       if (!out.contains(text)) out.add(text);
     }
+
     return out;
   }
 
@@ -614,6 +622,7 @@ class Chrome {
       );
     } on Object catch (e) {
       stopwatch.stop();
+
       return ExampleRun(
         key: key,
         ok: false,
@@ -633,6 +642,7 @@ class Chrome {
       );
     }
     final decoded = jsonDecode(value) as Map<String, dynamic>;
+
     return ExampleRun(
       key: key,
       ok: decoded['ok'] as bool,
@@ -662,6 +672,7 @@ class Chrome {
     if (details != null) {
       throw StateError('evaluate threw: ${jsonEncode(details)}');
     }
+
     return (result['result'] as Map<String, dynamic>?)?['value'] as String?;
   }
 }
@@ -696,6 +707,7 @@ List<String> trackedFiles(String pattern) {
       'would make this gate verify nothing at all, so it fails instead.',
     );
   }
+
   return files;
 }
 
@@ -707,6 +719,7 @@ List<String> trackedFiles(String pattern) {
 /// were in before this gate existed.
 List<String> scriptsLoadedBy(String pageFile) {
   final html = File(pageFile).readAsStringSync();
+
   return RegExp(
     r'''src=["']([A-Za-z0-9_]+\.dart\.js)["']''',
   ).allMatches(html).map((m) => m.group(1)!).toSet().toList()..sort();
@@ -756,5 +769,6 @@ List<String> exampleKeysInHtml(String html) {
     if (key.isEmpty || keys.contains(key)) continue;
     keys.add(key);
   }
+
   return keys;
 }

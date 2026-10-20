@@ -39,6 +39,7 @@ void main() {
     );
     addTearDown(runtime.dispose);
     await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
+
     return runtime;
   }
 
@@ -373,6 +374,7 @@ class _ContextCapturingExtension extends MontyExtension {
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) {
     onContext(context);
+
     return _ContextCapturingExtension(onContext: onContext);
   }
 }

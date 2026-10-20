@@ -82,6 +82,7 @@ void main() {
           (args, ctx) async {
             final n = args['n']!.dartValue;
             if (n is! int) throw ArgumentError('n must be int, got $n');
+
             return MontyInt(n * 2);
           },
           params: [
@@ -131,6 +132,7 @@ void main() {
           (args, ctx) async {
             final name = (args['name']! as MontyString).value;
             final lang = args['lang']!.dartValue as String? ?? 'en';
+
             return MontyValue.fromDart(
               lang == 'es' ? 'Hola, $name!' : 'Hello, $name!',
             );

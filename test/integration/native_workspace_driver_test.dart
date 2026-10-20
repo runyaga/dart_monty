@@ -110,6 +110,7 @@ values
             await barrier.future.timeout(const Duration(seconds: 2));
             await Future<void>.delayed(Duration(milliseconds: n));
             completed.add(n);
+
             return MontyInt(n);
           }),
         ),
@@ -135,6 +136,7 @@ values
             args.first == MontyPath('/b')) {
           throw const ExternalException('OSError', 'second destination failed');
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -175,6 +177,7 @@ values
           entered.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -247,6 +250,7 @@ values
         },
         () {
           calls.add('workspace');
+
           return w.dispose();
         },
       ]),
@@ -265,6 +269,7 @@ values
       externalLookup: {
         'hold': MontyHostFunction('hold', (_, _) {
           entered.complete();
+
           return release.future;
         }),
       },
@@ -444,6 +449,7 @@ Path('/work/output').read_text()
               transfers.collect(child, {'out': 'relative'}),
               throwsA(isA<ExternalException>()),
             );
+
             return const MontyNone();
           } finally {
             await child.dispose();
@@ -839,6 +845,7 @@ final class _MountRecordingSession implements MontySession {
     bool skipTypeCheck = false,
   }) {
     mounts = mount;
+
     return inner.feedStart(
       code,
       inputs: inputs,

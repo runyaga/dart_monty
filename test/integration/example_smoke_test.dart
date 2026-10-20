@@ -45,6 +45,7 @@ void main() {
           final skipReason = _skipReasons[ex];
           if (skipReason != null) {
             markTestSkipped(skipReason);
+
             return;
           }
           // RUN INSIDE example/, NOT THE REPO ROOT.

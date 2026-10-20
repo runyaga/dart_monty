@@ -167,6 +167,7 @@ void registerBoundsTests({String? Function()? backing}) {
         parent.call('Path.read_text', [MontyPath(destination)], {}),
         const MontyString('x'),
       );
+
       return;
     }
     final name = 'a' * 4090;
@@ -202,6 +203,7 @@ void registerBoundsTests({String? Function()? backing}) {
         parent: (name, args, kwargs) {
           if (name == 'Path.is_symlink') return const MontyBool(true);
           descended = true;
+
           return parent.call(name, args, kwargs);
         },
         files: {'root': '/root'},
@@ -224,6 +226,7 @@ void registerBoundsTests({String? Function()? backing}) {
         sandboxBaseDir: backing?.call(),
         parent: (name, args, kwargs) {
           if (name == 'Path.stat') return StatResult.fileStat(0);
+
           return parent.call(name, args, kwargs);
         },
         files: {'a': '/a'},
@@ -276,6 +279,7 @@ void registerBoundsTests({String? Function()? backing}) {
           entered.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},
@@ -289,6 +293,7 @@ void registerBoundsTests({String? Function()? backing}) {
       sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
         reads++;
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},
@@ -314,6 +319,7 @@ void registerBoundsTests({String? Function()? backing}) {
         if (name == 'Path.read_bytes' && reject) {
           throw const ExternalException('OSError', 'failed read');
         }
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},

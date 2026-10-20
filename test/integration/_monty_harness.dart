@@ -317,6 +317,7 @@ class MontyHarness {
   /// The live [MontyRuntime] — available after [setup()].
   MontyRuntime get runtime {
     _assertSetup();
+
     return _runtime!;
   }
 
@@ -325,6 +326,7 @@ class MontyHarness {
   /// All tool calls are recorded in [calls].
   Future<MontyValue> run(String code) {
     _assertSetup();
+
     return _runtime!.execute(code).result;
   }
 
@@ -336,6 +338,7 @@ class MontyHarness {
     final handle = _runtime!.execute(code);
     final events = await handle.events.toList();
     final result = await handle.result;
+
     return (result: result, events: events);
   }
 
@@ -347,6 +350,7 @@ class MontyHarness {
         (_fs.call('Path.read_text', [MontyPath(virtualPath)], {})
                 as MontyString)
             .value;
+
     return run(content);
   }
 
@@ -372,6 +376,7 @@ class MontyHarness {
         for (final entry in args.entries) {
           if (c.args[entry.key] != entry.value) return false;
         }
+
         return true;
       }).toList();
       if (withArgs.isEmpty) {
@@ -455,12 +460,14 @@ class MontyHarness {
         record
           ..result = fault.override
           ..duration = DateTime.now().difference(record.startedAt);
+
         return MontyValue.fromDart(fault.override);
       }
       final result = await next();
       record
         ..result = result.dartValue
         ..duration = DateTime.now().difference(record.startedAt);
+
       return result;
     } catch (e) {
       record
