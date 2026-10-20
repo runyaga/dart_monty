@@ -47,7 +47,6 @@
     "test/src/extensions/run_script_test.dart": 3,
     "test/src/host/function_test.dart": 9,
     "test/src/host/param_test.dart": 2,
-    "test/src/host/schema_test.dart": 1,
     "test/src/host/sub_execute_test.dart": 43,
     "test/src/os_call/os_handlers_test.dart": 2,
     "test/src/runtime/runtime_pool_test.dart": 81,
@@ -55,7 +54,6 @@
   },
   "by_rule": {
     "avoid-global-state": 3,
-    "avoid-missing-enum-constant-in-map": 1,
     "avoid-shadowing": 5,
     "avoid-unnecessary-futures": 12,
     "avoid-unsafe-collection-methods": 425,
@@ -66,5 +64,5 @@
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 658
+  "total": 657
 }

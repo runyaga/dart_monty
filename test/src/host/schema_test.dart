@@ -31,6 +31,7 @@ void main() {
         HostParamType.boolean: 'boolean',
         HostParamType.list: 'array',
         HostParamType.map: 'object',
+        HostParamType.any: null,
       };
 
       for (final entry in cases.entries) {
