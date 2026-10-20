@@ -397,11 +397,12 @@ void main() {
 
         // States collected: idle (initial effect run), executing, waiting,
         // executing (dispatch), completed.
+        final executingState = isA<EventLoopExecuting>();
         expect(states, [
           isA<EventLoopIdle>(),
-          isA<EventLoopExecuting>(),
+          executingState,
           isA<EventLoopWaiting>(),
-          isA<EventLoopExecuting>(),
+          executingState,
           isA<EventLoopCompleted>(),
         ]);
       },

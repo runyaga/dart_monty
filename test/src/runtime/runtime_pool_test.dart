@@ -97,7 +97,8 @@ void main() {
   group('shared mode', () {
     test('holds one checkout from start, and runs every feed on it', () async {
       final runtime = await start();
-      expect(sessions, hasLength(1));
+      final oneSession = hasLength(1);
+      expect(sessions, oneSession);
 
       sessions.single.willReturn(const MontyInt(1));
       await runtime.execute('a').result;
@@ -105,7 +106,7 @@ void main() {
       final value = await runtime.execute('b').result;
 
       expect(value, const MontyInt(2));
-      expect(sessions, hasLength(1));
+      expect(sessions, oneSession);
       expect(sessions.single.feeds, ['a', 'b']);
       expect(sessions.single.isClosed, isFalse);
     });
@@ -308,8 +309,9 @@ void main() {
         final runtime = await startRecorded();
         await runtime.execute('pass', inputs: inputs).result;
 
-        expect(recorded.feeds.single.inputs ?? const {}, isEmpty);
-        expect(recorded.feeds.single.code, 'pass');
+        final feed = recorded.feeds.single;
+        expect(feed.inputs ?? const {}, isEmpty);
+        expect(feed.code, 'pass');
       }
       final runtime = await startRecorded();
       await runtime.execute('pass').result;
@@ -325,11 +327,12 @@ void main() {
           .execute('x', inputs: {'n': 1, 'none': null, 't': tuple})
           .result;
 
-      final inputs = recorded.feeds.single.inputs!;
+      final feed = recorded.feeds.single;
+      final inputs = feed.inputs!;
       expect(inputs['n'], const MontyInt(1));
       expect(inputs['none'], const MontyNone());
       expect(inputs['t'], same(tuple));
-      expect(recorded.feeds.single.code, 'x');
+      expect(feed.code, 'x');
     });
 
     test('a value fromDart refuses is an ArgumentError from execute, before '
@@ -484,10 +487,11 @@ void main() {
       await failed;
       final cleared = sessions.last;
 
-      expect(sessions, hasLength(2));
+      final twoSessions = hasLength(2);
+      expect(sessions, twoSessions);
       cleared.willReturn(const MontyInt(7));
       expect(await runtime.execute('x').result, const MontyInt(7));
-      expect(sessions, hasLength(2));
+      expect(sessions, twoSessions);
       expect(cleared.isClosed, isFalse);
     });
 
@@ -516,13 +520,14 @@ void main() {
       // clearState kills the busy session and installs a new one; only then
       // does the old feed report its crash.
       await runtime.clearState();
-      expect(checkouts, hasLength(2));
+      final twoCheckouts = hasLength(2);
+      expect(checkouts, twoCheckouts);
       release.complete();
       await failed;
 
       (checkouts.last.inner as FakeMontySession).willReturn(const MontyInt(7));
       expect(await runtime.execute('x').result, const MontyInt(7));
-      expect(checkouts, hasLength(2));
+      expect(checkouts, twoCheckouts);
       expect(first.feeds.map((f) => f.code), ['loop()']);
     });
 

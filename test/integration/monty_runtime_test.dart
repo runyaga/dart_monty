@@ -535,10 +535,12 @@ result
         );
         addTearDown(session.dispose);
 
-        await session.execute('pass').result;
+        final firstPass = session.execute('pass');
+        await firstPass.result;
         expect(plugin.disposeCount, 1);
 
-        await session.execute('pass').result;
+        final secondPass = session.execute('pass');
+        await secondPass.result;
         expect(
           plugin.disposeCount,
           2,
@@ -1033,14 +1035,16 @@ result
         extensions: [TemplateStubExtension()],
       );
       addTearDown(runtime.dispose);
+      final schemaNamesBefore = runtime.schemas.map((s) => s.name);
       expect(
-        runtime.schemas.map((s) => s.name),
+        schemaNamesBefore,
         isNot(contains('tmpl_render')),
       );
 
       await runtime.execute('pass').result;
 
-      expect(runtime.schemas.map((s) => s.name), contains('tmpl_render'));
+      final schemaNamesAfter = runtime.schemas.map((s) => s.name);
+      expect(schemaNamesAfter, contains('tmpl_render'));
     });
 
     test(

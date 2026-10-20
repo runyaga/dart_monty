@@ -129,17 +129,18 @@ void main() {
         ..willReturn(const MontyNone());
 
       final events = await bridge.execute('slow_fail()').toList();
+      final hasOne = hasLength(1);
 
       // The bridge should have completed (not deadlocked) and the error
       // should have been captured when the future settled.
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+      expect(events.whereType<BridgeRunFinished>(), hasOne);
 
       // The error was settled into the futures batch as an exception.
       final settled = [
         for (final a in fake.answers)
           if (a.batch != null && a.answer is ExternalException) a,
       ];
-      expect(settled, hasLength(1));
+      expect(settled, hasOne);
       expect(settled.single.callId, id);
       expect(
         (settled.single.answer! as ExternalException).message,
@@ -176,16 +177,17 @@ void main() {
           ..willReturn(const MontyNone());
 
         final events = await bridge.execute('await explode()').toList();
+        final hasOne = hasLength(1);
 
         // Bridge should have emitted a BridgeRunFinished (not deadlocked).
-        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        expect(events.whereType<BridgeRunFinished>(), hasOne);
 
         // The sync throw settled the call's future as an exception.
         final settled = [
           for (final a in fake.answers)
             if (a.batch != null && a.answer is ExternalException) a,
         ];
-        expect(settled, hasLength(1));
+        expect(settled, hasOne);
         expect(settled.single.callId, id);
         expect(
           (settled.single.answer! as ExternalException).message,
@@ -228,14 +230,15 @@ void main() {
           ..willReturn(const MontyNone());
 
         final events = await bridge.execute('path.read_text()').toList();
+        final hasOne = hasLength(1);
 
         // Should have completed (not deadlocked).
-        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        expect(events.whereType<BridgeRunFinished>(), hasOne);
 
         // With no handler the call is declined: the worker computes the
         // default (PermissionError naming the path), so the recorded answer
         // is not_handled (null), and the call emits no OS events.
-        expect(fake.answers, hasLength(1));
+        expect(fake.answers, hasOne);
         expect(fake.answers.single.answer, isNull);
         expect(events.whereType<BridgeOsCallStart>(), isEmpty);
         expect(events.whereType<BridgeOsCallResult>(), isEmpty);
@@ -261,18 +264,19 @@ void main() {
           ..willReturn(const MontyNone());
 
         final events = await bridge.execute('os.getenv("APP_ENV")').toList();
+        final hasOne = hasLength(1);
 
-        expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+        expect(events.whereType<BridgeRunFinished>(), hasOne);
 
         // Should have answered with the handler result.
         expect(_returnAnswers(fake), [const MontyString('production')]);
 
         // Should have emitted OsCall events.
         final starts = events.whereType<BridgeOsCallStart>().toList();
-        expect(starts, hasLength(1));
+        expect(starts, hasOne);
         expect(starts.first.operationName, 'os.getenv');
         final results = events.whereType<BridgeOsCallResult>().toList();
-        expect(results, hasLength(1));
+        expect(results, hasOne);
         expect(results.first.result, 'production');
       },
     );
@@ -291,18 +295,20 @@ void main() {
         ..willReturn(const MontyNone());
 
       final events = await bridge.execute('path.write_text()').toList();
+      final hasOne = hasLength(1);
+      final containsDiskOnFire = contains('disk on fire');
 
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
+      expect(events.whereType<BridgeRunFinished>(), hasOne);
 
       // Should have answered with an exception carrying the text.
       final errors = _errorAnswers(fake);
-      expect(errors, hasLength(1));
-      expect(errors.first.message, contains('disk on fire'));
+      expect(errors, hasOne);
+      expect(errors.first.message, containsDiskOnFire);
 
       // OsCallResult should contain the error.
       final results = events.whereType<BridgeOsCallResult>().toList();
-      expect(results, hasLength(1));
-      expect(results.first.result, contains('disk on fire'));
+      expect(results, hasOne);
+      expect(results.first.result, containsDiskOnFire);
     });
 
     test('registerOs after dispose throws StateError', () {
@@ -395,8 +401,9 @@ void main() {
 
         b.registerOs(handlerA);
         await b.invokeHostFunction('peek', const {});
-        expect(captured, same(handlerA));
-        expect(b.currentOsHandler, same(handlerA));
+        final sameHandlerA = same(handlerA);
+        expect(captured, sameHandlerA);
+        expect(b.currentOsHandler, sameHandlerA);
 
         // Override to B, confirm swap visible to handlers.
         b.setOsHandler(handlerB);
@@ -406,7 +413,7 @@ void main() {
         // Restore A.
         b.setOsHandler(handlerA);
         await b.invokeHostFunction('peek', const {});
-        expect(captured, same(handlerA));
+        expect(captured, sameHandlerA);
 
         // Clear via null.
         b.setOsHandler(null);
@@ -718,7 +725,7 @@ void main() {
       expect(bridge.schemas.map((s) => s.name), contains('temp'));
 
       bridge.unregister('temp');
-      expect(bridge.schemas.map((s) => s.name), isNot(contains('temp')));
+      expect(bridge.schemas.any((s) => s.name == 'temp'), isFalse);
     });
 
     test('unregister non-existent function does not throw', () {
@@ -771,8 +778,9 @@ void main() {
         ..willReturn(const MontyNone());
 
       final events = await syncBridge.execute('need_param()').toList();
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(_errorAnswers(syncSession), hasLength(1));
+      final hasOne = hasLength(1);
+      expect(events.whereType<BridgeRunFinished>(), hasOne);
+      expect(_errorAnswers(syncSession), hasOne);
     });
 
     test('FormatException in futures path resumes with error', () async {
@@ -795,8 +803,9 @@ void main() {
         ..willReturn(const MontyNone());
 
       final events = await bridge.execute('need_param()').toList();
-      expect(events.whereType<BridgeRunFinished>(), hasLength(1));
-      expect(_errorAnswers(fake), hasLength(1));
+      final hasOne = hasLength(1);
+      expect(events.whereType<BridgeRunFinished>(), hasOne);
+      expect(_errorAnswers(fake), hasOne);
     });
   });
 
@@ -1190,12 +1199,13 @@ void main() {
       expect(called, isFalse);
       final lines = events.map(_line).toList();
       expect(lines.sublist(1, 3), ['CallStarted 2', 'FunctionCallStart 2 fn']);
+      final containsMissingX = contains('Required parameter "x" is missing');
       expect(lines[3], startsWith('FunctionCallResult 2 Error: '));
-      expect(lines[3], contains('Required parameter "x" is missing'));
+      expect(lines[3], containsMissingX);
       expect(lines.sublist(4), ['CallFinished 2', 'RunFinished']);
       final error = _errorAnswers(fake).single;
       expect(error.excType, 'RuntimeError');
-      expect(error.message, contains('Required parameter "x" is missing'));
+      expect(error.message, containsMissingX);
     });
 
     test('a handler throw raises RuntimeError with its text', () async {

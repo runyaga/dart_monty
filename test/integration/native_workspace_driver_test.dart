@@ -306,19 +306,21 @@ values
     );
     final outside = Directory('${base.path}/outside')..createSync();
     File('${outside.path}/secret').writeAsStringSync('unchanged');
-    Link('${owned.path}/escape').createSync(outside.absolute.path);
+    final escapeTarget = outside.absolute.path;
+    final throwsMontyError = throwsA(isA<MontyError>());
+    Link('${owned.path}/escape').createSync(escapeTarget);
     await expectLater(
       w.driver(session)(
         "from pathlib import Path\nPath('escape/secret').write_text('bad')",
       ),
-      throwsA(isA<MontyError>()),
+      throwsMontyError,
     );
     expect(File('${outside.path}/secret').readAsStringSync(), 'unchanged');
     Link('${owned.path}/escape').deleteSync();
-    Link('${owned.path}/dir/escape').createSync(outside.absolute.path);
+    Link('${owned.path}/dir/escape').createSync(escapeTarget);
     await expectLater(
       w.driver(session)("Path('dir').rename('moved')"),
-      throwsA(isA<MontyError>()),
+      throwsMontyError,
     );
     expect(Directory('${owned.path}/dir').existsSync(), true);
     expect(Directory('${owned.path}/moved').existsSync(), false);
@@ -482,9 +484,10 @@ Path('/work/output').read_text()
     addTearDown(finite.close);
     final held = await finite.checkout();
     final adapter = PersistentTransfer(finite, [overlay]);
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       adapter.call('Path.stat', [MontyPath('/work/seed')], {}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     final persistent = PersistentTransfer(finite, [readonly]);
     await expectLater(
@@ -501,7 +504,7 @@ Path('/work/output').read_text()
         MontyPath('/work/seed'),
         MontyBytes(Uint8List.fromList([1])),
       ], {}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     expect(File('${root.path}/seed').readAsStringSync(), 'disk');
   });
@@ -745,8 +748,9 @@ Path('/work/output').read_text()
     } finally {
       await oracle.close();
     }
-    expect(manual, isA<MontyRuntimeError>());
-    expect(automatic, isA<MontyRuntimeError>());
+    final isRuntimeError = isA<MontyRuntimeError>();
+    expect(manual, isRuntimeError);
+    expect(automatic, isRuntimeError);
     expect(manual?.exception.excType, automatic?.exception.excType);
     expect(manual?.exception.message, automatic?.exception.message);
     expect(

@@ -10,7 +10,8 @@ import '_child_contract.dart';
 void main() {
   test('two children borrow an inherited extension', () async {
     final pool = await childContractPool();
-    final parentBridge = await childContractBridge(pool);
+    final parentBridgeFuture = childContractBridge(pool);
+    final parentBridge = await parentBridgeFuture;
     final borrowed = ChildContractExtension(
       'borrowed',
       childPolicy: ChildPolicy.inherit,
@@ -21,7 +22,8 @@ void main() {
     final children = <ExtensionCoordinator>[];
     final bridges = <MontyBridge>[];
     for (var id = 0; id < 2; id++) {
-      final bridge = await childContractBridge(pool);
+      final bridgeFuture = childContractBridge(pool);
+      final bridge = await bridgeFuture;
       bridges.add(bridge);
       children.add(
         await parent.spawnChild(
@@ -62,7 +64,8 @@ void main() {
   // Clone and exclude ownership are independent of borrowed instance leases.
   test('children own their clones and skip excluded extensions', () async {
     final pool = await childContractPool();
-    final parentBridge = await childContractBridge(pool);
+    final parentBridgeFuture = childContractBridge(pool);
+    final parentBridge = await parentBridgeFuture;
     final cloneable = ChildContractExtension('owned');
     final excluded = ChildContractExtension(
       'excluded',
@@ -75,7 +78,8 @@ void main() {
     final children = <ExtensionCoordinator>[];
     final bridges = <MontyBridge>[];
     for (var id = 0; id < 2; id++) {
-      final bridge = await childContractBridge(pool);
+      final bridgeFuture = childContractBridge(pool);
+      final bridge = await bridgeFuture;
       bridges.add(bridge);
       children.add(
         await parent.spawnChild(

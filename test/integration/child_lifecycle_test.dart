@@ -388,11 +388,12 @@ sandbox_await(h, collect={'output': '/parent/second'})
           expect(await awaitChild(runtime, handle), const MontyInt(42));
         }
         expect(extension.clones.single.disposals, 1);
-        expect(sessions[1].closeCalls, 1);
+        final childSession = sessions[1];
+        expect(childSession.closeCalls, 1);
         await freeChild(runtime, handle);
         await spawnChild(runtime, '7');
         await runtime.dispose();
-        expect(sessions[1].closeCalls, 1);
+        expect(childSession.closeCalls, 1);
       },
     );
   }

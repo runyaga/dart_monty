@@ -19,9 +19,10 @@ void main() {
     });
 
     test('composeOsHandlers routes "open" to the Path. handler', () async {
+      final fsHandler = stubHandler('fs');
       final handler = dartCall(
         composeOsHandlers({
-          'Path.': stubHandler('fs'),
+          'Path.': fsHandler,
           'os.': stubHandler('env'),
         }),
       );
@@ -30,7 +31,7 @@ void main() {
       // The old name must NOT route -- it falls through to the fallback.
       final withFallback = dartCall(
         composeOsHandlers({
-          'Path.': stubHandler('fs'),
+          'Path.': fsHandler,
         }, fallback: stubHandler('fallback')),
       );
       expect(await withFallback('Open', ['/a.txt', 'r'], null), 'fallback');

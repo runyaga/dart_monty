@@ -133,10 +133,12 @@ void main() {
                   ),
           );
           final call = script ? "run_script('child.py')" : 'probe()';
+          final isMontyError = isA<MontyError>();
+          final failingRun = runtime.execute(call);
           await expectLater(
-            runtime.execute(call).result,
+            failingRun.result,
             throwsA(
-              isA<MontyError>().having(
+              isMontyError.having(
                 (e) => e.exception.excType,
                 'outer type',
                 'RuntimeError',
@@ -146,7 +148,7 @@ void main() {
           expect(sessions, hasLength(2));
           expect(
             sessions[1].feedError,
-            isA<MontyError>()
+            isMontyError
                 .having(
                   (e) => e.exception.excType,
                   'nested type',

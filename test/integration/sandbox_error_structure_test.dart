@@ -40,11 +40,12 @@ void main() {
               .map((e) => e.inner)
               .whereType<BridgeRunError>()
               .single;
+          final childError = error.exception?.exception;
           expect(
-            error.exception?.exception.excType,
+            childError?.excType,
             syntax ? 'SyntaxError' : 'NameError',
           );
-          expect(error.exception?.exception.message, isNotEmpty);
+          expect(childError?.message, isNotEmpty);
         },
       );
     }

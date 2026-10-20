@@ -173,10 +173,11 @@ void main() {
         // Each child increments its own counter independently.
         // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
         final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
+        final spawned = spawn(cc);
         final result = await run(
           bridge,
-          'h1 = ${spawn(cc)}\n'
-          'h2 = ${spawn(cc)}\n'
+          'h1 = $spawned\n'
+          'h2 = $spawned\n'
           'r1 = sandbox_await(handle=h1)\n'
           'r2 = sandbox_await(handle=h2)\n'
           '[r1, r2]',

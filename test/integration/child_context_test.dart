@@ -86,8 +86,9 @@ void main() {
     final handle = await spawnChild(runtime, 'nested_run()');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     expect(sessions, hasLength(3));
-    expect(observed[1], same(selected));
-    expect(observed[2], same(selected));
+    final sameLimits = same(selected);
+    expect(observed[1], sameLimits);
+    expect(observed[2], sameLimits);
     expect(sessions[1].closeCalls, 1);
     expect(sessions[2].closeCalls, 1);
   });

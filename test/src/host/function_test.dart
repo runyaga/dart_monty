@@ -13,27 +13,30 @@ const _schema = HostFunctionSchema(name: 'f');
 void main() {
   test('handler installs one implementation on both backends', () {
     const fn = HostFunction(schema: _schema, handler: _a);
+    final sameA = same(_a);
 
-    expect(fn.ffiHandler, same(_a));
-    expect(fn.wasmHandler, same(_a));
+    expect(fn.ffiHandler, sameA);
+    expect(fn.wasmHandler, sameA);
   });
 
   test('a backend-specific handler wins over handler', () {
     const fn = HostFunction(schema: _schema, handler: _a, ffiHandler: _b);
     const web = HostFunction(schema: _schema, handler: _a, wasmHandler: _c);
+    final sameA = same(_a);
 
     expect(fn.ffiHandler, same(_b));
-    expect(fn.wasmHandler, same(_a));
-    expect(web.ffiHandler, same(_a));
+    expect(fn.wasmHandler, sameA);
+    expect(web.ffiHandler, sameA);
     expect(web.wasmHandler, same(_c));
   });
 
   test('handler is the current backend slot', () {
     const fn = HostFunction(schema: _schema, ffiHandler: _b, wasmHandler: _c);
     const ffiOnly = HostFunction(schema: _schema, ffiHandler: _b);
+    final sameB = same(_b);
 
-    expect(fn.handler, same(_b));
-    expect(ffiOnly.handler, same(_b));
+    expect(fn.handler, sameB);
+    expect(ffiOnly.handler, sameB);
   }, testOn: 'vm');
 
   test('handler is the wasm slot in a browser', () {

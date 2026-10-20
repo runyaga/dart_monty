@@ -136,7 +136,8 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r1.dartValue, isA<String>());
+        final isString = isA<String>();
+        expect(r1.dartValue, isString);
         expect(r1.dartValue, isNotEmpty);
 
         // This is the call that crashes on #271
@@ -145,7 +146,7 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.dartValue, isA<String>());
+        expect(r2.dartValue, isString);
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -190,14 +191,15 @@ void main() {
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r1.dartValue, isA<String>());
+        final isString = isA<String>();
+        expect(r1.dartValue, isString);
 
         final r2 = await session
             .execute(
               'http_get("https://demo.toughserv.com/api/v1/installation/versions")',
             )
             .result;
-        expect(r2.dartValue, isA<String>());
+        expect(r2.dartValue, isString);
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -221,10 +223,11 @@ void main() {
       );
 
       final r1 = await session.execute('read_file()').result;
-      expect(r1.dartValue, isA<String>());
+      final isString = isA<String>();
+      expect(r1.dartValue, isString);
 
       final r2 = await session.execute('read_file()').result;
-      expect(r2.dartValue, isA<String>());
+      expect(r2.dartValue, isString);
     });
 
     test('process I/O — two calls', () async {
@@ -273,10 +276,11 @@ void main() {
       );
 
       final r1 = await session.execute('socket_test()').result;
-      expect(r1.dartValue, startsWith('port:'));
+      final startsWithPort = startsWith('port:');
+      expect(r1.dartValue, startsWithPort);
 
       final r2 = await session.execute('socket_test()').result;
-      expect(r2.dartValue, startsWith('port:'));
+      expect(r2.dartValue, startsWithPort);
     });
 
     test(

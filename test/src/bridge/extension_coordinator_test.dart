@@ -79,11 +79,9 @@ void main() {
       registry.register(plugin);
 
       expect(registry.extensions, hasLength(1));
-      expect(registry.extensions.first.namespace, 'alpha');
-      expect(
-        registry.extensions.first.systemPromptContext,
-        'Alpha operations.',
-      );
+      final registered = registry.extensions.first;
+      expect(registered.namespace, 'alpha');
+      expect(registered.systemPromptContext, 'Alpha operations.');
     });
 
     test('multiple plugins register successfully', () {

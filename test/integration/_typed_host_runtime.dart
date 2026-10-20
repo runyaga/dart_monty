@@ -122,7 +122,7 @@ void registerTypedHostRuntimeTests() {
             );
             expect(identical(seen.last, sentinel), isTrue);
             expect(await runtime.invoke('probe', {}), const MontyBool(true));
-            expect(identical(seen.last, sentinel), isTrue);
+            expect(seen.last, same(sentinel));
             expect(
               await runtime.execute(_call(mode, 'None')).result,
               const MontyBool(false),
@@ -168,11 +168,10 @@ void registerTypedHostRuntimeTests() {
               },
             ),
           );
+          final probeCall = _call(mode, '');
           for (var run = 0; run < 2; run++) {
             await runZoned(
-              () => runtime
-                  .execute('${_call(mode, '')}\n${_call(mode, '')}')
-                  .result,
+              () => runtime.execute('$probeCall\n$probeCall').result,
               zoneValues: {key: marker},
             );
           }
@@ -317,7 +316,8 @@ void registerTypedHostRuntimeTests() {
       for (final code in ['1', '1.0', '-0.0', '2 ** 100']) {
         await runtime.execute(_call(mode, code)).result;
       }
-      expect(seen.first, isA<MontyInt>());
+      final isMontyInt = isA<MontyInt>();
+      expect(seen.first, isMontyInt);
       expect(seen[1], isA<MontyFloat>());
       expect((seen[2] as MontyFloat).value.isNegative, isTrue);
       expect((seen[3] as MontyBigInt).value, BigInt.one << 100);
@@ -328,7 +328,7 @@ void registerTypedHostRuntimeTests() {
           )
           .result;
       final pairs = (seen.last as MontyDict).pairs;
-      expect(pairs.first.$1, isA<MontyInt>());
+      expect(pairs.first.$1, isMontyInt);
       expect(pairs[1].$1, isA<MontyTuple>());
       expect(identical(pairs.first.$2, pairs[1].$2), isTrue);
     });

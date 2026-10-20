@@ -123,10 +123,12 @@ void main() {
     await runtime.execute('probe()').result;
 
     // The root feed has both; the sub-execution's has neither.
-    expect(sessions.first.feeds.single.os, isNotNull);
-    expect(sessions.first.feeds.single.externalLookup, contains('probe'));
-    expect(sessions[1].feeds.single.os, isNull);
-    expect(sessions[1].feeds.single.externalLookup, isNull);
+    final rootFeed = sessions.first.feeds.single;
+    final subFeed = sessions[1].feeds.single;
+    expect(rootFeed.os, isNotNull);
+    expect(rootFeed.externalLookup, contains('probe'));
+    expect(subFeed.os, isNull);
+    expect(subFeed.externalLookup, isNull);
   });
 
   test('closes its session and leaves the caller its own', () async {

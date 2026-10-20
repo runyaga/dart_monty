@@ -112,16 +112,17 @@ void main() {
     );
   });
   test('transfers reject a missing adapter', () async {
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(files: {'in': '/parent/in'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     final w = await transfers.copyIn();
     addTearDown(w.dispose);
     await h.run(w, "Path('out').write_text('x')");
     await expectLater(
       transfers.collect(w, {'out': '/parent/out'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
   });
   test('transfers preserve protected rename behavior', () async {
@@ -245,13 +246,14 @@ collect_output()
 (Path('/parent/in').read_text(), Path('/parent/out').read_text())
 """).toList();
     expect((events.last as BridgeRunFinished).value, ['source', 'independent']);
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(parent: parent.call, files: {'in': 'parent/in'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     await expectLater(
       transfers.collect(captured!, {'in': 'relative'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
   });
   test('T2-overlay-rejection', () async {
