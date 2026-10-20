@@ -24,8 +24,7 @@ Future<MontyRuntime> _runtimeWithSandbox() =>
 
 /// Child events are delivered asynchronously relative to `execute().result`,
 /// so settle the microtask/event queue before asserting on them.
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 300));
+Future<void> _settle() => Future.delayed(const Duration(milliseconds: 300));
 
 /// The pool every runtime in this file checks out from.
 late Monty pool;

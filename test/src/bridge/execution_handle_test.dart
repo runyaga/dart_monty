@@ -47,7 +47,7 @@ void main() {
       final token = CancelToken();
       const stubResult = MontyNone();
       final handle = ExecutionHandle(
-        events: const Stream<BridgeEvent>.empty(),
+        events: const Stream.empty(),
         result: Future.value(stubResult),
         executionId: 'exec-7',
         cancel: () async => token.cancel(),

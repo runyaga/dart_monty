@@ -786,7 +786,7 @@ Path('/work/output').read_text()
   }
 }
 
-const diskParity = <String, String>{
+const diskParity = {
   '01-read': "Path('seed').read_text()",
   '02-write': "Path('out').write_text('é')\nPath('out').read_text()",
   '03-bytes': "Path('out').write_bytes(b'abc')\nPath('out').read_bytes()",

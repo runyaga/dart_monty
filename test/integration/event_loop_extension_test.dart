@@ -143,7 +143,7 @@ total
       final emitted = <Map<String, Object?>>[];
       final cleanup = el.lastEmittedSignal.subscribe((v) {
         if (v != null) {
-          emitted.add(Map<String, Object?>.from(v.dartValue! as Map));
+          emitted.add(Map.from(v.dartValue! as Map));
         }
       });
 

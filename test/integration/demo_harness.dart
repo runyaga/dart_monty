@@ -69,7 +69,7 @@ class DemoServer {
   /// The origin pages should be loaded from, e.g. `http://127.0.0.1:53124`.
   String get origin => 'http://127.0.0.1:${_server.port}';
 
-  static const _contentTypes = <String, String>{
+  static const _contentTypes = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
@@ -306,7 +306,7 @@ class Chrome {
   bool _closed = false;
 
   /// Executables to try, in order, when `CHROME_EXECUTABLE` is not set.
-  static const _candidates = <String>[
+  static const _candidates = [
     'google-chrome-stable',
     'google-chrome',
     'chromium',
@@ -329,7 +329,7 @@ class Chrome {
         if (File(candidate).existsSync()) return candidate;
         continue;
       }
-      final which = Process.runSync('which', <String>[candidate]);
+      final which = Process.runSync('which', [candidate]);
       if (which.exitCode == 0) {
         final path = (which.stdout as String).trim();
         if (path.isNotEmpty) return path;
@@ -342,7 +342,7 @@ class Chrome {
   /// Launches [executable] headless with a throwaway profile and attaches.
   static Future<Chrome> launch(String executable) async {
     final profile = Directory.systemTemp.createTempSync('monty-demo-chrome-');
-    final process = await Process.start(executable, <String>[
+    final process = await Process.start(executable, [
       '--headless=new',
       '--disable-gpu',
       '--no-sandbox',
@@ -356,8 +356,8 @@ class Chrome {
     ]);
     // Drain both pipes. Chrome is chatty on stderr (dbus, GPU) and a full
     // pipe wedges the process with no error anywhere.
-    unawaited(process.stdout.drain<void>());
-    unawaited(process.stderr.drain<void>());
+    unawaited(process.stdout.drain());
+    unawaited(process.stderr.drain());
 
     final portFile = File(p.join(profile.path, 'DevToolsActivePort'));
     final deadline = DateTime.now().add(const Duration(seconds: 60));
@@ -688,7 +688,7 @@ class Chrome {
 /// A glob that matches nothing is a FAILURE, never an empty pass: that is how
 /// a rename turns a gate into a no-op that still reports success.
 List<String> trackedFiles(String pattern) {
-  final result = Process.runSync('git', <String>['ls-files', pattern]);
+  final result = Process.runSync('git', ['ls-files', pattern]);
   if (result.exitCode != 0) {
     throw StateError(
       'git ls-files $pattern failed (${result.exitCode}): ${result.stderr}',

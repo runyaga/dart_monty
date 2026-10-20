@@ -81,7 +81,7 @@ results = [get_weather(city=c)['temp'] for c in cities]
     late MontyHarness h;
 
     setUp(() async {
-      final db = <String, Map<String, Object?>>{
+      final db = {
         'user:alice': {'name': 'Alice', 'tier': 'premium', 'balance': 150},
         'user:bob': {'name': 'Bob', 'tier': 'free', 'balance': 0},
       };
