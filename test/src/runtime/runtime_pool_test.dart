@@ -680,7 +680,7 @@ void main() {
   });
   group('construction', () {
     test('rejects both os and osHandlers', () {
-      Never handler(String n, List<MontyValue> a, Map<String, MontyValue> k) =>
+      Never handler(String _, List<MontyValue> _, Map<String, MontyValue> _) =>
           throw const OsCallNotHandledException();
 
       expect(

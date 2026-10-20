@@ -364,14 +364,14 @@ void main() {
       'setOsHandler(null) clears; restoring via setOsHandler roundtrips',
       () async {
         MontyValue handlerA(
-          String op,
-          List<MontyValue> args,
-          Map<String, MontyValue> kwargs,
+          String _,
+          List<MontyValue> _,
+          Map<String, MontyValue> _,
         ) => const MontyString('A');
         MontyValue handlerB(
-          String op,
-          List<MontyValue> args,
-          Map<String, MontyValue> kwargs,
+          String _,
+          List<MontyValue> _,
+          Map<String, MontyValue> _,
         ) => const MontyString('B');
 
         final b = MontyBridge(session: fake) as SessionBridge;
@@ -437,9 +437,9 @@ void main() {
 
         // After registerOs: ctx.os is the registered handler.
         MontyValue handler(
-          String op,
-          List<MontyValue> args,
-          Map<String, MontyValue> kwargs,
+          String _,
+          List<MontyValue> _,
+          Map<String, MontyValue> _,
         ) => const MontyString('ok');
         bridge.registerOs(handler);
 

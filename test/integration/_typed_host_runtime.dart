@@ -75,7 +75,7 @@ void registerTypedHostRuntimeTests() {
             final seen = <MontyValue>[];
             Future<MontyValue> handler(
               Map<String, MontyValue> args,
-              HostContext ctx,
+              HostContext _,
             ) {
               final value = args['x']!;
               seen.add(value);

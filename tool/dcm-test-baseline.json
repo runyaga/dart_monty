@@ -1,10 +1,9 @@
 {
   "_dcm_version": "1.39.0",
   "by_file": {
-    "test/acceptance/_platform_web.dart": 2,
     "test/acceptance/agent_loop_test.dart": 17,
     "test/integration/_monty_harness.dart": 3,
-    "test/integration/_typed_host_runtime.dart": 28,
+    "test/integration/_typed_host_runtime.dart": 27,
     "test/integration/bridge_session_test.dart": 26,
     "test/integration/child_context_test.dart": 16,
     "test/integration/child_lifecycle_test.dart": 23,
@@ -41,14 +40,14 @@
     "test/src/bridge/introspection_functions_test.dart": 10,
     "test/src/bridge/monty_extension_test.dart": 1,
     "test/src/bridge/monty_runtime_child_events_test.dart": 1,
-    "test/src/bridge/platform_bridge_test.dart": 108,
+    "test/src/bridge/platform_bridge_test.dart": 99,
     "test/src/bridge/test_seam_test.dart": 3,
     "test/src/extensions/run_script_test.dart": 3,
     "test/src/host/function_test.dart": 6,
     "test/src/host/param_test.dart": 2,
     "test/src/host/sub_execute_test.dart": 41,
     "test/src/os_call/os_handlers_test.dart": 2,
-    "test/src/runtime/runtime_pool_test.dart": 81,
+    "test/src/runtime/runtime_pool_test.dart": 78,
     "test/src/workspace/bounds_test.dart": 21
   },
   "by_rule": {
@@ -56,11 +55,10 @@
     "avoid-shadowing": 5,
     "avoid-unsafe-collection-methods": 425,
     "avoid-unused-assignment": 5,
-    "avoid-unused-parameters": 15,
     "match-getter-setter-field-names": 2,
     "member-ordering": 6,
     "prefer-async-await": 14,
     "prefer-moving-to-variable": 170
   },
-  "total": 645
+  "total": 630
 }
