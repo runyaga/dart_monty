@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/runtime/runtime.dart'
     show defaultPoolSize, startRuntimeWith;
@@ -100,24 +101,24 @@ void main() {
       final oneSession = hasLength(1);
       expect(sessions, oneSession);
 
-      sessions.single.willReturn(const MontyInt(1));
+      sessions.singleOrNull!.willReturn(const MontyInt(1));
       await runtime.execute('a').result;
-      sessions.single.willReturn(const MontyInt(2));
+      sessions.singleOrNull!.willReturn(const MontyInt(2));
       final value = await runtime.execute('b').result;
 
       expect(value, const MontyInt(2));
       expect(sessions, oneSession);
-      expect(sessions.single.feeds, ['a', 'b']);
-      expect(sessions.single.isClosed, isFalse);
+      expect(sessions.singleOrNull!.feeds, ['a', 'b']);
+      expect(sessions.singleOrNull!.isClosed, isFalse);
     });
 
     test('inputs go to the feed, not into the code', () async {
       final runtime = await start();
-      sessions.single.willReturn(const MontyNone());
+      sessions.singleOrNull!.willReturn(const MontyNone());
 
       await runtime.execute('x', inputs: {'x': 1}).result;
 
-      expect(sessions.single.feeds, ['x']);
+      expect(sessions.singleOrNull!.feeds, ['x']);
     });
 
     test('dispose closes the held session and the pool, once', () async {
@@ -126,28 +127,28 @@ void main() {
       await runtime.dispose();
       await runtime.dispose();
 
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
       expect(poolCloses, 1);
     });
 
     test('clearState closes the held session and checks out another', () async {
       final runtime = await start();
-      final first = sessions.single;
+      final first = sessions.singleOrNull!;
 
       await runtime.clearState();
 
       expect(first.isClosed, isTrue);
       expect(sessions, hasLength(2));
-      sessions.last.willReturn(const MontyInt(3));
+      sessions.lastOrNull!.willReturn(const MontyInt(3));
       expect(await runtime.execute('y').result, const MontyInt(3));
       expect(first.feeds, isEmpty);
-      expect(sessions.last.feeds, ['y']);
+      expect(sessions.lastOrNull!.feeds, ['y']);
     });
 
     test('a second execute while one runs runs nothing', () async {
       final runtime = await start();
       final gate = Completer<void>();
-      sessions.single
+      sessions.singleOrNull!
         ..willHold(gate.future)
         ..willReturn(const MontyInt(1));
 
@@ -166,7 +167,7 @@ void main() {
       );
       gate.complete();
       expect(await first.result, const MontyInt(1));
-      expect(sessions.single.feeds, ['first']);
+      expect(sessions.singleOrNull!.feeds, ['first']);
     });
 
     test('a second execute while the first is still attaching the '
@@ -174,7 +175,7 @@ void main() {
       final gate = Completer<void>();
       final slow = _SlowAttach(gate.future);
       final runtime = await start(extensions: [slow]);
-      sessions.single.willReturn(const MontyInt(1));
+      sessions.singleOrNull!.willReturn(const MontyInt(1));
 
       final first = runtime.execute('first');
       final second = runtime.execute('second');
@@ -192,7 +193,7 @@ void main() {
 
       await refused;
       expect(await first.result, const MontyInt(1));
-      expect(sessions.single.feeds, ['first']);
+      expect(sessions.singleOrNull!.feeds, ['first']);
       expect(slow.attaches, 1);
     });
 
@@ -204,7 +205,7 @@ void main() {
         await runtime.invoke('echo', const {'value': MontyString('hi')}),
         const MontyString('hi'),
       );
-      expect(sessions.single.feeds, isEmpty);
+      expect(sessions.singleOrNull!.feeds, isEmpty);
     });
   });
 
@@ -219,11 +220,11 @@ void main() {
       final runtime = await start(sandbox: true);
       final first = runtime.execute('a');
       await Future<void>.delayed(Duration.zero);
-      sessions.last.willReturn(const MontyInt(1));
+      sessions.lastOrNull!.willReturn(const MontyInt(1));
       await first.result;
       final second = runtime.execute('b');
       await Future<void>.delayed(Duration.zero);
-      sessions.last.willReturn(const MontyInt(2));
+      sessions.lastOrNull!.willReturn(const MontyInt(2));
 
       expect(await second.result, const MontyInt(2));
       expect(sessions, hasLength(2));
@@ -242,13 +243,13 @@ void main() {
       expect(runtime.schemas, isEmpty);
       final handle = runtime.execute('echo("v")');
       await Future<void>.delayed(Duration.zero);
-      sessions.single
+      sessions.singleOrNull!
         ..willCall('echo', args: const [MontyString('v')])
         ..willReturn(const MontyNone());
       await handle.result;
 
       expect(
-        sessions.single.answers.single.answer,
+        sessions.singleOrNull!.answers.singleOrNull!.answer,
         isA<ExternalReturnValue>().having(
           (r) => r.value,
           'value',
@@ -277,11 +278,11 @@ void main() {
       };
       final runtime = await start(os: handler('runtime'));
 
-      sessions.single
+      sessions.singleOrNull!
         ..willCallOs('os.getenv', args: const [MontyString('A'), MontyNone()])
         ..willReturn(const MontyNone());
       await runtime.execute('a', os: handler('override')).result;
-      sessions.single
+      sessions.singleOrNull!
         ..willCallOs('os.getenv', args: const [MontyString('A'), MontyNone()])
         ..willReturn(const MontyNone());
       await runtime.execute('b').result;
@@ -309,13 +310,13 @@ void main() {
         final runtime = await startRecorded();
         await runtime.execute('pass', inputs: inputs).result;
 
-        final feed = recorded.feeds.single;
+        final feed = recorded.feeds.singleOrNull!;
         expect(feed.inputs ?? const {}, isEmpty);
         expect(feed.code, 'pass');
       }
       final runtime = await startRecorded();
       await runtime.execute('pass').result;
-      expect(recorded.feeds.single.inputs ?? const {}, isEmpty);
+      expect(recorded.feeds.singleOrNull!.inputs ?? const {}, isEmpty);
     });
 
     test('a Dart value is bound through MontyValue.fromDart, null as None, '
@@ -327,7 +328,7 @@ void main() {
           .execute('x', inputs: {'n': 1, 'none': null, 't': tuple})
           .result;
 
-      final feed = recorded.feeds.single;
+      final feed = recorded.feeds.singleOrNull!;
       final inputs = feed.inputs!;
       expect(inputs['n'], const MontyInt(1));
       expect(inputs['none'], const MontyNone());
@@ -363,14 +364,14 @@ void main() {
     test('a clearState and a replacement check out with them too', () async {
       final runtime = await start(limits: limits);
       await runtime.clearState();
-      sessions.last.willCrash();
+      sessions.lastOrNull!.willCrash();
       await expectLater(
         runtime.execute('boom').result,
         throwsA(isA<MontyCrashedError>()),
       );
       final next = runtime.execute('x');
       await Future<void>.delayed(Duration.zero);
-      sessions.last.willReturn(const MontyNone());
+      sessions.lastOrNull!.willReturn(const MontyNone());
       await next.result;
 
       expect(checkoutLimits, [limits, limits, limits]);
@@ -394,7 +395,7 @@ void main() {
         ),
       );
       onCheckout = (s) => s.willReturn(const MontyInt(1));
-      sessions.single
+      sessions.singleOrNull!
         ..willCall('sub')
         ..willReturn(const MontyNone());
       await runtime.execute('sub()').result;
@@ -419,7 +420,7 @@ void main() {
     Future<MontyValue> nextValue(MontyRuntime runtime) async {
       final next = runtime.execute('x');
       await Future<void>.delayed(Duration.zero);
-      sessions.last.willReturn(const MontyInt(7));
+      sessions.lastOrNull!.willReturn(const MontyInt(7));
 
       return next.result;
     }
@@ -427,21 +428,21 @@ void main() {
     test('a worker crash closes the held session, and the next execute runs '
         'on a fresh checkout', () async {
       final runtime = await start();
-      final held = sessions.single..willCrash();
+      final held = sessions.singleOrNull!..willCrash();
 
       await failsWith(runtime, isA<MontyCrashedError>());
 
       expect(held.isClosed, isTrue);
       expect(await nextValue(runtime), const MontyInt(7));
       expect(sessions, hasLength(2));
-      expect(sessions.last.feeds, ['x']);
+      expect(sessions.lastOrNull!.feeds, ['x']);
     });
 
     for (final type in ['MemoryError', 'TimeoutError']) {
       test('a $type ends the held session: the next execute runs on a '
           'fresh checkout', () async {
         final runtime = await start();
-        final held = sessions.single..willRaise(type, message: 'limit');
+        final held = sessions.singleOrNull!..willRaise(type, message: 'limit');
 
         await failsWith(
           runtime,
@@ -460,7 +461,7 @@ void main() {
 
     test('an ordinary Python error keeps the held session', () async {
       final runtime = await start();
-      final held = sessions.single..willRaise('ZeroDivisionError');
+      final held = sessions.singleOrNull!..willRaise('ZeroDivisionError');
 
       await failsWith(runtime, isA<MontyRuntimeError>());
 
@@ -474,7 +475,7 @@ void main() {
     test('a crash of a session clearState already replaced keeps the new '
         'one', () async {
       final runtime = await start();
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       final running = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
       final failed = expectLater(
@@ -485,7 +486,7 @@ void main() {
       // clearState closes the busy session, whose feed then fails.
       await runtime.clearState();
       await failed;
-      final cleared = sessions.last;
+      final cleared = sessions.lastOrNull!;
 
       final twoSessions = hasLength(2);
       expect(sessions, twoSessions);
@@ -508,7 +509,7 @@ void main() {
         },
       );
       addTearDown(runtime.dispose);
-      final first = checkouts.single..holdFailure = release.future;
+      final first = checkouts.singleOrNull!..holdFailure = release.future;
       (first.inner as FakeMontySession).willHold(Completer<void>().future);
       final running = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
@@ -525,7 +526,9 @@ void main() {
       release.complete();
       await failed;
 
-      (checkouts.last.inner as FakeMontySession).willReturn(const MontyInt(7));
+      (checkouts.lastOrNull!.inner as FakeMontySession).willReturn(
+        const MontyInt(7),
+      );
       expect(await runtime.execute('x').result, const MontyInt(7));
       expect(checkouts, twoCheckouts);
       expect(first.feeds.map((f) => f.code), ['loop()']);
@@ -535,7 +538,7 @@ void main() {
         'as a clearState', () async {
       final ext = _CountingExtension();
       final runtime = await start(extensions: [ext]);
-      sessions.single.willCrash();
+      sessions.singleOrNull!.willCrash();
       await failsWith(runtime, isA<MontyCrashedError>());
       await nextValue(runtime);
 
@@ -552,7 +555,7 @@ void main() {
           handler: (_, context) => context.subExecute!('1'),
         ),
       );
-      sessions.single.willCrash();
+      sessions.singleOrNull!.willCrash();
       await failsWith(runtime, isA<MontyCrashedError>());
 
       onCheckout = (s) {
@@ -567,7 +570,7 @@ void main() {
       await runtime.execute('sub()').result;
 
       expect(sessions, hasLength(3));
-      expect(sessions.last.feeds, ['1']);
+      expect(sessions.lastOrNull!.feeds, ['1']);
     });
   });
 
@@ -575,7 +578,7 @@ void main() {
     test('during a turn kills the worker: MontyCrashedError, and the next '
         'execute runs on a fresh checkout', () async {
       final runtime = await start();
-      final held = sessions.single..willHold(Completer<void>().future);
+      final held = sessions.singleOrNull!..willHold(Completer<void>().future);
 
       final handle = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
@@ -591,9 +594,9 @@ void main() {
       final next = runtime.execute('x');
       await Future<void>.delayed(Duration.zero);
       expect(sessions, hasLength(2));
-      sessions.last.willReturn(const MontyInt(7));
+      sessions.lastOrNull!.willReturn(const MontyInt(7));
       expect(await next.result, const MontyInt(7));
-      expect(sessions.last.feeds, ['x']);
+      expect(sessions.lastOrNull!.feeds, ['x']);
     });
 
     test('during a host callback fails the call at once; the callback runs '
@@ -614,7 +617,7 @@ void main() {
             },
           ),
         );
-      sessions.single
+      sessions.singleOrNull!
         ..willCall('slow')
         ..willReturn(const MontyNone());
 
@@ -625,7 +628,7 @@ void main() {
 
       await failed;
       expect(token.isCancelled, isTrue);
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
       expect(finished, isFalse);
 
       release.complete();
@@ -637,7 +640,7 @@ void main() {
       final runtime = await start(sandbox: true);
       final handle = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       await Future<void>.delayed(Duration.zero);
       final failed = expectLater(
         handle.result,
@@ -647,28 +650,28 @@ void main() {
       await handle.cancel();
 
       await failed;
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
     });
 
     test('after the execution finished does nothing: the held session '
         'stays open and runs the next feed', () async {
       final runtime = await start();
-      sessions.single.willReturn(const MontyInt(1));
+      sessions.singleOrNull!.willReturn(const MontyInt(1));
       final handle = runtime.execute('x = 1');
       await handle.result;
 
       await handle.cancel();
 
-      expect(sessions.single.isClosed, isFalse);
-      sessions.single.willReturn(const MontyInt(1));
+      expect(sessions.singleOrNull!.isClosed, isFalse);
+      sessions.singleOrNull!.willReturn(const MontyInt(1));
       await runtime.execute('x').result;
       expect(sessions, hasLength(1));
-      expect(sessions.single.feeds, ['x = 1', 'x']);
+      expect(sessions.singleOrNull!.feeds, ['x = 1', 'x']);
     });
 
     test('is idempotent and does not throw', () async {
       final runtime = await start();
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       final handle = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
       final failed = expectLater(
@@ -705,7 +708,7 @@ void main() {
           },
         },
       );
-      sessions.single
+      sessions.singleOrNull!
         ..willCallOs('os.getenv', args: const [MontyString('A'), MontyNone()])
         ..willReturn(const MontyNone());
 
@@ -722,7 +725,7 @@ void main() {
 
       await expectLater(runtime.dispose(), throwsStateError);
 
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
       expect(poolCloses, 1);
       await runtime.dispose();
       expect(poolCloses, 1);
@@ -734,7 +737,7 @@ void main() {
       final runtime = await start(sandbox: true);
       final handle = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       await Future<void>.delayed(Duration.zero);
       final failed = expectLater(
         handle.result,
@@ -744,7 +747,7 @@ void main() {
       await runtime.dispose();
 
       await failed;
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
     });
 
     test(
@@ -776,7 +779,7 @@ void main() {
 
     test('a paused events listener does not hold the result', () async {
       final runtime = await start();
-      sessions.single.willReturn(const MontyInt(1));
+      sessions.singleOrNull!.willReturn(const MontyInt(1));
       final handle = runtime.execute('1');
       final sub = handle.events.listen((_) {
         // The listener only needs to exist; it is paused immediately.
@@ -787,7 +790,7 @@ void main() {
         await handle.result.timeout(const Duration(seconds: 5)),
         const MontyInt(1),
       );
-      sessions.single.willReturn(const MontyInt(2));
+      sessions.singleOrNull!.willReturn(const MontyInt(2));
       expect(
         await runtime.execute('2').result.timeout(const Duration(seconds: 5)),
         const MontyInt(2),
@@ -821,7 +824,7 @@ void main() {
 
       gate.complete();
       await Future<void>.delayed(Duration.zero);
-      expect(sessions.single.isClosed, isTrue);
+      expect(sessions.singleOrNull!.isClosed, isTrue);
     });
 
     test(
@@ -841,7 +844,7 @@ void main() {
 
     test('a post-cancel checkout that loses to clearState is closed', () async {
       final runtime = await start();
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       final cancelled = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
       final crashed = expectLater(
@@ -952,7 +955,7 @@ void main() {
         'checkout', () async {
       slots = 1;
       final runtime = await start();
-      sessions.single.willHold(Completer<void>().future);
+      sessions.singleOrNull!.willHold(Completer<void>().future);
       final cancelled = runtime.execute('loop()');
       await Future<void>.delayed(Duration.zero);
       final crashed = expectLater(
@@ -1012,7 +1015,7 @@ void main() {
         final slow = _SlowAttach(gate.future);
         final runtime = await start(extensions: [slow])
           ..register(_echo);
-        sessions.single.willReturn(const MontyNone());
+        sessions.singleOrNull!.willReturn(const MontyNone());
 
         final run = runtime.execute('x');
         final invoked = runtime.invoke('echo', const {
@@ -1042,7 +1045,7 @@ void main() {
             },
           ),
         );
-      sessions.single
+      sessions.singleOrNull!
         ..willCall('peek')
         ..willReturn(const MontyNone());
 

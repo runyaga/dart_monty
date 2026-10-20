@@ -10,14 +10,12 @@
     "test/integration/sub_execution_limits_test.dart": 1,
     "test/integration/workspace_transfer_test.dart": 1,
     "test/src/host/parity_dispatch_test.dart": 1,
-    "test/src/runtime/runtime_pool_test.dart": 63,
     "test/src/workspace/bounds_test.dart": 1
   },
   "by_rule": {
-    "avoid-unsafe-collection-methods": 63,
     "avoid-unused-assignment": 4,
     "avoid-unused-ignores": 1,
     "prefer-moving-to-variable": 20
   },
-  "total": 88
+  "total": 25
 }
