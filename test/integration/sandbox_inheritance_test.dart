@@ -1,6 +1,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:test/test.dart';
@@ -185,8 +186,8 @@ void main() {
 
         final results = result! as List;
         // Each child has its own counter starting at 0.
-        expect(results.first, 1);
-        expect(results[1], 1);
+        expect(results.firstOrNull, 1);
+        expect(results.elementAtOrNull(1), 1);
 
         // Parent counter untouched.
         expect(counter.count, 0);

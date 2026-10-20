@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/src/workspace/disk_backing_io.dart';
 import 'package:dart_monty/src/workspace/persistent_transfer.dart';
 import 'package:dart_monty/src/workspace/workspace.dart';
@@ -50,9 +51,8 @@ except PermissionError as e:
       "[Errno 30] Read-only file system: '/work/locked'",
       'seed',
     ]);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(File('${owned.path}/locked').readAsStringSync(), 'seed');
   });
 
@@ -104,7 +104,7 @@ values
         'tool': MontyHostFunction(
           'tool',
           coroutine((args, _) async {
-            final n = (args.single as MontyInt).value;
+            final n = (args.singleOrNull! as MontyInt).value;
             started.add(n);
             if (started.length == 3) barrier.complete();
             await barrier.future.timeout(const Duration(seconds: 2));
@@ -133,7 +133,7 @@ values
       parent: (name, args, kwargs) {
         if (fail &&
             name == 'Path.write_bytes' &&
-            args.first == MontyPath('/b')) {
+            args.firstOrNull == MontyPath('/b')) {
           throw const ExternalException('OSError', 'second destination failed');
         }
 
@@ -301,9 +301,8 @@ values
       directories: {'dir'},
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final outside = Directory('${base.path}/outside')..createSync();
     File('${outside.path}/secret').writeAsStringSync('unchanged');
     final escapeTarget = outside.absolute.path;
@@ -377,9 +376,8 @@ values
       memoryUsageLimit: null,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     File('${owned.path}/large').openSync(mode: FileMode.write)
       ..truncateSync(8388609)
       ..closeSync();
@@ -406,9 +404,8 @@ values
     addTearDown(w.dispose);
     addTearDown(fake.close);
     await w.driver(fake)('scripted');
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(File('${owned.path}/fake').readAsStringSync(), 'real disk');
   });
 
@@ -558,9 +555,8 @@ Path('/work/output').read_text()
     );
     expect(w.writeBytes, 2);
     expect(w.memoryUsage, 64);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(owned.listSync(), isEmpty);
     await w.driver(session)("Path('a').write_text('x')");
     expect(w.writeBytes, 3);
@@ -624,9 +620,8 @@ Path('/work/output').read_text()
       parent: parent.call,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     File('${owned.path}/unselected').openSync(mode: FileMode.write)
       ..truncateSync(8388609)
       ..closeSync();
@@ -646,9 +641,8 @@ Path('/work/output').read_text()
       memoryUsageLimit: null,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final file = File('${owned.path}/large');
     file.openSync(mode: FileMode.write)
       ..truncateSync(4194304)
@@ -679,9 +673,8 @@ Path('/work/output').read_text()
     final parent = OSAccess();
     final w = Workspace(sandboxBaseDir: base.path, parent: parent.call);
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final dir = Directory('${owned.path}/bulk')..createSync();
     for (var i = 0; i < 4095; i++) {
       File('${dir.path}/f$i').writeAsStringSync('');
@@ -708,9 +701,8 @@ Path('/work/output').read_text()
     final parent = OSAccess();
     final w = Workspace(sandboxBaseDir: base.path, parent: parent.call);
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final deep = '${owned.path}/tree${'/d' * 32}';
     Directory(deep).createSync(recursive: true);
     final transfers = WorkspaceTransfers();

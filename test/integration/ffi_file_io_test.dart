@@ -101,7 +101,7 @@ out
             'Path.': (name, args, kwargs) {
               if (name == 'open' &&
                   args.length > 1 &&
-                  args[1].dartValue != 'r') {
+                  args.elementAtOrNull(1)?.dartValue != 'r') {
                 throw const ExternalException(
                   'PermissionError',
                   'Read-only application '

@@ -48,9 +48,9 @@ void main() {
       {'0'},
     );
     expect(sessions, hasLength(2));
-    expect(sessions[1].feeds.single.cwd, '/work');
-    expect(sessions[1].closeCalls, 1);
-    expect(extension.clones.single.context?.workingDirectory, '/work');
+    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.cwd, '/work');
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    expect(extension.clones.singleOrNull?.context?.workingDirectory, '/work');
     for (final name in ['parent_global', 'raw_parent()']) {
       final handle = await spawnChild(runtime, name);
       await expectLater(
@@ -87,10 +87,10 @@ void main() {
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     expect(sessions, hasLength(3));
     final sameLimits = same(selected);
-    expect(observed[1], sameLimits);
-    expect(observed[2], sameLimits);
-    expect(sessions[1].closeCalls, 1);
-    expect(sessions[2].closeCalls, 1);
+    expect(observed.elementAtOrNull(1), sameLimits);
+    expect(observed.elementAtOrNull(2), sameLimits);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    expect(sessions.elementAtOrNull(2)?.closeCalls, 1);
   });
 
   // Coordinator isolation complements the live checkout witness above.
@@ -119,13 +119,13 @@ void main() {
       baseOs: (_, _, _) => const MontyString('execution'),
     );
     addTearDown(child.disposeAll);
-    expect(extension.clones.single.context, same(context));
+    expect(extension.clones.singleOrNull?.context, same(context));
     expect(childBridge.schemas.map((s) => s.name), ['probe_id', 'help']);
     for (final name in ['parent_global', 'raw_parent()']) {
       final events = await childBridge.execute(name).toList();
-      expect(events.last, isA<BridgeRunError>());
+      expect(events.lastOrNull, isA<BridgeRunError>());
       expect(
-        (events.last as BridgeRunError).exception?.exception.excType,
+        (events.lastOrNull! as BridgeRunError).exception?.exception.excType,
         'NameError',
       );
     }
@@ -133,7 +133,7 @@ void main() {
         .execute("import os\n[probe_id(), os.getenv('D5_ORIGIN')]")
         .toList();
     expect(
-      (events.last as BridgeRunFinished).montyValue,
+      (events.lastOrNull! as BridgeRunFinished).montyValue,
       const MontyList([MontyInt(7), MontyString('execution')]),
     );
   });

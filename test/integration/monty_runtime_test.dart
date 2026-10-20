@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
@@ -616,7 +617,7 @@ result
             .events
             .toList();
 
-        final finished = events.whereType<BridgeRunFinished>().single;
+        final [finished] = events.whereType<BridgeRunFinished>().toList();
         expect(finished.value, 'Hello test!');
       },
     );
@@ -956,8 +957,8 @@ result
       await expectLater(handle.result, throwsA(isA<MontyError>()));
       final events = await early;
 
-      expect(events.first, isA<BridgeRunStarted>());
-      expect(events.last, isA<BridgeRunError>());
+      expect(events.firstOrNull, isA<BridgeRunStarted>());
+      expect(events.lastOrNull, isA<BridgeRunError>());
       expect(await handle.events.toList(), isEmpty);
     });
 

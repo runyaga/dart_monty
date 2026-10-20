@@ -75,8 +75,8 @@ void main() {
 
       final events = await bridge.execute("open('/x.txt').read()").toList();
 
-      final error = events.last as BridgeRunError;
-      expect(error.message, 'FileNotFoundError: gone');
+      final [..., error] = events;
+      expect((error as BridgeRunError).message, 'FileNotFoundError: gone');
     });
 
     test('another throw is Exception with its text', () async {
@@ -104,17 +104,18 @@ out
 Future<String> _caught(MontyBridge bridge, String expr) async {
   final events = await bridge.execute(_tryCatch(expr)).toList();
 
-  return (events.last as BridgeRunFinished).value! as String;
+  final [..., last] = events;
+  return (last as BridgeRunFinished).value! as String;
 }
 
 /// The `repr` of the last expression of [code].
 Future<String> _run(MontyBridge bridge, String code) async {
-  final lines = code.trimRight().split('\n');
-  lines.last = 'repr(${lines.last})';
+  final [...prefix, lastLine] = code.trimRight().split('\n');
+  final wrapped = [...prefix, 'repr($lastLine)'].join('\n');
   final events = await bridge
-      .execute('import os\nfrom pathlib import Path\n${lines.join('\n')}')
+      .execute('import os\nfrom pathlib import Path\n$wrapped')
       .toList();
-  final last = events.last;
+  final [..., last] = events;
   if (last is BridgeRunError) fail('run failed: ${last.message}');
 
   return (last as BridgeRunFinished).value! as String;

@@ -40,6 +40,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyBool, MontyPath, MontyString, OSAccess;
@@ -158,10 +159,18 @@ class FauxUi {
       );
     }
     for (var i = 0; i < matchers.length; i++) {
-      if (!matchers[i](_events[i])) {
+      final event = _events.elementAtOrNull(i);
+      if (event == null) {
+        throw TestFailure(
+          'Expected at least ${matchers.length} events, '
+          'got ${_events.length}.\n'
+          'Events: ${_events.map((e) => e.runtimeType).toList()}',
+        );
+      }
+      if (!matchers[i](event)) {
         throw TestFailure(
           'Event[$i] mismatch: expected matcher[$i] to pass, '
-          'got ${_events[i].runtimeType}',
+          'got ${event.runtimeType}',
         );
       }
     }

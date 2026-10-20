@@ -9,6 +9,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
@@ -55,16 +56,21 @@ void main() {
     });
 
     test('search schema has correct param count', () {
-      final schema = h.runtime.schemas.firstWhere((s) => s.name == 'search');
-      expect(schema.params, hasLength(2));
+      final schema = h.runtime.schemas.firstWhereOrNull(
+        (s) => s.name == 'search',
+      );
+      expect(schema, isNotNull);
+      expect(schema?.params, hasLength(2));
     });
 
     test('required param has isRequired true, optional false', () {
-      final schema = h.runtime.schemas.firstWhere((s) => s.name == 'search');
-      final query = schema.params.firstWhere((p) => p.name == 'query');
-      final limit = schema.params.firstWhere((p) => p.name == 'limit');
-      expect(query.isRequired, isTrue);
-      expect(limit.isRequired, isFalse);
+      final schema = h.runtime.schemas.firstWhereOrNull(
+        (s) => s.name == 'search',
+      );
+      final query = schema?.params.firstWhereOrNull((p) => p.name == 'query');
+      final limit = schema?.params.firstWhereOrNull((p) => p.name == 'limit');
+      expect(query?.isRequired, isTrue);
+      expect(limit?.isRequired, isFalse);
     });
   });
 
@@ -224,8 +230,8 @@ void main() {
     test('Python nested structure round-trips cleanly', () async {
       final r = await h.run("[{'x': 1}, {'x': 2}]");
       final list = r.dartValue! as List;
-      expect(list.first, {'x': 1});
-      expect(list.last, {'x': 2});
+      expect(list.firstOrNull, {'x': 1});
+      expect(list.lastOrNull, {'x': 2});
     });
   });
 } // end main

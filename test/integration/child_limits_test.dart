@@ -3,6 +3,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
 import 'package:dart_monty_core/dart_monty_core_testing.dart';
@@ -62,7 +63,7 @@ void main() {
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     expect(observed, hasLength(2));
     expect(
-      observed[1],
+      observed.elementAtOrNull(1),
       const ResourceLimits(
         maxFeedDuration: Duration(seconds: 11),
         maxTurnDuration: Duration(seconds: 3),
@@ -97,7 +98,7 @@ void main() {
     });
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     expect(
-      observed[1],
+      observed.elementAtOrNull(1),
       const ResourceLimits(
         maxFeedDuration: Duration(milliseconds: 10),
         maxMemory: 12345,
@@ -141,14 +142,14 @@ void main() {
           throwsA(isA<Exception>()),
         );
         expect(
-          sessions[1].feedError,
+          sessions.elementAtOrNull(1)?.feedError,
           isA<MontyError>().having(
             (e) => e.exception.message,
             'limit error',
             contains(sleep ? 'sleep limit exceeded' : 'suspension limit'),
           ),
         );
-        expect(sessions[1].closeCalls, 1);
+        expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
         expect(
           await awaitChild(runtime, await spawnChild(runtime, '42')),
           const MontyInt(42),
@@ -194,7 +195,7 @@ void main() {
             const MontyInt(42),
           );
           expect(observed, hasLength(2));
-          expect(observed[1], same(selected));
+          expect(observed.elementAtOrNull(1), same(selected));
           final reduced = await runtime.invoke('sandbox_spawn', {
             'code': const MontyString('42'),
             'timeout_ms': const MontyInt(1000),
@@ -202,7 +203,7 @@ void main() {
           });
           await runtime.invoke('sandbox_await', {'handle': reduced});
           expect(
-            observed[2],
+            observed.elementAtOrNull(2),
             ResourceLimits(
               maxFeedDuration: const Duration(seconds: 1),
               maxMemory: 1000000,

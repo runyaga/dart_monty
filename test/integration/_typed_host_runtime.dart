@@ -120,14 +120,14 @@ void registerTypedHostRuntimeTests() {
               await runtime.execute(_call(mode, '')).result,
               const MontyBool(true),
             );
-            expect(identical(seen.last, sentinel), isTrue);
+            expect(identical(seen.lastOrNull, sentinel), isTrue);
             expect(await runtime.invoke('probe', {}), const MontyBool(true));
-            expect(seen.last, same(sentinel));
+            expect(seen.lastOrNull, same(sentinel));
             expect(
               await runtime.execute(_call(mode, 'None')).result,
               const MontyBool(false),
             );
-            expect(seen.last, isA<MontyNone>());
+            expect(seen.lastOrNull, isA<MontyNone>());
             expect(
               await runtime.invoke('probe', {'x': _sentinel(type)}),
               const MontyBool(false),
@@ -176,9 +176,18 @@ void registerTypedHostRuntimeTests() {
             );
           }
           expect(tokens, hasLength(4));
-          expect(identical(tokens.first, tokens[1]), isTrue);
-          expect(identical(tokens[2], tokens[3]), isTrue);
-          expect(identical(tokens.first, tokens[2]), isFalse);
+          expect(
+            identical(tokens.firstOrNull, tokens.elementAtOrNull(1)),
+            isTrue,
+          );
+          expect(
+            identical(tokens.elementAtOrNull(2), tokens.elementAtOrNull(3)),
+            isTrue,
+          );
+          expect(
+            identical(tokens.firstOrNull, tokens.elementAtOrNull(2)),
+            isFalse,
+          );
         },
       );
     }
@@ -216,7 +225,7 @@ void registerTypedHostRuntimeTests() {
       await expectLater(runtime.execute('2').result, throwsStateError);
       await first.cancel();
       await failed;
-      expect(sessions.single.closed, isTrue);
+      expect(sessions.singleOrNull?.closed, isTrue);
       expect(await runtime.execute('42').result, const MontyInt(42));
     },
   );
@@ -317,20 +326,26 @@ void registerTypedHostRuntimeTests() {
         await runtime.execute(_call(mode, code)).result;
       }
       final isMontyInt = isA<MontyInt>();
-      expect(seen.first, isMontyInt);
-      expect(seen[1], isA<MontyFloat>());
-      expect((seen[2] as MontyFloat).value.isNegative, isTrue);
-      expect((seen[3] as MontyBigInt).value, BigInt.one << 100);
+      expect(seen.firstOrNull, isMontyInt);
+      expect(seen.elementAtOrNull(1), isA<MontyFloat>());
+      expect((seen.elementAtOrNull(2)! as MontyFloat).value.isNegative, isTrue);
+      expect(
+        (seen.elementAtOrNull(3)! as MontyBigInt).value,
+        BigInt.one << 100,
+      );
       await runtime
           .execute(
             'child = {7: [1], (8, 9): -0.0}\n'
             '${_call(mode, '{1: child, (2, 3): child}')}',
           )
           .result;
-      final pairs = (seen.last as MontyDict).pairs;
-      expect(pairs.first.$1, isMontyInt);
-      expect(pairs[1].$1, isA<MontyTuple>());
-      expect(identical(pairs.first.$2, pairs[1].$2), isTrue);
+      final pairs = (seen.lastOrNull! as MontyDict).pairs;
+      expect(pairs.firstOrNull?.$1, isMontyInt);
+      expect(pairs.elementAtOrNull(1)?.$1, isA<MontyTuple>());
+      expect(
+        identical(pairs.firstOrNull?.$2, pairs.elementAtOrNull(1)?.$2),
+        isTrue,
+      );
     });
   }
 
