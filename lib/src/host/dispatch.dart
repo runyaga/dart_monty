@@ -578,6 +578,16 @@ class HostDispatch {
 
     final ctx = _contextFor(callId, emit, os, cancelToken);
     final raw = await _invokeParityCall(fn, validated, ctx, fail, _log);
+
+    return _emitParityResult(callId, name, raw, emit);
+  }
+
+  Object? _emitParityResult(
+    String callId,
+    String name,
+    Object? raw,
+    void Function(BridgeEvent) emit,
+  ) {
     final MontyValue serialized;
     try {
       serialized = _toMontyValue(raw);

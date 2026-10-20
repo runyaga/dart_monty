@@ -6,7 +6,9 @@ import 'package:test/test.dart';
 
 import '_worker.dart';
 
-class Opaque {}
+class Opaque {
+  const Opaque();
+}
 
 void main() {
   late Monty pool;
@@ -63,8 +65,9 @@ void main() {
 
       final err = await expectRunError('f()');
       expect(err.exception, isA<MontyRuntimeError>());
-      expect(err.exception!.exception.excType, 'TypeError');
-      expect(err.exception!.exception.message, expectedMessage);
+      final pyException = err.exception!.exception;
+      expect(pyException.excType, 'TypeError');
+      expect(pyException.message, expectedMessage);
       expect(err.message, 'TypeError: $expectedMessage');
 
       final caught = await expectRunFinished('''
@@ -88,15 +91,16 @@ r
       bridge.register(
         HostFunction.parity(
           schema: const HostFunctionSchema(name: 'opaque'),
-          handler: (_, _) => Opaque(),
+          handler: (_, _) => const Opaque(),
         ),
       );
 
       final err = await expectRunError('opaque()');
       expect(err.exception, isA<MontyRuntimeError>());
-      expect(err.exception!.exception.excType, 'TypeError');
-      expect(err.exception!.exception.message, expectedMessage);
-      expect(err.exception.toString(), 'TypeError: $expectedMessage');
+      final runtimeErr = err.exception!;
+      expect(runtimeErr.exception.excType, 'TypeError');
+      expect(runtimeErr.exception.message, expectedMessage);
+      expect(runtimeErr.toString(), 'TypeError: $expectedMessage');
     },
   );
 
@@ -115,12 +119,13 @@ r
       );
 
       final events = await bridge.execute('f()').toList();
+      final hasOneItem = hasLength(1);
       final errors = events.whereType<BridgeRunError>().toList();
-      expect(errors, hasLength(1));
+      expect(errors, hasOneItem);
       final pyErr = errors.firstOrNull!;
 
       final callResults = events.whereType<BridgeFunctionCallResult>().toList();
-      expect(callResults, hasLength(1));
+      expect(callResults, hasOneItem);
       final callResult = callResults.firstOrNull!;
 
       ExternalException? directErr;
@@ -207,9 +212,10 @@ fetch_item(20, tag='second')
 
       final err = await expectRunError("fetch_item(10, tag='first')");
       expect(err.exception, isA<MontyRuntimeError>());
-      expect(err.exception!.exception.excType, 'TypeError');
-      expect(err.exception!.exception.message, expectedMessage);
-      expect(err.exception.toString(), 'TypeError: $expectedMessage');
+      final runtimeErr = err.exception!;
+      expect(runtimeErr.exception.excType, 'TypeError');
+      expect(runtimeErr.exception.message, expectedMessage);
+      expect(runtimeErr.toString(), 'TypeError: $expectedMessage');
 
       final caught = await expectRunFinished('''
 try:
@@ -268,7 +274,7 @@ r
           ),
         );
 
-      const cases = <(String, String)>[
+      const cases = [
         ('two(1)', "two() missing 1 required positional argument: 'b'"),
         (
           'two()',
@@ -295,13 +301,14 @@ r
       for (final (call, expectedMessage) in cases) {
         final err = await expectRunError(call);
         expect(err.exception, isA<MontyRuntimeError>(), reason: call);
+        final pyException = err.exception!.exception;
         expect(
-          err.exception!.exception.excType,
+          pyException.excType,
           'TypeError',
           reason: call,
         );
         expect(
-          err.exception!.exception.message,
+          pyException.message,
           expectedMessage,
           reason: call,
         );
@@ -336,9 +343,10 @@ r
 
       final err = await expectRunError("two('bad', 2)");
       expect(err.exception, isA<MontyRuntimeError>());
-      expect(err.exception!.exception.excType, 'RuntimeError');
+      final pyException = err.exception!.exception;
+      expect(pyException.excType, 'RuntimeError');
       expect(
-        err.exception!.exception.message,
+        pyException.message,
         'FormatException: Parameter "a": expected integer, got MontyString',
       );
     },
@@ -357,9 +365,10 @@ r
 
     final err = await expectRunError("fetch_item(10, tag='first')");
     expect(err.exception, isA<MontyRuntimeError>());
-    expect(err.exception!.exception.excType, 'RuntimeError');
+    final pyException = err.exception!.exception;
+    expect(pyException.excType, 'RuntimeError');
     expect(
-      err.exception!.exception.message,
+      pyException.message,
       'FormatException: fetch_item: unknown keyword argument "tag"',
     );
   });
@@ -381,8 +390,9 @@ r
 
       final err = await expectRunError('await async_opaque()');
       expect(err.exception, isA<MontyRuntimeError>());
-      expect(err.exception!.exception.excType, 'TypeError');
-      expect(err.exception!.exception.message, expectedMessage);
+      final pyException = err.exception!.exception;
+      expect(pyException.excType, 'TypeError');
+      expect(pyException.message, expectedMessage);
 
       final caught = await expectRunFinished('''
 try:

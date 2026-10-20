@@ -130,8 +130,7 @@ void validateDefaults(HostFunctionSchema schema) {
 @internal
 @immutable
 final class ParityBindingException implements Exception {
-  /// Creates a [ParityBindingException] with the Python `TypeError` [message].
-  const ParityBindingException(this.message);
+  const ParityBindingException._(this.message);
 
   /// Upstream-compatible `TypeError` message (without `'TypeError: '` prefix).
   final String message;
@@ -142,7 +141,7 @@ final class ParityBindingException implements Exception {
 
 String _formatMissingNames(List<String> quoted) => switch (quoted.length) {
   1 => quoted.single,
-  2 => '${quoted[0]} and ${quoted[1]}',
+  2 => '${quoted.first} and ${quoted[1]}',
   _ => '${quoted.sublist(0, quoted.length - 1).join(', ')}, and ${quoted.last}',
 };
 
@@ -150,7 +149,7 @@ void _checkPositionalCount(String name, int expected, int given) {
   if (given <= expected) return;
   final expectedNoun = expected == 1 ? 'argument' : 'arguments';
   final givenVerb = given == 1 ? 'was' : 'were';
-  throw ParityBindingException(
+  throw ParityBindingException._(
     '$name() takes $expected positional $expectedNoun '
     'but $given $givenVerb given',
   );
@@ -164,7 +163,7 @@ void _checkKeywordArgs(
   final paramNames = params.map((p) => p.name).toSet();
   for (final key in kwargs.keys) {
     if (!paramNames.contains(key)) {
-      throw ParityBindingException(
+      throw ParityBindingException._(
         "$name() got an unexpected keyword argument '$key'",
       );
     }
@@ -183,7 +182,7 @@ void _checkMissingArgs(
   if (missing.isEmpty) return;
   final noun = missing.length == 1 ? 'argument' : 'arguments';
   final names = _formatMissingNames(missing);
-  throw ParityBindingException(
+  throw ParityBindingException._(
     '$name() missing ${missing.length} required positional $noun: $names',
   );
 }

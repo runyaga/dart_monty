@@ -119,12 +119,6 @@ extension HostFunctionParityInternal on HostFunction {
   /// Whether this function was created with [HostFunction.parity].
   bool get isParity => _isParity;
 
-  /// Parity handler for the FFI (native/VM) backend.
-  ParityHostFunctionHandler? get ffiParityHandler => _ffiParityHandler;
-
-  /// Parity handler for the WASM (browser) backend.
-  ParityHostFunctionHandler? get wasmParityHandler => _wasmParityHandler;
-
   /// The parity handler for the current backend, or `null` if not available.
   ParityHostFunctionHandler? get parityHandler =>
       currentBackendKind == MontyBackendKind.ffi

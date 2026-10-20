@@ -32,6 +32,7 @@ void main() {
         HostParamType.boolean: 'boolean',
         HostParamType.list: 'array',
         HostParamType.map: 'object',
+        HostParamType.any: null,
       };
 
       for (final entry in cases.entries) {
@@ -395,6 +396,14 @@ void main() {
       ],
     );
 
+    Matcher throwsParityMessage(String expectedMessage) => throwsA(
+      isA<ParityBindingException>().having(
+        (e) => e.message,
+        'message',
+        expectedMessage,
+      ),
+    );
+
     test('unexpected keyword throws ParityBindingException', () {
       expect(
         () => mapAndValidateParity(
@@ -402,12 +411,8 @@ void main() {
           const [MontyInt(1), MontyInt(2)],
           const {'tag': MontyString('first')},
         ),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            "two() got an unexpected keyword argument 'tag'",
-          ),
+        throwsParityMessage(
+          "two() got an unexpected keyword argument 'tag'",
         ),
       );
     });
@@ -415,35 +420,21 @@ void main() {
     test('missing 1, 2, and 3 required arguments throw upstream texts', () {
       expect(
         () => mapAndValidateParity(twoSchema, const [MontyInt(1)], const {}),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            "two() missing 1 required positional argument: 'b'",
-          ),
+        throwsParityMessage(
+          "two() missing 1 required positional argument: 'b'",
         ),
       );
       expect(
         () => mapAndValidateParity(twoSchema, const [], const {}),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            "two() missing 2 required positional arguments: 'a' and 'b'",
-          ),
+        throwsParityMessage(
+          "two() missing 2 required positional arguments: 'a' and 'b'",
         ),
       );
       const expectedThree =
           "three() missing 3 required positional arguments: 'a', 'b', and 'c'";
       expect(
         () => mapAndValidateParity(threeSchema, const [], const {}),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            expectedThree,
-          ),
-        ),
+        throwsParityMessage(expectedThree),
       );
     });
 
@@ -454,12 +445,8 @@ void main() {
           const [MontyInt(1), MontyInt(2), MontyInt(3)],
           const {},
         ),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            'two() takes 2 positional arguments but 3 were given',
-          ),
+        throwsParityMessage(
+          'two() takes 2 positional arguments but 3 were given',
         ),
       );
       const oneSchema = HostFunctionSchema(
@@ -472,23 +459,15 @@ void main() {
           const [MontyInt(1), MontyInt(2)],
           const {},
         ),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            'one() takes 1 positional argument but 2 were given',
-          ),
+        throwsParityMessage(
+          'one() takes 1 positional argument but 2 were given',
         ),
       );
       const zeroSchema = HostFunctionSchema(name: 'zero');
       expect(
         () => mapAndValidateParity(zeroSchema, const [MontyInt(1)], const {}),
-        throwsA(
-          isA<ParityBindingException>().having(
-            (e) => e.message,
-            'message',
-            'zero() takes 0 positional arguments but 1 was given',
-          ),
+        throwsParityMessage(
+          'zero() takes 0 positional arguments but 1 was given',
         ),
       );
     });
