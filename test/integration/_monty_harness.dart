@@ -162,7 +162,8 @@ class FauxUi {
       final event = _events.elementAtOrNull(i);
       if (event == null) {
         throw TestFailure(
-          'Expected at least ${matchers.length} events, got ${_events.length}.\n'
+          'Expected at least ${matchers.length} events, '
+          'got ${_events.length}.\n'
           'Events: ${_events.map((e) => e.runtimeType).toList()}',
         );
       }

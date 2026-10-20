@@ -31,7 +31,7 @@ void main() {
     final result =
         await awaitChild(runtime, await spawnChild(runtime, _script))
             as MontyList;
-    final [MontyFloat first, MontyFloat second, ...] = result.items;
+    final [first, second, ...] = result.items.cast<MontyFloat>();
     expect(first.value, greaterThan(0));
     expect(second.value, inInclusiveRange(0, 1));
     expect(calls, 1);
@@ -61,9 +61,9 @@ void main() {
     expect(probe.lastOrNull, isA<BridgeRunError>());
     expect(calls, 1);
     final events = await bridge.execute(_script).toList();
-    final BridgeRunFinished(:montyValue) = events.lastOrNull;
-    final value = montyValue! as MontyList;
-    final [MontyFloat first, MontyFloat second, ...] = value.items;
+    final finished = events.lastOrNull! as BridgeRunFinished;
+    final value = finished.montyValue! as MontyList;
+    final [first, second, ...] = value.items.cast<MontyFloat>();
     expect(first.value, greaterThan(0));
     expect(second.value, inInclusiveRange(0, 1));
     expect(calls, 1);
@@ -88,7 +88,7 @@ void main() {
         calls.add(name);
         if (name == 'time.time') return const MontyFloat(1234.5);
         if (name == 'os.urandom') {
-          final [MontyInt(value: count)] = args;
+          final [MontyInt(value: count)] = args.cast<MontyInt>();
 
           return MontyBytes(Uint8List.fromList(List.filled(count, entropy)));
         }
@@ -96,9 +96,9 @@ void main() {
       });
       final events = await bridge.execute(_script).toList();
       expect(events.lastOrNull, isA<BridgeRunFinished>(), reason: '$events');
-      final BridgeRunFinished(:montyValue) = events.lastOrNull;
-      final value = montyValue! as MontyList;
-      final [MontyFloat first, MontyFloat second, ...] = value.items;
+      final finished = events.lastOrNull! as BridgeRunFinished;
+      final value = finished.montyValue! as MontyList;
+      final [first, second, ...] = value.items.cast<MontyFloat>();
       expect(first, const MontyFloat(1234.5));
       final draw = second.value;
       expect(draw, inInclusiveRange(0, 1));

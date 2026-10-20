@@ -145,10 +145,13 @@ void main() {
       final failRecord = sink.records.firstWhereOrNull(
         (r) => r.message == 'Child failed',
       );
-      expect(failRecord?.level, LogLevel.debug);
-      expect(failRecord?.attributes['childId'], handle.value);
+      if (failRecord == null) {
+        fail('Expected a "Child failed" log record');
+      }
+      expect(failRecord.level, LogLevel.debug);
+      expect(failRecord.attributes['childId'], handle.value);
       expect(
-        failRecord?.attributes['error']!! as String,
+        failRecord.attributes['error']! as String,
         contains('NameError'),
       );
 
