@@ -39,7 +39,7 @@ void main() {
                   : payload;
               expect(await h.run(w, "Path('out').read_text()"), expected);
               expect(w.writeBytes, bytes);
-              expect(w.memoryUsage, 128 + utf8.encode(expected).length);
+              expect(w.memoryUsage, utf8.encode(expected).length + 128);
             } else {
               // Open is an independently accepted mutation: w truncates,
               // a creates. The later rejected payload must not undo the open.
@@ -58,7 +58,7 @@ void main() {
               expect(w.writeBytes, 0);
               expect(
                 w.memoryUsage,
-                64 + (exists ? 64 + utf8.encode(expected).length : 0),
+                (exists ? utf8.encode(expected).length + 64 : 0) + 64,
               );
             }
           });
