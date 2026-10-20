@@ -57,9 +57,9 @@ void main() {
 
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
-        final finished = events.whereType<BridgeRunFinished>().first;
-        print('  bridge.execute call $i: ${finished.value}');
-        expect(finished.value, isA<String>());
+        final finished = events.whereType<BridgeRunFinished>().firstOrNull;
+        print('  bridge.execute call $i: ${finished?.value}');
+        expect(finished?.value, isA<String>());
       }
 
       bridge.dispose();
@@ -80,9 +80,9 @@ void main() {
 
       for (var i = 1; i <= 3; i++) {
         final events = await bridge.execute('http_get("$_url")').toList();
-        final finished = events.whereType<BridgeRunFinished>().first;
-        print('  bridge call $i value: ${finished.value}');
-        expect(finished.value, isA<String>());
+        final finished = events.whereType<BridgeRunFinished>().firstOrNull;
+        print('  bridge call $i value: ${finished?.value}');
+        expect(finished?.value, isA<String>());
       }
 
       bridge.dispose();

@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
@@ -90,7 +91,9 @@ void main() {
     );
     final handle = await spawnChild(runtime, '42');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
-    sessions.first.closeError = StateError('root close fault');
+    if (sessions case [final rootSession, ...]) {
+      rootSession.closeError = StateError('root close fault');
+    }
     var eventsClosed = false;
     final subscription = runtime.events.listen(
       // This witness observes stream closure only.
@@ -131,7 +134,7 @@ void main() {
     final handle = await spawnChild(runtime, '42');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     await runtime.dispose();
-    expect(sessions[1].closeCalls, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
   });
 
   test('child admission keeps its checkout', () async {
@@ -233,7 +236,7 @@ void main() {
       } else {
         expect(await awaitChild(runtime, handle), const MontyInt(42));
       }
-      expect(sessions[1].closeCalls, 1);
+      expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
       await expectLater(spawnChild(runtime, '43'), throwsStateError);
       expect(sessions, hasLength(2));
       await freeChild(runtime, handle);
@@ -387,13 +390,13 @@ sandbox_await(h, collect={'output': '/parent/second'})
         } else {
           expect(await awaitChild(runtime, handle), const MontyInt(42));
         }
-        expect(extension.clones.single.disposals, 1);
-        final childSession = sessions[1];
-        expect(childSession.closeCalls, 1);
+        expect(extension.clones.singleOrNull?.disposals, 1);
+        final childSession = sessions.elementAtOrNull(1);
+        expect(childSession?.closeCalls, 1);
         await freeChild(runtime, handle);
         await spawnChild(runtime, '7');
         await runtime.dispose();
-        expect(childSession.closeCalls, 1);
+        expect(childSession?.closeCalls, 1);
       },
     );
   }
@@ -424,8 +427,8 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
     expect(sessions, hasLength(1));
     await expectLater(spawnChild(runtime, '42'), throwsStateError);
-    expect(sessions[1].closeCalls, 1);
-    expect(extension.clones.single.disposals, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    expect(extension.clones.singleOrNull?.disposals, 1);
     extension.throwAttach = false;
     expect(
       await awaitChild(runtime, await spawnChild(runtime, '42')),
@@ -454,7 +457,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
       freeChild(runtime, handle),
       runtime.dispose(),
     ]);
-    expect(sessions[1].closeCalls, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     held.complete();
   });
 
@@ -479,7 +482,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
       awaitChild(runtime, handle),
       throwsA(predicate<Object>((e) => e.toString().contains('worker crash'))),
     );
-    expect(sessions[1].closeCalls, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     await freeChild(runtime, handle);
     expect(
       await awaitChild(runtime, await spawnChild(runtime, '42')),
@@ -539,11 +542,15 @@ sandbox_await(h, collect={'output': '/parent/second'})
           release.complete();
         }
         await refused;
-        for (var i = 0; i < 20 && sessions[2].closeCalls == 0; i++) {
+        for (
+          var i = 0;
+          i < 20 && sessions.elementAtOrNull(2)?.closeCalls == 0;
+          i++
+        ) {
           await Future<void>.delayed(Duration.zero);
         }
-        expect(sessions[2].closeCalls, 1);
-        expect(sessions[1].closeCalls, 0);
+        expect(sessions.elementAtOrNull(2)?.closeCalls, 1);
+        expect(sessions.elementAtOrNull(1)?.closeCalls, 0);
         await freeChild(runtime, const MontyInt(0));
         await freeChild(runtime, const MontyInt(1));
         expect(
@@ -567,7 +574,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     expect(extension.waiters, hasLength(1));
     await freeChild(runtime, handle);
     expect(extension.waiters, isEmpty);
-    expect(extension.clones.single.disposals, 1);
+    expect(extension.clones.singleOrNull?.disposals, 1);
     expect(await runtime.execute('resource_id()').result, const MontyInt(-1));
   });
 
@@ -587,7 +594,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
     await expectLater(child.disposeAll(), throwsStateError);
     for (final extension in [first, throwing, last]) {
-      expect(extension.clones.single.disposals, 1);
+      expect(extension.clones.singleOrNull?.disposals, 1);
       expect(extension.disposals, 0);
     }
     await expectLater(parent.disposeAll(), throwsStateError);

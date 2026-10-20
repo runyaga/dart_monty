@@ -35,11 +35,11 @@ void main() {
               ),
             ),
           );
-          final error = events
+          final [error] = events
               .whereType<BridgeChildEvent>()
               .map((e) => e.inner)
               .whereType<BridgeRunError>()
-              .single;
+              .toList();
           final childError = error.exception?.exception;
           expect(
             childError?.excType,

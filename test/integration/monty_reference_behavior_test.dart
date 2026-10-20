@@ -1,6 +1,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show CollectString, MontyInt, MontyRuntimeError;
@@ -81,7 +82,7 @@ void main() {
           throwsA(
             isA<MontyRuntimeError>()
                 .having((e) => e.exception.excType, 'excType', 'NameError')
-                .having((e) => e.traceback.last.line, 'line', 1),
+                .having((e) => e.traceback.lastOrNull?.line, 'line', 1),
           ),
           reason:
               'Line 1 of user code must surface as line 1 — the bridge '
@@ -99,7 +100,7 @@ void main() {
           session.execute('x = 1\ny = 2\nundefined_xyz').result,
           throwsA(
             isA<MontyRuntimeError>().having(
-              (e) => e.traceback.last.line,
+              (e) => e.traceback.lastOrNull?.line,
               'line',
               3,
             ),

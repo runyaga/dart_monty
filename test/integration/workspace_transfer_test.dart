@@ -33,7 +33,10 @@ void main() {
           cwd: '/work',
         )
         .toList();
-    expect((events.last as BridgeRunFinished).value, ['/work', true]);
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', ['/work', true]),
+    );
   });
   for (final readOnly in [false, true]) {
     for (final destination in ['.', './', './.', 'a/..']) {
@@ -165,7 +168,7 @@ void main() {
       parent: (name, args, kwargs) {
         if (reject &&
             name == 'Path.write_bytes' &&
-            args.first.dartValue == '/parent/b') {
+            args.firstOrNull?.dartValue == '/parent/b') {
           throw const ExternalException('OSError', 'destination unavailable');
         }
 
@@ -245,7 +248,13 @@ os.chdir('/')
 collect_output()
 (Path('/parent/in').read_text(), Path('/parent/out').read_text())
 """).toList();
-    expect((events.last as BridgeRunFinished).value, ['source', 'independent']);
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', [
+        'source',
+        'independent',
+      ]),
+    );
     final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(parent: parent.call, files: {'in': 'parent/in'}),
@@ -301,7 +310,10 @@ collect_output()
           "collect_live()\nPath('/parent/out').read_text()",
         )
         .toList();
-    expect((events.last as BridgeRunFinished).value, 'result');
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', 'result'),
+    );
   });
   test('T5-dispose-order', () async {
     final admitted = Completer<void>();

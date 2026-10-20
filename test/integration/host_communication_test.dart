@@ -188,7 +188,7 @@ void main() {
       await h.run('capture_id()');
 
       expect(execIds, hasLength(2));
-      expect(execIds.first, isNot(execIds.last));
+      expect(execIds.firstOrNull, isNot(execIds.lastOrNull));
     });
 
     test(
@@ -199,7 +199,7 @@ void main() {
         expect(execIds, hasLength(2));
         // Each call gets its own call-scoped ID — they differ within one
         // execute().
-        expect(execIds.first, isNot(execIds.last));
+        expect(execIds.firstOrNull, isNot(execIds.lastOrNull));
       },
     );
   });

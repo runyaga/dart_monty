@@ -169,9 +169,10 @@ void main() {
       await _settle();
 
       expect(children, hasLength(1));
-      expect(children.single.childHandle, '7');
+      final [child] = children;
+      expect(child.childHandle, '7');
       expect(
-        identical(children.single.inner, inner),
+        identical(child.inner, inner),
         isTrue,
         reason: 'the payload must be forwarded, not reconstructed',
       );

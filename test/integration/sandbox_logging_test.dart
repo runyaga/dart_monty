@@ -1,6 +1,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:struct_log/struct_log.dart';
@@ -71,13 +72,18 @@ void main() {
         );
       final bridge = await createBridge(registry.extensions);
 
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
+      final plugin = registry.extensions
+          .whereType<SandboxExtension>()
+          .firstOrNull;
+      if (plugin == null) {
+        fail('SandboxExtension not registered');
+      }
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_spawn')
+          ?.handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_await')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_await')
+          ?.handler;
 
       final handle =
           (await spawn!({'code': const MontyString('2 + 3')}, _testCtx))
@@ -95,11 +101,11 @@ void main() {
       expect(messages, contains('Child completed'));
 
       // Verify spawn record has structured attributes.
-      final spawnRecord = sink.records.firstWhere(
+      final spawnRecord = sink.records.firstWhereOrNull(
         (r) => r.message == 'Child spawned',
       );
-      expect(spawnRecord.attributes['childId'], handle.value);
-      expect(spawnRecord.attributes['depth'], 0);
+      expect(spawnRecord?.attributes['childId'], handle.value);
+      expect(spawnRecord?.attributes['depth'], 0);
 
       await bridge.dispose();
     });
@@ -111,13 +117,18 @@ void main() {
         );
       final bridge = await createBridge(registry.extensions);
 
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
+      final plugin = registry.extensions
+          .whereType<SandboxExtension>()
+          .firstOrNull;
+      if (plugin == null) {
+        fail('SandboxExtension not registered');
+      }
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_spawn')
+          ?.handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_await')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_await')
+          ?.handler;
 
       final handle =
           (await spawn!({
@@ -131,12 +142,15 @@ void main() {
         // Expected.
       }
 
-      final failRecord = sink.records.firstWhere(
+      final failRecord = sink.records.firstWhereOrNull(
         (r) => r.message == 'Child failed',
       );
-      expect(failRecord.level, LogLevel.debug);
-      expect(failRecord.attributes['childId'], handle.value);
-      expect(failRecord.attributes['error']! as String, contains('NameError'));
+      expect(failRecord?.level, LogLevel.debug);
+      expect(failRecord?.attributes['childId'], handle.value);
+      expect(
+        failRecord?.attributes['error']!! as String,
+        contains('NameError'),
+      );
 
       await bridge.dispose();
     });
@@ -148,13 +162,18 @@ void main() {
         );
       final bridge = await createBridge(registry.extensions);
 
-      final plugin = registry.extensions.whereType<SandboxExtension>().first;
+      final plugin = registry.extensions
+          .whereType<SandboxExtension>()
+          .firstOrNull;
+      if (plugin == null) {
+        fail('SandboxExtension not registered');
+      }
       final spawn = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_spawn')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_spawn')
+          ?.handler;
       final await_ = plugin.functions
-          .firstWhere((f) => f.schema.name == 'sandbox_await')
-          .handler;
+          .firstWhereOrNull((f) => f.schema.name == 'sandbox_await')
+          ?.handler;
 
       final handle =
           (await spawn!({'code': const MontyString('42')}, _testCtx))
@@ -163,12 +182,12 @@ void main() {
 
       await plugin.onDispose();
 
-      final disposeRecord = sink.records.firstWhere(
+      final disposeRecord = sink.records.firstWhereOrNull(
         (r) => r.message == 'Disposing SandboxExtension',
       );
-      expect(disposeRecord.level, LogLevel.info);
-      expect(disposeRecord.attributes['totalChildren'], 1);
-      expect(disposeRecord.attributes['aliveChildren'], 0);
+      expect(disposeRecord?.level, LogLevel.info);
+      expect(disposeRecord?.attributes['totalChildren'], 1);
+      expect(disposeRecord?.attributes['aliveChildren'], 0);
 
       await bridge.dispose();
     });
