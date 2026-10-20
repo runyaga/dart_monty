@@ -10,7 +10,7 @@ dependencies:
   dart_monty:
     git:
       url: https://github.com/runyaga/dart_monty.git
-      ref: v0.110.0-dev.3
+      ref: v0.110.0-dev.4
 
 dependency_overrides:
   dart_monty_core:
