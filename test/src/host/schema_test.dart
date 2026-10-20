@@ -428,6 +428,69 @@ void main() {
       );
     });
 
+    test('reports binding errors in upstream Monty 1.1.0 order', () {
+      const cases = [
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'a': MontyInt(4)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1)],
+          kwargs: {'a': MontyInt(4), 'zzz': MontyInt(5)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1)],
+          kwargs: {'zzz': MontyInt(5), 'a': MontyInt(4)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2)],
+          kwargs: {'zzz': MontyInt(5), 'a': MontyInt(4)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'zzz': MontyInt(5)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: {'b': MontyInt(5)},
+          expectedMessage: "two() got multiple values for argument 'b'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3), MontyInt(4)],
+          kwargs: {'a': MontyInt(1)},
+          expectedMessage: "two() got multiple values for argument 'a'",
+        ),
+        (
+          args: [MontyInt(1), MontyInt(2), MontyInt(3)],
+          kwargs: <String, MontyInt>{},
+          expectedMessage:
+              'two() takes 2 positional arguments but 3 were given',
+        ),
+        (
+          args: <MontyInt>[],
+          kwargs: {'b': MontyInt(1)},
+          expectedMessage: "two() missing 1 required positional argument: 'a'",
+        ),
+        (
+          args: <MontyInt>[],
+          kwargs: {'zzz': MontyInt(5)},
+          expectedMessage: "two() got an unexpected keyword argument 'zzz'",
+        ),
+      ];
+
+      for (final (:args, :kwargs, :expectedMessage) in cases) {
+        expect(
+          () => mapAndValidateParity(twoSchema, args, kwargs),
+          throwsParityMessage(expectedMessage),
+        );
+      }
+    });
+
     test('missing 1, 2, and 3 required arguments throw upstream texts', () {
       expect(
         () => mapAndValidateParity(twoSchema, const [MontyInt(1)], const {}),

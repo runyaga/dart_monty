@@ -158,6 +158,7 @@ void _checkPositionalCount(String name, int expected, int given) {
 void _checkKeywordArgs(
   String name,
   List<HostParam> params,
+  Map<String, MontyValue> raw,
   Map<String, MontyValue> kwargs,
 ) {
   final paramNames = params.map((p) => p.name).toSet();
@@ -165,6 +166,11 @@ void _checkKeywordArgs(
     if (!paramNames.contains(key)) {
       throw ParityBindingException._(
         "$name() got an unexpected keyword argument '$key'",
+      );
+    }
+    if (raw.containsKey(key)) {
+      throw ParityBindingException._(
+        "$name() got multiple values for argument '$key'",
       );
     }
   }
@@ -200,21 +206,13 @@ Map<String, MontyValue> mapAndValidateParity(
   Map<String, MontyValue> kwargs,
 ) {
   final HostFunctionSchema(:name, :params) = schema;
-  _checkPositionalCount(name, params.length, args.length);
-
   final raw = <String, MontyValue>{
     for (var i = 0; i < params.length && i < args.length; i++)
       params[i].name: args[i],
   };
 
-  _checkKeywordArgs(name, params, kwargs);
-  for (final key in kwargs.keys) {
-    if (raw.containsKey(key)) {
-      throw ParityBindingException._(
-        "$name() got multiple values for argument '$key'",
-      );
-    }
-  }
+  _checkKeywordArgs(name, params, raw, kwargs);
+  _checkPositionalCount(name, params.length, args.length);
   raw.addAll(kwargs);
   _checkMissingArgs(name, params, raw);
 
