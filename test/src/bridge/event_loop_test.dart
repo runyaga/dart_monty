@@ -814,10 +814,14 @@ void main() {
       await _until(() => plugin.isWaiting);
       final pending =
           (plugin.channelState as EventLoopWaiting).completer.future;
-      final failure = pending.then<Object?>(
-        (_) => null,
-        onError: (Object e) => e,
-      );
+      final failure = () async {
+        try {
+          await pending;
+          return null;
+        } on Object catch (e) {
+          return e;
+        }
+      }();
 
       await done;
 

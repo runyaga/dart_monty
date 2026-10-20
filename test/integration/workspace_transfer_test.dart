@@ -318,9 +318,10 @@ collect_output()
     final collecting = transfers.collect(w, {'a': '/parent/a'});
     await admitted.future;
     var disposed = false;
-    final disposing = w.dispose().then((_) {
+    final disposing = () async {
+      await w.dispose();
       disposed = true;
-    });
+    }();
     await Future<void>.delayed(Duration.zero);
     try {
       expect(disposed, false);

@@ -221,10 +221,14 @@ undefined_var_that_errors
 
       // Dispose while waiting closes the running session: the pending host
       // call fails at once, so the result fails with StateError.
-      final outcome = handle.result.then<Object?>(
-        (_) => null,
-        onError: (Object e) => e,
-      );
+      final outcome = () async {
+        try {
+          await handle.result;
+          return null;
+        } on Object catch (e) {
+          return e;
+        }
+      }();
       await h2.dispose();
 
       expect(await outcome, isA<StateError>());

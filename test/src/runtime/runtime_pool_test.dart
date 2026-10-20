@@ -866,13 +866,14 @@ void main() {
       final gate = Completer<void>();
       final log = <String>[];
       final runtime = await start(extensions: [_Logged(gate.future, log)]);
-      final outcome = runtime
-          .execute('x')
-          .result
-          .then<Object?>(
-            (_) => null,
-            onError: (Object e) => e,
-          );
+      final outcome = () async {
+        try {
+          await runtime.execute('x').result;
+          return null;
+        } on Object catch (e) {
+          return e;
+        }
+      }();
       await Future<void>.delayed(Duration.zero);
 
       final disposing = runtime.dispose();
@@ -902,10 +903,15 @@ void main() {
     test('dispose settles an execution waiting for a clearState', () async {
       final runtime = await start();
       final gate = checkoutGate = Completer<void>();
-      final clearing = runtime.clearState().then<Object?>(
-        (_) => null,
-        onError: (Object e) => e,
-      );
+      final clearStateFuture = runtime.clearState();
+      final clearing = () async {
+        try {
+          await clearStateFuture;
+          return null;
+        } on Object catch (e) {
+          return e;
+        }
+      }();
       final handle = runtime.execute('x');
       await Future<void>.delayed(Duration.zero);
       final failed = expectLater(handle.result, throwsStateError);
@@ -971,12 +977,15 @@ void main() {
         final gate = Completer<void>();
         final log = <String>[];
         final runtime = await start(extensions: [_Logged(gate.future, log)]);
-        final invoked = runtime
-            .invoke('missing', const {})
-            .then<Object?>(
-              (_) => null,
-              onError: (Object e) => e,
-            );
+        final invokedFuture = runtime.invoke('missing', const {});
+        final invoked = () async {
+          try {
+            await invokedFuture;
+            return null;
+          } on Object catch (e) {
+            return e;
+          }
+        }();
         final clearing = runtime.clearState();
         await Future<void>.delayed(Duration.zero);
 

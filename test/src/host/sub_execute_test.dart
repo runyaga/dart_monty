@@ -213,16 +213,14 @@ void main() {
       return ctx.subExecute!('1');
     });
     final result = runtime.execute('probe()').result;
-    unawaited(
-      result.then(
-        (_) {
-          // The root result is not asserted; session state is.
-        },
-        onError: (_) {
-          // The disposed sub may fail the root; that is not asserted here.
-        },
-      ),
-    );
+    unawaited(() async {
+      try {
+        // The root result is not asserted; session state is.
+        await result;
+      } on Object {
+        // The disposed sub may fail the root; that is not asserted here.
+      }
+    }());
     await entered.future;
     // Wait for the sub-execution's feed to start, so dispose meets it
     // running rather than just checked out.
@@ -301,16 +299,14 @@ void main() {
       ),
     );
     final result = runtime.execute('probe()').result;
-    unawaited(
-      result.then(
-        (_) {
-          // The root result is not asserted; caught carries the failure.
-        },
-        onError: (_) {
-          // Not expected to fire: the handler catches the sub failure itself.
-        },
-      ),
-    );
+    unawaited(() async {
+      try {
+        // The root result is not asserted; caught carries the failure.
+        await result;
+      } on Object {
+        // Not expected to fire: the handler catches the sub failure itself.
+      }
+    }());
     await entered.future;
 
     await runtime.dispose();
@@ -369,16 +365,14 @@ void main() {
         ),
       );
       final handle = runtime.execute('probe()');
-      unawaited(
-        handle.result.then(
-          (_) {
-            // The root result is not asserted; caught receives the failure.
-          },
-          onError: (_) {
-            // Not expected to fire: the handler routes errors to caught.
-          },
-        ),
-      );
+      unawaited(() async {
+        try {
+          // The root result is not asserted; caught receives the failure.
+          await handle.result;
+        } on Object {
+          // Not expected to fire: the handler routes errors to caught.
+        }
+      }());
 
       return (runtime, handle);
     }
@@ -394,16 +388,14 @@ void main() {
         ..willReturn(const MontyNone());
       final runtime = await start((ctx) => ctx.subExecute!('1'));
       final invoked = runtime.invoke('probe', {});
-      unawaited(
-        invoked.then(
-          (_) {
-            // The invoke result is not asserted; session state is.
-          },
-          onError: (_) {
-            // The disposed sub may fail the invoke; that is not asserted here.
-          },
-        ),
-      );
+      unawaited(() async {
+        try {
+          // The invoke result is not asserted; session state is.
+          await invoked;
+        } on Object {
+          // The disposed sub may fail the invoke; that is not asserted here.
+        }
+      }());
       await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
 
       await runtime.dispose();
@@ -440,16 +432,14 @@ void main() {
           final call = viaInvoke
               ? runtime.invoke('probe', {})
               : runtime.execute('probe()').result;
-          unawaited(
-            call.then(
-              (_) {
-                // The call's value is not asserted; error carries the refusal.
-              },
-              onError: (_) {
-                // Not expected to fire: the handler catches the refusal itself.
-              },
-            ),
-          );
+          unawaited(() async {
+            try {
+              // The call's value is not asserted; error carries the refusal.
+              await call;
+            } on Object {
+              // Not expected to fire: the handler catches the refusal itself.
+            }
+          }());
           await paused.future;
 
           await runtime.clearState();

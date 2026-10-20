@@ -184,7 +184,10 @@ values
     final collect = transfers.collect(w, {'out': '/out'});
     await entered.future;
     var disposed = false;
-    final disposal = w.dispose().then((_) => disposed = true);
+    final disposal = () async {
+      await w.dispose();
+      disposed = true;
+    }();
     await Future<void>.delayed(Duration.zero);
     expect(disposed, false);
     expect(base.listSync(), hasLength(1));
