@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
@@ -533,10 +534,12 @@ result
         );
         addTearDown(session.dispose);
 
-        await session.execute('pass').result;
+        final firstPass = session.execute('pass');
+        await firstPass.result;
         expect(plugin.disposeCount, 1);
 
-        await session.execute('pass').result;
+        final secondPass = session.execute('pass');
+        await secondPass.result;
         expect(
           plugin.disposeCount,
           2,
@@ -612,7 +615,7 @@ result
             .events
             .toList();
 
-        final finished = events.whereType<BridgeRunFinished>().single;
+        final [finished] = events.whereType<BridgeRunFinished>().toList();
         expect(finished.value, 'Hello test!');
       },
     );
@@ -952,8 +955,8 @@ result
       await expectLater(handle.result, throwsA(isA<MontyError>()));
       final events = await early;
 
-      expect(events.first, isA<BridgeRunStarted>());
-      expect(events.last, isA<BridgeRunError>());
+      expect(events.firstOrNull, isA<BridgeRunStarted>());
+      expect(events.lastOrNull, isA<BridgeRunError>());
       expect(await handle.events.toList(), isEmpty);
     });
 
@@ -1031,14 +1034,16 @@ result
         extensions: [TemplateStubExtension()],
       );
       addTearDown(runtime.dispose);
+      final schemaNamesBefore = runtime.schemas.map((s) => s.name);
       expect(
-        runtime.schemas.map((s) => s.name),
+        schemaNamesBefore,
         isNot(contains('tmpl_render')),
       );
 
       await runtime.execute('pass').result;
 
-      expect(runtime.schemas.map((s) => s.name), contains('tmpl_render'));
+      final schemaNamesAfter = runtime.schemas.map((s) => s.name);
+      expect(schemaNamesAfter, contains('tmpl_render'));
     });
 
     test(

@@ -39,7 +39,7 @@ void main() {
       expect(plugin.namespace, 'my_ns');
       expect(plugin.systemPromptContext, 'Does cool things.');
       expect(plugin.functions, hasLength(1));
-      expect(plugin.functions.first.schema.name, 'do_thing');
+      expect(plugin.functions.map((f) => f.schema.name), ['do_thing']);
     });
 
     test('onAttach default implementation is a no-op', () async {
@@ -50,7 +50,7 @@ void main() {
       );
 
       // Should complete without error.
-      await plugin.onAttach(_NoOpBridge());
+      await plugin.onAttach(const _NoOpBridge());
     });
 
     test('systemPromptContext defaults to null', () {
@@ -114,6 +114,7 @@ void main() {
 
 /// Minimal [MontyBridge] for lifecycle tests — not exercised.
 class _NoOpBridge implements MontyBridge {
+  const _NoOpBridge();
   @override
   BridgeLogger get logger => BridgeLogger.silent;
 
@@ -124,13 +125,19 @@ class _NoOpBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory => {};
 
   @override
-  void register(HostFunction function, {String? category}) {}
+  void register(HostFunction function, {String? category}) {
+    // The fake registers no host functions.
+  }
 
   @override
-  void unregister(String name) {}
+  void unregister(String name) {
+    // Nothing is ever registered with the fake.
+  }
 
   @override
-  void registerOs(OsHandler handler) {}
+  void registerOs(OsHandler handler) {
+    // The fake registers no OS handlers.
+  }
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
@@ -143,5 +150,7 @@ class _NoOpBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }

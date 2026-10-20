@@ -291,9 +291,11 @@ content = Path("/data.txt").read_text()
           ..register(httpFn())
           ..register(counterFn());
         addTearDown(s.dispose);
-        await s.execute('http_fn()').result;
+        final firstHttp = s.execute('http_fn()');
+        await firstHttp.result;
         await s.execute('c1 = counter()').result;
-        await s.execute('http_fn()').result;
+        final secondHttp = s.execute('http_fn()');
+        await secondHttp.result;
         await s.execute('c2 = counter()').result;
         final r = await s.execute('[c1, c2]').result;
         print('  H5: ${r.dartValue}');
@@ -326,8 +328,8 @@ cached = Path("/cache.txt").read_text()
         final r = await s.execute('[kv_get("cached"), len(cached)]').result;
         print('  H6: ${r.dartValue}');
         final list = r.dartValue! as List;
-        expect(list[0], 'true');
-        expect(list[1] as int, greaterThan(0));
+        expect(list.firstOrNull, 'true');
+        expect(list.elementAtOrNull(1), greaterThan(0));
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );

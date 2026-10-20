@@ -133,7 +133,8 @@ r2 = delay_fn()
 r3 = http_fn()
 [r1, r2, len(r3)]
 ''').result;
-        expect(r.dartValue, isA<List<dynamic>>());
+        final isDynamicList = isA<List<dynamic>>();
+        expect(r.dartValue, isDynamicList);
         print('  A4. mixed sync+delay+http: PASS');
 
         r = await session.execute('''
@@ -152,7 +153,8 @@ kv_get("name")
 
         await session.execute('hdata = http_fn()').result;
         r = await session.execute('len(hdata)').result;
-        expect(r.dartValue! as int, greaterThan(0));
+        final greaterThanZero = greaterThan(0);
+        expect(r.dartValue! as int, greaterThanZero);
         print('  B2. state persists (http): PASS');
 
         await session.execute('items = []').result;
@@ -189,7 +191,7 @@ kv_set("url_data", http_fn())
 b = kv_get("url_data")
 [a, len(b)]
 ''').result;
-        expect(r.dartValue, isA<List<dynamic>>());
+        expect(r.dartValue, isDynamicList);
         print('  C2. sync+kv+http: PASS');
 
         r = await session.execute('''
@@ -201,8 +203,8 @@ r4 = kv_get("all")
 [r1, r2, len(r3), r4]
 ''').result;
         final c3 = r.dartValue! as List;
-        expect(c3[0], 'sync_ok');
-        expect(c3[3], 'sync_ok_delay_ok');
+        expect(c3.firstOrNull, 'sync_ok');
+        expect(c3.elementAtOrNull(3), 'sync_ok_delay_ok');
         print('  C3. all 5 fns: PASS');
 
         // ── D. Built-in plugins ──────────────────────────────────────
@@ -245,8 +247,8 @@ f = kv_get("ch")
 [a, b, len(c), d, e, f]
 ''').result;
         final d5 = r.dartValue! as List;
-        expect(d5[0], 'sync_ok');
-        expect(d5[4], 'sync_ok-delay_ok');
+        expect(d5.firstOrNull, 'sync_ok');
+        expect(d5.elementAtOrNull(4), 'sync_ok-delay_ok');
         print('  D5. ALL plugins+fns: PASS');
 
         // ── E. Filesystem ────────────────────────────────────────────
@@ -265,7 +267,7 @@ data = http_fn()
 Path("/data.json").write_text(data)
 len(Path("/data.json").read_text())
 ''').result;
-        expect(r.dartValue! as int, greaterThan(0));
+        expect(r.dartValue! as int, greaterThanZero);
         print('  E2. http→fs: PASS');
 
         r = await session.execute('''
@@ -279,7 +281,7 @@ saved = Path("/raw.txt").read_text()
 [log, len(saved)]
 ''').result;
         final e3 = r.dartValue! as List;
-        expect(e3[0] as String, startsWith('Saved '));
+        expect(e3.firstOrNull, startsWith('Saved '));
         print('  E3. fs+template+kv+http: PASS');
 
         // ── F. Edge cases ────────────────────────────────────────────
@@ -289,7 +291,8 @@ saved = Path("/raw.txt").read_text()
         print('  F1. large string (100K): PASS');
 
         r = await session.execute('list(range(1000))').result;
-        expect((r.dartValue! as List).length, 1000);
+        final f2 = r.dartValue! as List;
+        expect(f2.length, 1000);
         print('  F2. large list (1000): PASS');
 
         r = await session.execute('{"a": {"b": {"c": 42}}}').result;
@@ -300,12 +303,12 @@ saved = Path("/raw.txt").read_text()
         print('  F3. nested dict: PASS');
 
         final printed = session.execute('print("hello")');
-        final finished = printed.events.firstWhere(
+        final finished = await printed.events.firstWhere(
           (e) => e is BridgeRunFinished,
         );
-        r = await printed.result;
+        await printed.result;
         expect(
-          (await finished as BridgeRunFinished).printOutput,
+          (finished as BridgeRunFinished).printOutput,
           contains('hello'),
         );
         print('  F4. print capture: PASS');
@@ -316,7 +319,8 @@ for i in range(5):
     results.append(len(http_fn()))
 results
 ''').result;
-        expect((r.dartValue! as List).length, 5);
+        final f5 = r.dartValue! as List;
+        expect(f5.length, 5);
         print('  F5. http × 5 loop: PASS');
 
         print('\n  ALL 25 EXPERIMENTS PASSED ✅');

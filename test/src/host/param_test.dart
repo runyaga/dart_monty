@@ -307,11 +307,12 @@ void main() {
 
   test('missing and None name the parameter', () {
     const param = HostParam(name: 'x', type: HostParamType.string);
+    final formatExceptionMatcher = isA<FormatException>();
 
     expect(
       () => param.validate(null, isPresent: false),
       throwsA(
-        isA<FormatException>().having(
+        formatExceptionMatcher.having(
           (e) => e.message,
           'message',
           'Required parameter "x" is missing',
@@ -321,7 +322,7 @@ void main() {
     expect(
       () => param.validate(const MontyNone()),
       throwsA(
-        isA<FormatException>().having(
+        formatExceptionMatcher.having(
           (e) => e.message,
           'message',
           'Required parameter "x" is null',

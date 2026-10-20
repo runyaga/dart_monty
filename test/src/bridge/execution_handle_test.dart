@@ -13,7 +13,11 @@ void main() {
       expect(token.isCancelled, isFalse);
       expect(
         Future.any([
-          token.future.then((_) => 'cancelled'),
+          () async {
+            await token.future;
+
+            return 'cancelled';
+          }(),
           Future<String>.value('still-alive'),
         ]),
         completion('still-alive'),
@@ -22,7 +26,11 @@ void main() {
 
     test('cancel flips isCancelled and completes the future', () async {
       final token = CancelToken();
-      final fired = token.future.then((_) => 'done');
+      final fired = () async {
+        await token.future;
+
+        return 'done';
+      }();
       expect(token.isCancelled, isFalse);
 
       token.cancel();
@@ -47,7 +55,7 @@ void main() {
       final token = CancelToken();
       const stubResult = MontyNone();
       final handle = ExecutionHandle(
-        events: const Stream<BridgeEvent>.empty(),
+        events: const Stream.empty(),
         result: Future.value(stubResult),
         executionId: 'exec-7',
         cancel: () async => token.cancel(),

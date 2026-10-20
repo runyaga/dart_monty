@@ -30,7 +30,7 @@ Future<MontyValue> _eval(String expr) async {
 }
 
 /// The pool every runtime in this file checks out from.
-late Monty pool;
+late final Monty pool;
 
 void main() {
   setUpAll(() async => pool = await startTestPool());
@@ -63,10 +63,11 @@ void main() {
       // Each of these is a separate switch arm. A test over a hand-built
       // MontyList would exercise one arm and leave three unverified against
       // what the engine really returns for tuple/set/frozenset.
-      expect((await _eval('[1, 2]')).asList(), hasLength(2));
-      expect((await _eval('(1, 2)')).asList(), hasLength(2));
-      expect((await _eval('{1, 2}')).asList(), hasLength(2));
-      expect((await _eval('frozenset({1, 2})')).asList(), hasLength(2));
+      final hasLengthTwo = hasLength(2);
+      expect((await _eval('[1, 2]')).asList(), hasLengthTwo);
+      expect((await _eval('(1, 2)')).asList(), hasLengthTwo);
+      expect((await _eval('{1, 2}')).asList(), hasLengthTwo);
+      expect((await _eval('frozenset({1, 2})')).asList(), hasLengthTwo);
 
       expect(
         (await _eval('"ab"')).asList(),

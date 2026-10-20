@@ -6,7 +6,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// A session whose feeds throw [error], which is not a [MontyError].
 final class ThrowingSession implements MontySession {
   /// A session whose feeds throw [error].
-  ThrowingSession(this.error);
+  const ThrowingSession(this.error);
 
   /// What every feed throws.
   final Object error;
@@ -45,7 +45,9 @@ final class ThrowingSession implements MontySession {
   }
 
   @override
-  Future<void> loadSession(Uint8List state) async {}
+  Future<void> loadSession(Uint8List state) async {
+    // The fake has no session state to restore.
+  }
 
   @override
   Future<MontySnapshot> loadSnapshot(
@@ -57,13 +59,17 @@ final class ThrowingSession implements MontySession {
   }) async => throw UnsupportedError('loadSnapshot');
 
   @override
-  Future<void> installDependencies(List<String> requirements) async {}
+  Future<void> installDependencies(List<String> requirements) async {
+    // The fake has no dependencies to install.
+  }
 
   @override
   Future<Uint8List> dump() async => Uint8List(0);
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    // The fake holds no resources to release.
+  }
 }
 
 /// A session whose feed makes one OS call, [name] with [args], through the

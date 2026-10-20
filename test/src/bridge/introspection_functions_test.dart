@@ -12,7 +12,12 @@ import 'package:dart_monty/src/introspection_functions.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:test/test.dart';
 
-final _testCtx = HostContext(emit: (_) {}, executionId: 'test');
+final _testCtx = HostContext(
+  emit: (_) {
+    // These tests do not assert on emitted events.
+  },
+  executionId: 'test',
+);
 
 void main() {
   group('buildIntrospectionFunctions', () {
@@ -76,10 +81,11 @@ void main() {
 
       Future<String> callHelp([String? name]) async {
         final fns = buildIntrospectionFunctions(bridge);
-        final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+        final [helpFn] = fns.where((f) => f.schema.name == 'help').toList();
         final result = await helpFn.handler!({
           'name': MontyValue.fromDart(name),
         }, _testCtx);
+
         return (result as MontyString).value;
       }
 
@@ -103,7 +109,7 @@ void main() {
         final introTools = tools['introspection']! as List<Object?>;
 
         expect(introTools, hasLength(1));
-        final helpTool = introTools.first! as Map<String, Object?>;
+        final [helpTool as Map<String, Object?>] = introTools;
         expect(helpTool['name'], 'help');
       });
 
@@ -112,12 +118,12 @@ void main() {
         final decoded = jsonDecode(result) as Map<String, Object?>;
         final tools = decoded['tools']! as Map<String, Object?>;
         final storageTools = tools['storage']! as List<Object?>;
-        final storageGet = storageTools.first! as Map<String, Object?>;
+        final [storageGet as Map<String, Object?>, ...] = storageTools;
 
         expect(storageGet['name'], 'storage_get');
         final params = storageGet['params']! as List<Object?>;
         expect(params, hasLength(1));
-        final param = params.first! as Map<String, Object?>;
+        final [param as Map<String, Object?>] = params;
         expect(param['name'], 'key');
         expect(param['type'], 'string');
       });
@@ -136,7 +142,7 @@ void main() {
         final params = decoded['params']! as List<Object?>;
 
         expect(params, hasLength(1));
-        final param = params.first! as Map<String, Object?>;
+        final [param as Map<String, Object?>] = params;
         expect(param['name'], 'key');
         expect(param['type'], 'string');
       });
@@ -203,7 +209,7 @@ void main() {
             category: 'db_utils',
           );
         final fns = buildIntrospectionFunctions(b);
-        final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+        final [helpFn] = fns.where((f) => f.schema.name == 'help').toList();
         final result = await helpFn.handler!({
           'name': const MontyString('query'),
         }, _testCtx);
@@ -217,7 +223,7 @@ void main() {
         final fns = buildIntrospectionFunctions(bridge);
 
         expect(fns, hasLength(1));
-        expect(fns.first.schema.name, 'help');
+        expect(fns.map((f) => f.schema.name), ['help']);
       });
     });
 
@@ -228,7 +234,7 @@ void main() {
           final bridge = _FakeBridge();
           // Build introspection FIRST.
           final fns = buildIntrospectionFunctions(bridge);
-          final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+          final [helpFn] = fns.where((f) => f.schema.name == 'help').toList();
 
           // Register a function AFTER.
           bridge.register(
@@ -256,7 +262,7 @@ void main() {
       test('late-registered function appears in no-arg listing', () async {
         final bridge = _FakeBridge();
         final fns = buildIntrospectionFunctions(bridge);
-        final helpFn = fns.firstWhere((f) => f.schema.name == 'help');
+        final [helpFn] = fns.where((f) => f.schema.name == 'help').toList();
 
         // Register after.
         bridge.register(
@@ -297,13 +303,14 @@ class _FakeBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
     final result = <String, List<HostFunctionSchema>>{};
     for (final entry in _categoryIndex.entries) {
-      final schemas = <HostFunctionSchema>[];
+      final categorySchemas = <HostFunctionSchema>[];
       for (final name in entry.value) {
         final fn = _functions[name];
-        if (fn != null) schemas.add(fn.schema);
+        if (fn != null) categorySchemas.add(fn.schema);
       }
-      if (schemas.isNotEmpty) result[entry.key] = schemas;
+      if (categorySchemas.isNotEmpty) result[entry.key] = categorySchemas;
     }
+
     return result;
   }
 
@@ -321,7 +328,9 @@ class _FakeBridge implements MontyBridge {
   }
 
   @override
-  void registerOs(OsHandler handler) {}
+  void registerOs(OsHandler handler) {
+    // No test registers an OS handler with this fake.
+  }
 
   @override
   Stream<BridgeEvent> execute(String code) => const Stream.empty();
@@ -334,5 +343,7 @@ class _FakeBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }

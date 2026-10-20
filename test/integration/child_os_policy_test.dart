@@ -31,8 +31,9 @@ void main() {
     final result =
         await awaitChild(runtime, await spawnChild(runtime, _script))
             as MontyList;
-    expect((result.items.first as MontyFloat).value, greaterThan(0));
-    expect((result.items[1] as MontyFloat).value, inInclusiveRange(0, 1));
+    final [first, second, ...] = result.items.cast<MontyFloat>();
+    expect(first.value, greaterThan(0));
+    expect(second.value, inInclusiveRange(0, 1));
     expect(calls, 1);
   });
 
@@ -49,7 +50,13 @@ void main() {
         throw StateError('System policy must not call this handler');
       },
     );
-    final bridge = await childContractBridge(pool);
+    // The child needs a bridge of its own: the probe below must observe the
+    // inherited callback through the child's OS handler, so the parent's
+    // bridge cannot be reused here.
+    final childSession = await pool.checkout();
+    addTearDown(childSession.close);
+    final bridge = MontyBridge(session: childSession);
+    addTearDown(bridge.dispose);
     final child = await parent.spawnChild(
       context: const ChildSpawnContext(childId: 1),
       bridge: bridge,
@@ -57,12 +64,14 @@ void main() {
     addTearDown(child.disposeAll);
     // Prove the callback really was inherited before testing policy bypass.
     final probe = await bridge.execute("import os\nos.getenv('D5')").toList();
-    expect(probe.last, isA<BridgeRunError>());
+    expect(probe.lastOrNull, isA<BridgeRunError>());
     expect(calls, 1);
     final events = await bridge.execute(_script).toList();
-    final value = (events.last as BridgeRunFinished).montyValue! as MontyList;
-    expect((value.items.first as MontyFloat).value, greaterThan(0));
-    expect((value.items[1] as MontyFloat).value, inInclusiveRange(0, 1));
+    final finished = events.lastOrNull! as BridgeRunFinished;
+    final value = finished.montyValue! as MontyList;
+    final [first, second, ...] = value.items.cast<MontyFloat>();
+    expect(first.value, greaterThan(0));
+    expect(second.value, inInclusiveRange(0, 1));
     expect(calls, 1);
     expect(events.whereType<BridgeOsCallStart>(), isEmpty);
   });
@@ -85,17 +94,19 @@ void main() {
         calls.add(name);
         if (name == 'time.time') return const MontyFloat(1234.5);
         if (name == 'os.urandom') {
-          final count = (args.single as MontyInt).value;
+          final [MontyInt(value: count)] = args.cast<MontyInt>();
 
           return MontyBytes(Uint8List.fromList(List.filled(count, entropy)));
         }
         throw StateError('unexpected OS call $name');
       });
       final events = await bridge.execute(_script).toList();
-      expect(events.last, isA<BridgeRunFinished>(), reason: '$events');
-      final value = (events.last as BridgeRunFinished).montyValue! as MontyList;
-      expect(value.items.first, const MontyFloat(1234.5));
-      final draw = (value.items[1] as MontyFloat).value;
+      expect(events.lastOrNull, isA<BridgeRunFinished>(), reason: '$events');
+      final finished = events.lastOrNull! as BridgeRunFinished;
+      final value = finished.montyValue! as MontyList;
+      final [first, second, ...] = value.items.cast<MontyFloat>();
+      expect(first, const MontyFloat(1234.5));
+      final draw = second.value;
       expect(draw, inInclusiveRange(0, 1));
       draws.add(draw);
       expect(calls, ['time.time', 'os.urandom']);
@@ -105,7 +116,8 @@ void main() {
     }
     // Host entropy is authoritative: equal bytes reproduce the stream, and
     // changing only those bytes changes the result.
-    expect(draws[1], draws.first);
-    expect(draws[2], isNot(draws.first));
+    final [first, second, third] = draws;
+    expect(second, first);
+    expect(third, isNot(first));
   });
 }

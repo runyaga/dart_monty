@@ -168,6 +168,9 @@ dcm:
     - no-boolean-literal-compare
     - no-empty-block:
         exclude:
+          # Test fakes, ignored callbacks and listeners are intentional no-ops,
+          # and each carries a comment that says so. DCM exempts only TODO comments.
+          - "test/**"
           # NullBridgeLogger: null-object pattern, all methods intentionally empty
           - "lib/src/bridge/logger.dart"
           # Default no-op lifecycle hooks

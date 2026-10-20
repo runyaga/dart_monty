@@ -38,14 +38,16 @@ class TemplateStubExtension extends MontyExtension {
   Future<MontyValue> _render(
     Map<String, MontyValue> args,
     HostContext ctx,
-  ) async {
+  ) {
     final template = args.str('template');
     final context = args['context']!.dartValue! as Map<Object?, Object?>;
 
-    return MontyString(
-      template.replaceAllMapped(
-        _placeholder,
-        (m) => '${context[m[1]]}',
+    return Future.value(
+      MontyString(
+        template.replaceAllMapped(
+          _placeholder,
+          (m) => '${context[m[1]]}',
+        ),
       ),
     );
   }

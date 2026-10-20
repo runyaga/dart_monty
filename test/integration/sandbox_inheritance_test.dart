@@ -1,6 +1,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:test/test.dart';
@@ -39,6 +40,7 @@ void main() {
     );
     addTearDown(runtime.dispose);
     await runtime.invoke('sandbox_await_all', {'handles': const MontyList([])});
+
     return runtime;
   }
 
@@ -172,10 +174,11 @@ void main() {
         // Each child increments its own counter independently.
         // Dispatch is sync (DispatchMode.sync default) — direct calls, no async/await needed.
         final cc = ['counter_increment()', 'counter_get()'].join(r'\n');
+        final spawned = spawn(cc);
         final result = await run(
           bridge,
-          'h1 = ${spawn(cc)}\n'
-          'h2 = ${spawn(cc)}\n'
+          'h1 = $spawned\n'
+          'h2 = $spawned\n'
           'r1 = sandbox_await(handle=h1)\n'
           'r2 = sandbox_await(handle=h2)\n'
           '[r1, r2]',
@@ -183,8 +186,8 @@ void main() {
 
         final results = result! as List;
         // Each child has its own counter starting at 0.
-        expect(results[0], 1);
-        expect(results[1], 1);
+        expect(results.firstOrNull, 1);
+        expect(results.elementAtOrNull(1), 1);
 
         // Parent counter untouched.
         expect(counter.count, 0);
@@ -221,7 +224,7 @@ void main() {
             run(bridge, 'h = ${spawn("2 + 2")}\nsandbox_await(handle=h)'),
             throwsA(
               predicate(
-                (e) => e.toString().contains('unavailable on web'),
+                (e) => e?.toString().contains('unavailable on web') ?? false,
               ),
             ),
           );
@@ -373,6 +376,7 @@ class _ContextCapturingExtension extends MontyExtension {
   @override
   MontyExtension createChildInstance(ChildSpawnContext context) {
     onContext(context);
+
     return _ContextCapturingExtension(onContext: onContext);
   }
 }

@@ -40,6 +40,7 @@ void main() {
               fake.willReturn(const MontyInt(42));
               final session = RecordingSession(fake);
               sessions.add(session);
+
               return session;
             },
           );
@@ -54,40 +55,42 @@ void main() {
           );
           await runtime.execute('probe()').result;
           expect(observed, hasLength(2));
+          final [_, childLimits] = observed;
+          final [_, childSession] = sessions;
           expect(
-            observed[1]?.maxFeedDuration,
+            childLimits?.maxFeedDuration,
             limits.maxFeedDuration,
             reason: 'maxFeedDuration',
           );
           expect(
-            observed[1]?.maxTurnDuration,
+            childLimits?.maxTurnDuration,
             limits.maxTurnDuration,
             reason: 'maxTurnDuration',
           );
-          expect(observed[1]?.maxMemory, limits.maxMemory, reason: 'maxMemory');
+          expect(childLimits?.maxMemory, limits.maxMemory, reason: 'maxMemory');
           expect(
-            observed[1]?.gcInterval,
+            childLimits?.gcInterval,
             limits.gcInterval,
             reason: 'gcInterval',
           );
           expect(
-            observed[1]?.maxRecursionDepth,
+            childLimits?.maxRecursionDepth,
             limits.maxRecursionDepth,
             reason: 'maxRecursionDepth',
           );
           expect(
-            observed[1]?.maxSuspensions,
+            childLimits?.maxSuspensions,
             limits.maxSuspensions,
             reason: 'maxSuspensions',
           );
           expect(
-            observed[1]?.maxTotalSleep,
+            childLimits?.maxTotalSleep,
             limits.maxTotalSleep,
             reason: 'maxTotalSleep',
           );
 
-          expect(identical(observed[1], limits), isTrue);
-          expect(sessions[1].closed, isTrue);
+          expect(identical(childLimits, limits), isTrue);
+          expect(childSession.closed, isTrue);
         },
       );
     }
@@ -115,6 +118,7 @@ void main() {
                 await pool.checkout(limits: limits),
               );
               sessions.add(session);
+
               return session;
             },
           );
@@ -131,10 +135,12 @@ void main() {
                   ),
           );
           final call = script ? "run_script('child.py')" : 'probe()';
+          final isMontyError = isA<MontyError>();
+          final failingRun = runtime.execute(call);
           await expectLater(
-            runtime.execute(call).result,
+            failingRun.result,
             throwsA(
-              isA<MontyError>().having(
+              isMontyError.having(
                 (e) => e.exception.excType,
                 'outer type',
                 'RuntimeError',
@@ -142,9 +148,10 @@ void main() {
             ),
           );
           expect(sessions, hasLength(2));
+          final [_, nestedSession] = sessions;
           expect(
-            sessions[1].feedError,
-            isA<MontyError>()
+            nestedSession.feedError,
+            isMontyError
                 .having(
                   (e) => e.exception.excType,
                   'nested type',
@@ -156,12 +163,13 @@ void main() {
                   contains(sleep ? 'sleep limit exceeded' : 'suspension limit'),
                 ),
           );
-          expect(sessions[1].closed, isTrue);
+          expect(nestedSession.closed, isTrue);
           expect(await runtime.execute('42').result, const MontyInt(42));
           code = '42';
           expect(await runtime.execute(call).result, const MontyInt(42));
-          expect(sessions.last.closed, isTrue);
-          expect(sessions.last.feedError, isNull);
+          final [..., recoveredSession] = sessions;
+          expect(recoveredSession.closed, isTrue);
+          expect(recoveredSession.feedError, isNull);
         },
       );
     }

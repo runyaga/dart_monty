@@ -219,9 +219,9 @@ void main() {
 
     expect(_decode(json), {'value': 42, 'output': 'hi\n'});
     expect(events, hasLength(2));
-    expect(events.first, isA<BridgeRunStarted>());
+    expect(events.firstOrNull, isA<BridgeRunStarted>());
     expect(
-      events.last,
+      events.lastOrNull,
       isA<BridgeRunFinished>()
           .having((e) => e.printOutput, 'printOutput', 'hi\n')
           .having((e) => e.montyValue, 'montyValue', const MontyInt(42)),
@@ -251,7 +251,7 @@ void main() {
     final error = json['error']! as Map<String, Object?>;
     expect(error['excType'], 'ZeroDivisionError');
     expect(error['traceback'], isNotEmpty);
-    final failure = events.whereType<BridgeRunError>().single;
+    final [failure] = events.whereType<BridgeRunError>().toList();
     expect(failure.exception, isA<MontyError>());
     expect(failure.exception!.exception.excType, 'ZeroDivisionError');
     await expectLater(handle.result, throwsA(same(failure.exception)));
@@ -294,9 +294,10 @@ void main() {
       'narrate_say',
       'map_add_marker',
     ]);
-    expect(tools.calls[0].$2['url'], isA<String>());
-    expect(tools.calls[1].$2['text'], 'm');
-    final marker = tools.calls[2].$2;
+    final [httpCall, sayCall, markerCall] = tools.calls;
+    expect(httpCall.$2['url'], isA<String>());
+    expect(sayCall.$2['text'], 'm');
+    final marker = markerCall.$2;
     expect(marker['lat'], isA<double>());
     expect(marker['lat'], 1.5);
     expect(marker['lng'], 2.0);
@@ -310,17 +311,19 @@ void main() {
       (6, 'narrate_say', 'ok'),
       (12, 'map_add_marker', 'marker-1'),
     ]) {
-      final callId = (calls[i] as BridgeCallStarted).callId;
+      final window = calls.skip(i).take(6).toList();
+      final [started, fnStart, fnArgs, fnEnd, fnResult, fnFinished] = window;
+      final callId = (started as BridgeCallStarted).callId;
       expect(
-        calls[i + 1],
+        fnStart,
         isA<BridgeFunctionCallStart>()
             .having((e) => e.name, 'name', name)
             .having((e) => e.callId, 'callId', callId),
       );
-      expect(calls[i + 2], isA<BridgeFunctionCallArgs>());
-      expect(calls[i + 3], isA<BridgeFunctionCallEnd>());
+      expect(fnArgs, isA<BridgeFunctionCallArgs>());
+      expect(fnEnd, isA<BridgeFunctionCallEnd>());
       expect(
-        calls[i + 4],
+        fnResult,
         isA<BridgeFunctionCallResult>().having(
           (e) => e.result,
           'result',
@@ -328,7 +331,7 @@ void main() {
         ),
       );
       expect(
-        calls[i + 5],
+        fnFinished,
         isA<BridgeCallFinished>().having((e) => e.callId, 'callId', callId),
       );
     }
@@ -424,7 +427,9 @@ void main() {
       );
       await runPythonTool(runtime, 'kept = 1');
 
-      final json = _decode(await runPythonTool(runtime, 'while True:\n  pass'));
+      // A variable, not an inline call: the same run is made again below.
+      final infiniteLoop = runPythonTool(runtime, 'while True:\n  pass');
+      final json = _decode(await infiniteLoop);
 
       expect((json['error']! as Map)['excType'], 'TimeoutError');
       expect(_decode(await runPythonTool(runtime, '1+1'))['value'], 2);
@@ -453,7 +458,8 @@ void main() {
     );
     addTearDown(runtime.dispose);
     await runPythonTool(runtime, 'kept = 1');
-    final pid = sessions.single.workerPid;
+    final [session] = sessions;
+    final pid = session.workerPid;
     late ExecutionHandle handle;
 
     final pending = runPythonTool(
@@ -468,7 +474,7 @@ void main() {
     } else {
       // A Web Worker cannot be killed from outside its session: closing the
       // session mid-turn terminates it.
-      await sessions.single.close();
+      await session.close();
     }
     final json = _decode(await pending);
 
@@ -477,7 +483,8 @@ void main() {
     expect(_decode(await runPythonTool(runtime, '1+1'))['value'], 2);
     expect(sessions, hasLength(2));
     if (hasWorkerProcesses) {
-      expect(sessions.last.workerPid, isNot(pid));
+      final [_, replacement] = sessions;
+      expect(replacement.workerPid, isNot(pid));
       expect(await processAlive(pid!), isFalse);
     }
     // The host tools are still bridged on the replacement.

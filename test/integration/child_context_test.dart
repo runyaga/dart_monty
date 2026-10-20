@@ -48,9 +48,10 @@ void main() {
       {'0'},
     );
     expect(sessions, hasLength(2));
-    expect(sessions[1].feeds.single.cwd, '/work');
-    expect(sessions[1].closeCalls, 1);
-    expect(extension.clones.single.context?.workingDirectory, '/work');
+    final childSession = sessions.elementAtOrNull(1);
+    expect(childSession?.feeds.singleOrNull?.cwd, '/work');
+    expect(childSession?.closeCalls, 1);
+    expect(extension.clones.singleOrNull?.context?.workingDirectory, '/work');
     for (final name in ['parent_global', 'raw_parent()']) {
       final handle = await spawnChild(runtime, name);
       await expectLater(
@@ -86,17 +87,24 @@ void main() {
     final handle = await spawnChild(runtime, 'nested_run()');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     expect(sessions, hasLength(3));
-    expect(observed[1], same(selected));
-    expect(observed[2], same(selected));
-    expect(sessions[1].closeCalls, 1);
-    expect(sessions[2].closeCalls, 1);
+    final sameLimits = same(selected);
+    expect(observed.elementAtOrNull(1), sameLimits);
+    expect(observed.elementAtOrNull(2), sameLimits);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    expect(sessions.elementAtOrNull(2)?.closeCalls, 1);
   });
 
   // Coordinator isolation complements the live checkout witness above.
   test('child coordinators isolate their context', () async {
     final pool = await childContractPool();
     final parentBridge = await childContractBridge(pool);
-    final childBridge = await childContractBridge(pool);
+    // The child needs a bridge of its own: the isolation checks below rely on
+    // the child not seeing the parent's registrations, so the parent's bridge
+    // cannot be reused here.
+    final childSession = await pool.checkout();
+    addTearDown(childSession.close);
+    final childBridge = MontyBridge(session: childSession);
+    addTearDown(childBridge.dispose);
     final extension = ChildContractExtension('probe');
     final parent = ExtensionCoordinator()..register(extension);
     addTearDown(parent.disposeAll);
@@ -118,13 +126,13 @@ void main() {
       baseOs: (_, _, _) => const MontyString('execution'),
     );
     addTearDown(child.disposeAll);
-    expect(extension.clones.single.context, same(context));
+    expect(extension.clones.singleOrNull?.context, same(context));
     expect(childBridge.schemas.map((s) => s.name), ['probe_id', 'help']);
     for (final name in ['parent_global', 'raw_parent()']) {
       final events = await childBridge.execute(name).toList();
-      expect(events.last, isA<BridgeRunError>());
+      expect(events.lastOrNull, isA<BridgeRunError>());
       expect(
-        (events.last as BridgeRunError).exception?.exception.excType,
+        (events.lastOrNull! as BridgeRunError).exception?.exception.excType,
         'NameError',
       );
     }
@@ -132,7 +140,7 @@ void main() {
         .execute("import os\n[probe_id(), os.getenv('D5_ORIGIN')]")
         .toList();
     expect(
-      (events.last as BridgeRunFinished).montyValue,
+      (events.lastOrNull! as BridgeRunFinished).montyValue,
       const MontyList([MontyInt(7), MontyString('execution')]),
     );
   });

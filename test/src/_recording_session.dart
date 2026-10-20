@@ -85,6 +85,7 @@ final class RecordingSession implements MontySession {
       skipTypeCheck: skipTypeCheck,
     );
     final hold = holdFailure;
+
     return fed.catchError((Object e, StackTrace st) async {
       feedError = e;
       if (hold != null) await hold;

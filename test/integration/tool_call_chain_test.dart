@@ -81,7 +81,7 @@ results = [get_weather(city=c)['temp'] for c in cities]
     late MontyHarness h;
 
     setUp(() async {
-      final db = <String, Map<String, Object?>>{
+      final db = {
         'user:alice': {'name': 'Alice', 'tier': 'premium', 'balance': 150},
         'user:bob': {'name': 'Bob', 'tier': 'free', 'balance': 0},
       };
@@ -102,6 +102,7 @@ results = [get_weather(city=c)['temp'] for c in cities]
               'offer:${(args['user']! as MontyString).value}:'
               '${(args['offer']! as MontyString).value}',
             );
+
             return const MontyBool(true);
           },
           params: [
@@ -113,6 +114,7 @@ results = [get_weather(city=c)['temp'] for c in cities]
           'send_upsell',
           (args, ctx) async {
             log.add('upsell:${(args['user']! as MontyString).value}');
+
             return const MontyBool(true);
           },
           params: [const HostParam(name: 'user', type: HostParamType.string)],

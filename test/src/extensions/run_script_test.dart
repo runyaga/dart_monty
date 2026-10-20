@@ -23,7 +23,9 @@ HostContext _ctx(
   List<(String, Map<String, Object?>?)> calls, {
   Future<MontyValue> Function()? answer,
 }) => HostContext(
-  emit: (_) {},
+  emit: (_) {
+    // Not used by these tests.
+  },
   executionId: 'test',
   subExecute: (code, {inputs}) {
     calls.add((code, inputs));
@@ -57,8 +59,9 @@ void main() {
       'inputs': MontyValue.fromDart({'n': 1}),
     }, _ctx(calls));
 
-    expect(calls.single.$1, 'source of a.py');
-    expect(calls.single.$2, {'n': const MontyInt(1)});
+    final [call] = calls;
+    expect(call.$1, 'source of a.py');
+    expect(call.$2, {'n': const MontyInt(1)});
     expect(value, const MontyInt(7));
   });
 
@@ -78,11 +81,17 @@ void main() {
 
     await fn.handler!({'path': const MontyString('a.py')}, _ctx(calls));
 
-    expect(calls.single.$2, isNull);
+    final [call] = calls;
+    expect(call.$2, isNull);
   });
 
   test('fails with StateError without a subExecute', () async {
-    final bare = HostContext(emit: (_) {}, executionId: 'test');
+    final bare = HostContext(
+      emit: (_) {
+        // Not used by this test.
+      },
+      executionId: 'test',
+    );
 
     await expectLater(
       fn.handler!({'path': const MontyString('a.py')}, bare),

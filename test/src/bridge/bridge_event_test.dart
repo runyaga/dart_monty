@@ -172,14 +172,15 @@ void main() {
     });
 
     test('construction does no validation', () {
+      final empty = ''.trim();
       expect(
         () => [
-          BridgeRunStarted(threadId: ''.trim(), runId: ''.trim()),
-          BridgeRunError(message: ''.trim()),
-          BridgeOsCallResult(callId: ''.trim(), result: '', durationMs: -1),
+          BridgeRunStarted(threadId: empty, runId: empty),
+          BridgeRunError(message: empty),
+          BridgeOsCallResult(callId: empty, result: '', durationMs: -1),
           BridgeChildEvent(
-            childHandle: ''.trim(),
-            inner: BridgeRunError(message: ''.trim()),
+            childHandle: empty,
+            inner: BridgeRunError(message: empty),
           ),
         ],
         returnsNormally,

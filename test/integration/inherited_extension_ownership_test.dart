@@ -10,7 +10,8 @@ import '_child_contract.dart';
 void main() {
   test('two children borrow an inherited extension', () async {
     final pool = await childContractPool();
-    final parentBridge = await childContractBridge(pool);
+    final parentBridgeFuture = childContractBridge(pool);
+    final parentBridge = await parentBridgeFuture;
     final borrowed = ChildContractExtension(
       'borrowed',
       childPolicy: ChildPolicy.inherit,
@@ -21,7 +22,8 @@ void main() {
     final children = <ExtensionCoordinator>[];
     final bridges = <MontyBridge>[];
     for (var id = 0; id < 2; id++) {
-      final bridge = await childContractBridge(pool);
+      final bridgeFuture = childContractBridge(pool);
+      final bridge = await bridgeFuture;
       bridges.add(bridge);
       children.add(
         await parent.spawnChild(
@@ -32,10 +34,12 @@ void main() {
       expect(coordinatorOf(borrowed), same(parent));
       expect(borrowed.logger, same(ownerLogger));
     }
-    await children.first.disposeAll();
+    final [firstChild, secondChild] = children;
+    final [_, secondBridge] = bridges;
+    await firstChild.disposeAll();
     expect(borrowed.disposals, 0);
     expect(
-      await bridges[1].invokeHostFunction('borrowed_id', {}),
+      await secondBridge.invokeHostFunction('borrowed_id', {}),
       const MontyInt(-1),
     );
     expect(
@@ -52,7 +56,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(disposed, isFalse);
     expect(borrowed.disposals, 0);
-    await children[1].disposeAll();
+    await secondChild.disposeAll();
     await disposing;
     expect(borrowed.disposals, 1);
     await parent.disposeAll();
@@ -62,7 +66,8 @@ void main() {
   // Clone and exclude ownership are independent of borrowed instance leases.
   test('children own their clones and skip excluded extensions', () async {
     final pool = await childContractPool();
-    final parentBridge = await childContractBridge(pool);
+    final parentBridgeFuture = childContractBridge(pool);
+    final parentBridge = await parentBridgeFuture;
     final cloneable = ChildContractExtension('owned');
     final excluded = ChildContractExtension(
       'excluded',
@@ -75,34 +80,38 @@ void main() {
     final children = <ExtensionCoordinator>[];
     final bridges = <MontyBridge>[];
     for (var id = 0; id < 2; id++) {
-      final bridge = await childContractBridge(pool);
+      final bridgeFuture = childContractBridge(pool);
+      final bridge = await bridgeFuture;
       bridges.add(bridge);
-      children.add(
-        await parent.spawnChild(
-          context: ChildSpawnContext(childId: id),
-          bridge: bridge,
-        ),
+      final child = await parent.spawnChild(
+        context: ChildSpawnContext(childId: id),
+        bridge: bridge,
       );
+      children.add(child);
       expect(bridge.schemas.map((s) => s.name), ['owned_id', 'help']);
-      expect(cloneable.clones[id], isNot(same(cloneable)));
-      expect(children[id].extensions, [same(cloneable.clones[id])]);
-      expect(coordinatorOf(cloneable.clones[id]), same(children[id]));
+      final [..., clone] = cloneable.clones;
+      expect(clone, isNot(same(cloneable)));
+      expect(child.extensions, [same(clone)]);
+      expect(coordinatorOf(clone), same(child));
     }
-    expect(cloneable.clones.first, isNot(same(cloneable.clones[1])));
+    final [firstChild, secondChild] = children;
+    final [firstClone, secondClone] = cloneable.clones;
+    final [_, secondBridge] = bridges;
+    expect(firstClone, isNot(same(secondClone)));
     expect(excluded.clones, isEmpty);
-    await children.first.disposeAll();
-    expect(cloneable.clones.first.disposals, 1);
-    expect(cloneable.clones[1].disposals, 0);
+    await firstChild.disposeAll();
+    expect(firstClone.disposals, 1);
+    expect(secondClone.disposals, 0);
     expect(cloneable.disposals, 0);
     expect(
-      await bridges[1].invokeHostFunction('owned_id', {}),
+      await secondBridge.invokeHostFunction('owned_id', {}),
       const MontyInt(1),
     );
     expect(
       await parentBridge.invokeHostFunction('owned_id', {}),
       const MontyInt(-1),
     );
-    await children[1].disposeAll();
+    await secondChild.disposeAll();
     await parent.disposeAll();
     expect(cloneable.clones.map((e) => e.disposals), [1, 1]);
     expect(cloneable.disposals, 1);

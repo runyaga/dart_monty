@@ -1,6 +1,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
@@ -35,8 +36,8 @@ void main() {
         final values = await gather(handles);
         for (var i = 0; i < values.length; i++) {
           final row = values[i]! as Map;
-          expect(row['handle'], handles[i].dartValue);
-          expect(row['value'], [42, 99, 7][i]);
+          expect(row['handle'], handles.elementAtOrNull(i)?.dartValue);
+          expect(row['value'], [42, 99, 7].elementAtOrNull(i));
           expect(row['output'], contains('worker-${row['value']}'));
         }
         expect(values, hasLength(3));
@@ -56,8 +57,8 @@ void main() {
       final loud = await spawnChild(runtime, 'print("hello")\n1');
       final silent = await spawnChild(runtime, '2');
       final rows = await gather([loud, silent]);
-      expect((rows[0]! as Map)['output'], contains('hello'));
-      expect((rows[1]! as Map)['output'], isNull);
+      expect((rows.firstOrNull as Map?)?['output'], contains('hello'));
+      expect((rows.elementAtOrNull(1)! as Map)['output'], isNull);
     });
     test('gather propagates child failure as ChildSandboxException', () async {
       final good = await spawnChild(runtime, '1');
@@ -80,7 +81,7 @@ void main() {
           expect(row.keys, unorderedEquals(['handle', 'value', 'output']));
           expect(row['handle'], isA<int>());
         }
-        expect((rows[0]! as Map)['output'], contains('line1\nline2'));
+        expect((rows.firstOrNull as Map?)?['output'], contains('line1\nline2'));
       },
     );
   });

@@ -79,11 +79,9 @@ void main() {
       registry.register(plugin);
 
       expect(registry.extensions, hasLength(1));
-      expect(registry.extensions.first.namespace, 'alpha');
-      expect(
-        registry.extensions.first.systemPromptContext,
-        'Alpha operations.',
-      );
+      final [registered] = registry.extensions;
+      expect(registered.namespace, 'alpha');
+      expect(registered.systemPromptContext, 'Alpha operations.');
     });
 
     test('multiple plugins register successfully', () {
@@ -94,8 +92,7 @@ void main() {
         );
 
       expect(registry.extensions, hasLength(2));
-      expect(registry.extensions[0].namespace, 'aaa');
-      expect(registry.extensions[1].namespace, 'bbb');
+      expect(registry.extensions.map((e) => e.namespace), ['aaa', 'bbb']);
     });
 
     test('accepts plugins with disjoint namespaces and function names', () {
@@ -321,7 +318,7 @@ void main() {
         );
 
         expect(registry.extensions, hasLength(1));
-        expect(registry.extensions.first.namespace, 'alpha');
+        expect(registry.extensions.map((e) => e.namespace), ['alpha']);
       });
     });
 
@@ -857,7 +854,8 @@ void main() {
             throwsStateError,
           );
 
-          expect(ok.clones.single.disposed, isTrue);
+          final [clone] = ok.clones;
+          expect(clone.disposed, isTrue);
         },
       );
 
@@ -1022,13 +1020,13 @@ class _LifecycleExtension extends MontyExtension {
   @override
   final List<HostFunction> functions;
 
+  final void Function()? onAttachCallback;
+  final void Function()? onDisposeCallback;
+
   final int _priority;
 
   @override
   int get priority => _priority;
-
-  final void Function()? onAttachCallback;
-  final void Function()? onDisposeCallback;
 
   @override
   Future<void> onAttach(AttachContext host) async {
@@ -1055,7 +1053,7 @@ class _OsContribExtension extends MontyExtension {
   _OsContribExtension({
     required this.namespace,
     required Map<String, OsHandler>? contribution,
-  }) : _contribution = contribution;
+  }) : osContribution = contribution;
 
   @override
   final String namespace;
@@ -1063,10 +1061,8 @@ class _OsContribExtension extends MontyExtension {
   @override
   List<HostFunction> get functions => [];
 
-  final Map<String, OsHandler>? _contribution;
-
   @override
-  Map<String, OsHandler>? get osContribution => _contribution;
+  final Map<String, OsHandler>? osContribution;
 }
 
 /// Extension that captures its coordinator ([coordinatorOf]) during
@@ -1095,6 +1091,7 @@ class _RegistryCapturingExtension extends MontyExtension {
 /// Minimal bridge mock that tracks registered function names.
 class _MockBridge implements MontyBridge {
   final registeredNames = <String>[];
+  OsHandler? capturedOs;
   final _functions = <String, HostFunction>{};
   final _categoryIndex = <String, Set<String>>{};
 
@@ -1109,13 +1106,14 @@ class _MockBridge implements MontyBridge {
   Map<String, List<HostFunctionSchema>> get schemasByCategory {
     final result = <String, List<HostFunctionSchema>>{};
     for (final entry in _categoryIndex.entries) {
-      final schemas = <HostFunctionSchema>[];
+      final categorySchemas = <HostFunctionSchema>[];
       for (final name in entry.value) {
         final fn = _functions[name];
-        if (fn != null) schemas.add(fn.schema);
+        if (fn != null) categorySchemas.add(fn.schema);
       }
-      if (schemas.isNotEmpty) result[entry.key] = schemas;
+      if (categorySchemas.isNotEmpty) result[entry.key] = categorySchemas;
     }
+
     return result;
   }
 
@@ -1129,9 +1127,9 @@ class _MockBridge implements MontyBridge {
   }
 
   @override
-  void unregister(String name) {}
-
-  OsHandler? capturedOs;
+  void unregister(String name) {
+    // No test unregisters a function from this fake.
+  }
 
   @override
   void registerOs(OsHandler handler) {
@@ -1149,7 +1147,9 @@ class _MockBridge implements MontyBridge {
   }) => throw UnimplementedError();
 
   @override
-  void dispose() {}
+  void dispose() {
+    // The fake holds no resources to release.
+  }
 }
 
 /// An extension that reports [AttachContext.schemas] from its `onAttach`.
@@ -1171,15 +1171,16 @@ class _SchemaProbe extends MontyExtension {
   }
 }
 
-/// An extension with [policy]; as a clone factory it records each clone,
+/// An extension with [childPolicy]; as a clone factory it records each clone,
 /// or runs [onClone] instead when given.
 class _PolicyExtension extends MontyExtension {
-  _PolicyExtension(this.namespace, this.policy, {this.onClone});
+  _PolicyExtension(this.namespace, this.childPolicy, {this.onClone});
 
   @override
   final String namespace;
 
-  final ChildPolicy policy;
+  @override
+  final ChildPolicy childPolicy;
   final MontyExtension Function()? onClone;
   final List<_PolicyExtension> clones = [];
   bool disposed = false;
@@ -1189,13 +1190,10 @@ class _PolicyExtension extends MontyExtension {
   List<HostFunction> get functions => [];
 
   @override
-  ChildPolicy get childPolicy => policy;
-
-  @override
   MontyExtension createChildInstance(ChildSpawnContext context) {
     final make = onClone;
     if (make != null) return make();
-    final clone = _PolicyExtension(namespace, policy);
+    final clone = _PolicyExtension(namespace, childPolicy);
     clones.add(clone);
 
     return clone;
@@ -1275,19 +1273,25 @@ class _WasmOnlyExtension extends MontyExtension {
 
 /// A logger that names its children and records them.
 final class _NamedLogger implements BridgeLogger {
-  _NamedLogger(this.name, this.children);
+  const _NamedLogger(this.name, this.children);
 
   final String name;
   final Map<String, BridgeLogger> children;
 
   @override
-  void trace(String message, {Map<String, Object?>? attributes}) {}
+  void trace(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores trace records.
+  }
 
   @override
-  void debug(String message, {Map<String, Object?>? attributes}) {}
+  void debug(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores debug records.
+  }
 
   @override
-  void info(String message, {Map<String, Object?>? attributes}) {}
+  void info(String message, {Map<String, Object?>? attributes}) {
+    // The fake ignores info records.
+  }
 
   @override
   void warning(
@@ -1295,7 +1299,9 @@ final class _NamedLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // The fake ignores warning records.
+  }
 
   @override
   void error(
@@ -1303,14 +1309,18 @@ final class _NamedLogger implements BridgeLogger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, Object?>? attributes,
-  }) {}
+  }) {
+    // The fake ignores error records.
+  }
 
   @override
-  BridgeLogger child(String name) =>
-      children[name] = _NamedLogger(name, children);
+  BridgeLogger child(String childName) =>
+      children[childName] = _NamedLogger(childName, children);
 
   @override
-  void close() {}
+  void close() {
+    // The fake holds no resources to release.
+  }
 }
 
 /// A [_MockBridge] whose logger records the children made from it.

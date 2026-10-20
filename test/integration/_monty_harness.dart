@@ -40,6 +40,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyBool, MontyPath, MontyString, OSAccess;
@@ -158,10 +159,18 @@ class FauxUi {
       );
     }
     for (var i = 0; i < matchers.length; i++) {
-      if (!matchers[i](_events[i])) {
+      final event = _events.elementAtOrNull(i);
+      if (event == null) {
+        throw TestFailure(
+          'Expected at least ${matchers.length} events, '
+          'got ${_events.length}.\n'
+          'Events: ${_events.map((e) => e.runtimeType).toList()}',
+        );
+      }
+      if (!matchers[i](event)) {
         throw TestFailure(
           'Event[$i] mismatch: expected matcher[$i] to pass, '
-          'got ${_events[i].runtimeType}',
+          'got ${event.runtimeType}',
         );
       }
     }
@@ -215,6 +224,9 @@ class MontyHarness {
   final List<String> _primeCode = [];
 
   MontyRuntime? _runtime;
+
+  /// The pool [setup] starts for the runtime; [dispose] closes it.
+  Monty? _pool;
 
   // ---------------------------------------------------------------------------
   // Build phase — call before setup()
@@ -279,9 +291,6 @@ class MontyHarness {
   // Setup / teardown
   // ---------------------------------------------------------------------------
 
-  /// The pool [setup] starts for the runtime; [dispose] closes it.
-  Monty? _pool;
-
   /// Creates and primes the runtime. Must be called before [run].
   Future<void> setup() async {
     final pool = _pool = await Monty.start(
@@ -317,6 +326,7 @@ class MontyHarness {
   /// The live [MontyRuntime] — available after [setup()].
   MontyRuntime get runtime {
     _assertSetup();
+
     return _runtime!;
   }
 
@@ -325,6 +335,7 @@ class MontyHarness {
   /// All tool calls are recorded in [calls].
   Future<MontyValue> run(String code) {
     _assertSetup();
+
     return _runtime!.execute(code).result;
   }
 
@@ -336,6 +347,7 @@ class MontyHarness {
     final handle = _runtime!.execute(code);
     final events = await handle.events.toList();
     final result = await handle.result;
+
     return (result: result, events: events);
   }
 
@@ -347,6 +359,7 @@ class MontyHarness {
         (_fs.call('Path.read_text', [MontyPath(virtualPath)], {})
                 as MontyString)
             .value;
+
     return run(content);
   }
 
@@ -372,6 +385,7 @@ class MontyHarness {
         for (final entry in args.entries) {
           if (c.args[entry.key] != entry.value) return false;
         }
+
         return true;
       }).toList();
       if (withArgs.isEmpty) {
@@ -455,12 +469,14 @@ class MontyHarness {
         record
           ..result = fault.override
           ..duration = DateTime.now().difference(record.startedAt);
+
         return MontyValue.fromDart(fault.override);
       }
       final result = await next();
       record
         ..result = result.dartValue
         ..duration = DateTime.now().difference(record.startedAt);
+
       return result;
     } catch (e) {
       record

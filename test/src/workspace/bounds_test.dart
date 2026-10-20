@@ -48,25 +48,27 @@ void registerBoundsTests({String? Function()? backing}) {
         MemoryFile('/c', Uint8List(1)),
       ],
     );
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {'a': '/a', 'b': '/b'},
       memoryUsageLimit: null,
     );
     addTearDown(w.dispose);
     expect(await h.run(w, "Path('b').stat().st_size"), 4194304);
+    final throwsExternalException = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: parent.call,
         files: {'a': '/a', 'b': '/b', 'c': '/c'},
         memoryUsageLimit: null,
       ),
-      throwsA(isA<ExternalException>()),
+      throwsExternalException,
     );
     final huge = Workspace(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       files: {'a': Uint8List(4194304), 'b': Uint8List(4194305)},
       memoryUsageLimit: null,
       parent: parent.call,
@@ -74,7 +76,7 @@ void registerBoundsTests({String? Function()? backing}) {
     addTearDown(huge.dispose);
     await expectLater(
       transfers.collect(huge, {'a': '/outA', 'b': '/outB'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternalException,
     );
     expect(
       (await parent.call('Path.exists', [MontyPath('/outA')], {})).dartValue,
@@ -83,8 +85,9 @@ void registerBoundsTests({String? Function()? backing}) {
   });
   test('B-transfer-aliases', () async {
     final parent = OSAccess(files: [MemoryFile('/a', Uint8List(4194304))]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {'a': '/a', 'b': '/a'},
       memoryUsageLimit: null,
@@ -93,7 +96,7 @@ void registerBoundsTests({String? Function()? backing}) {
     expect(await h.run(w, "Path('a').stat().st_size"), 4194304);
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: parent.call,
         files: {'a': '/a', 'b': '/a', 'c': '/a'},
         memoryUsageLimit: null,
@@ -105,8 +108,9 @@ void registerBoundsTests({String? Function()? backing}) {
     final parent = OSAccess(
       files: [for (var i = 0; i < 4096; i++) MemoryFile('/d/f$i', '')],
     );
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {for (var i = 0; i < 4096; i++) 'f$i': '/d/f$i'},
       memoryUsageLimit: null,
@@ -116,7 +120,7 @@ void registerBoundsTests({String? Function()? backing}) {
     // Selected root directory also counts: 4096 descendants + root = 4097.
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: parent.call,
         files: {'d': '/d'},
         memoryUsageLimit: null,
@@ -127,8 +131,9 @@ void registerBoundsTests({String? Function()? backing}) {
   test('B-transfer-depth', () async {
     final path = '/root/${List.filled(31, 'd').join('/')}/a';
     final parent = OSAccess(files: [MemoryFile(path, 'x')]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {'root': '/root'},
     );
@@ -139,7 +144,7 @@ void registerBoundsTests({String? Function()? backing}) {
     );
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: deeper.call,
         files: {'root': '/root'},
       ),
@@ -167,12 +172,14 @@ void registerBoundsTests({String? Function()? backing}) {
         parent.call('Path.read_text', [MontyPath(destination)], {}),
         const MontyString('x'),
       );
+
       return;
     }
     final name = 'a' * 4090;
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {name: '/a'},
     );
@@ -180,7 +187,7 @@ void registerBoundsTests({String? Function()? backing}) {
     expect(await h.run(w, "len(list(Path('.').iterdir()))"), 1);
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: parent.call,
         files: {'${name}a': '/a'},
       ),
@@ -190,18 +197,20 @@ void registerBoundsTests({String? Function()? backing}) {
   test('B-transfer-symlink', () async {
     var descended = false;
     final parent = OSAccess(files: [MemoryFile('/root/a', 'x')]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
     );
     addTearDown(w.dispose);
     expect(await h.run(w, "Path('.').is_dir()"), true);
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: (name, args, kwargs) {
           if (name == 'Path.is_symlink') return const MontyBool(true);
           descended = true;
+
           return parent.call(name, args, kwargs);
         },
         files: {'root': '/root'},
@@ -212,8 +221,9 @@ void registerBoundsTests({String? Function()? backing}) {
   });
   test('B-transfer-growth', () async {
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: parent.call,
       files: {'a': '/a'},
     );
@@ -221,9 +231,10 @@ void registerBoundsTests({String? Function()? backing}) {
     expect(await h.run(w, "Path('a').read_text()"), 'x');
     await expectLater(
       transfers.copyIn(
-        sandboxBaseDir: backing?.call(),
+        sandboxBaseDir: baseDir,
         parent: (name, args, kwargs) {
           if (name == 'Path.stat') return StatResult.fileStat(0);
+
           return parent.call(name, args, kwargs);
         },
         files: {'a': '/a'},
@@ -239,7 +250,8 @@ void registerBoundsTests({String? Function()? backing}) {
     final w = await transfers.copyIn(
       sandboxBaseDir: backing?.call(),
       parent: (name, args, kwargs) {
-        if (name == 'Path.is_symlink' && args.first.dartValue == '/out/b') {
+        if (name == 'Path.is_symlink' &&
+            args.firstOrNull?.dartValue == '/out/b') {
           return const MontyBool(true);
         }
         if (name == 'Path.mkdir' || name == 'Path.write_bytes') writes++;
@@ -269,13 +281,15 @@ void registerBoundsTests({String? Function()? backing}) {
     final entered = Completer<void>();
     final release = Completer<void>();
     final parent = OSAccess(files: [MemoryFile('/a', 'x')]);
+    final baseDir = backing?.call();
     final w = await transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: (name, args, kwargs) async {
         if (name == 'Path.write_bytes') {
           entered.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},
@@ -286,9 +300,10 @@ void registerBoundsTests({String? Function()? backing}) {
     await entered.future;
     var reads = 0;
     final copying = transfers.copyIn(
-      sandboxBaseDir: backing?.call(),
+      sandboxBaseDir: baseDir,
       parent: (name, args, kwargs) {
         reads++;
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},
@@ -314,6 +329,7 @@ void registerBoundsTests({String? Function()? backing}) {
         if (name == 'Path.read_bytes' && reject) {
           throw const ExternalException('OSError', 'failed read');
         }
+
         return parent.call(name, args, kwargs);
       },
       files: {'a': '/a'},

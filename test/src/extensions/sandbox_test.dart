@@ -654,7 +654,7 @@ void main() {
                   as List<Object?>;
 
           expect(result, hasLength(2));
-          final r0 = result[0]! as Map<String, Object?>;
+          final r0 = result.first! as Map<String, Object?>;
           final r1 = result[1]! as Map<String, Object?>;
 
           expect(r0['handle'], h0);
@@ -692,7 +692,7 @@ void main() {
                 as List<Object?>;
 
         expect(result, hasLength(3));
-        expect((result[0]! as Map)['handle'], h2);
+        expect((result.first! as Map)['handle'], h2);
         expect((result[1]! as Map)['handle'], h0);
         expect((result[2]! as Map)['handle'], h1);
       });
@@ -719,7 +719,7 @@ void main() {
                   as List<Object?>;
 
           expect(result, hasLength(1));
-          final r0 = result[0]! as Map<String, Object?>;
+          final r0 = result.first! as Map<String, Object?>;
           expect(r0['handle'], h0);
           expect(r0['value'], 42);
           expect(r0['output'], isNull);
@@ -793,7 +793,7 @@ void main() {
                 as List<Object?>;
 
         expect(result, hasLength(1));
-        final r0 = result[0]! as Map<String, Object?>;
+        final r0 = result.first! as Map<String, Object?>;
         expect(r0['handle'], h0);
         expect(r0['value'], 'solo');
         expect(r0['output'], 'hi\n');
@@ -1588,7 +1588,7 @@ void main() {
             },
             HostContext(
               emit: (_) {
-                /* Events are observed on the owning runtime. */
+                // Events are observed on the owning runtime.
               },
               executionId: 'test',
             ),
@@ -1613,7 +1613,7 @@ Future<Object?> Function(Map<String, Object?>) _findHandler(
     args.map((key, value) => MapEntry(key, MontyValue.fromDart(value))),
     HostContext(
       emit: (_) {
-        /* Events are observed on the owning runtime. */
+        // Events are observed on the owning runtime.
       },
       executionId: 'test',
       parent: _runtimes[plugin],

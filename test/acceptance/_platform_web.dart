@@ -18,11 +18,11 @@ String get acceptanceWorkerLocation => 'packages/dart_monty_core/assets';
 const bool hasWorkerProcesses = false;
 
 /// A Web Worker has no process id to kill.
-bool killWorker(int pid) =>
+bool killWorker(int _) =>
     throw UnsupportedError('a Web Worker has no process id');
 
 /// A Web Worker has no process id.
-Future<bool> processAlive(int pid) =>
+Future<bool> processAlive(int _) =>
     throw UnsupportedError('a Web Worker has no process id');
 
 /// Wraps the page's `Worker` constructor once, so [liveWorkers] can count the
@@ -51,4 +51,4 @@ if (!globalThis.__montyLiveWorkers && globalThis.__montyLiveWorkers !== 0) {
 
 /// The Web Workers started and not yet terminated, as [countWorkers]
 /// counts them.
-Future<int?> liveWorkers() async => _liveWorkerCount!.toDartInt;
+Future<int?> liveWorkers() => Future.value(_liveWorkerCount!.toDartInt);

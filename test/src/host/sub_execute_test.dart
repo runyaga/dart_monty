@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show startRuntimeWith;
@@ -25,14 +26,14 @@ void main() {
   // Scripts the n-th session checked out (0 is the runtime's own).
   late Map<int, void Function(FakeMontySession)> script;
 
-  Future<MontySession> checkout({ResourceLimits? limits}) async {
+  Future<MontySession> checkout({ResourceLimits? limits}) {
     checkoutLimits.add(limits);
     final fake = FakeMontySession();
     script[sessions.length]?.call(fake);
     final session = RecordingSession(fake);
     sessions.add(session);
 
-    return session;
+    return Future.value(session);
   }
 
   /// A shared-mode runtime with the host function `probe`, whose handler
@@ -54,10 +55,14 @@ void main() {
   }
 
   /// The values the root session's host calls were answered with.
-  List<ExternalSettledResult> rootAnswers() => [
-    for (final a in (sessions.first.inner as FakeMontySession).answers)
-      if (a.answer case final ExternalSettledResult r) r,
-  ];
+  List<ExternalSettledResult> rootAnswers() {
+    final [root, ...] = sessions;
+
+    return [
+      for (final a in (root.inner as FakeMontySession).answers)
+        if (a.answer case final ExternalSettledResult r) r,
+    ];
+  }
 
   setUp(() {
     sessions = [];
@@ -77,7 +82,7 @@ void main() {
 
     expect(sessions, hasLength(2));
     expect(checkoutLimits, [null, null]);
-    expect(sessions[1].feeds.single.code, '6 * 7');
+    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.code, '6 * 7');
   });
 
   test("returns the sub-script's MontyValue to the handler", () async {
@@ -107,7 +112,7 @@ void main() {
 
     await runtime.execute('probe()').result;
 
-    expect(sessions[1].feeds.single.inputs, {
+    expect(sessions.elementAtOrNull(1)?.feeds.singleOrNull?.inputs, {
       'n': const MontyInt(21),
       's': const MontyString('x'),
     });
@@ -123,10 +128,13 @@ void main() {
     await runtime.execute('probe()').result;
 
     // The root feed has both; the sub-execution's has neither.
-    expect(sessions[0].feeds.single.os, isNotNull);
-    expect(sessions[0].feeds.single.externalLookup, contains('probe'));
-    expect(sessions[1].feeds.single.os, isNull);
-    expect(sessions[1].feeds.single.externalLookup, isNull);
+    final [root, sub, ...] = sessions;
+    final [rootFeed] = root.feeds;
+    final [subFeed] = sub.feeds;
+    expect(rootFeed.os, isNotNull);
+    expect(rootFeed.externalLookup, contains('probe'));
+    expect(subFeed.os, isNull);
+    expect(subFeed.externalLookup, isNull);
   });
 
   test('closes its session and leaves the caller its own', () async {
@@ -135,8 +143,10 @@ void main() {
     var rootOpenInHandler = false;
     final runtime = await start((ctx) async {
       await ctx.subExecute!('1');
-      subClosedInHandler = sessions[1].closed;
-      rootOpenInHandler = !sessions[0].closed;
+      if (sessions case [final root, final sub, ...]) {
+        subClosedInHandler = sub.closed;
+        rootOpenInHandler = !root.closed;
+      }
 
       return const MontyNone();
     });
@@ -166,7 +176,7 @@ void main() {
     final error = caught! as MontyError;
     expect(error.exception.excType, 'ValueError');
     expect(error.exception.message, 'bad input');
-    expect(sessions[1].closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
   });
 
   test('a failed checkout fails subExecute with its error', () async {
@@ -213,21 +223,29 @@ void main() {
       return ctx.subExecute!('1');
     });
     final result = runtime.execute('probe()').result;
-    unawaited(result.then((_) {}, onError: (_) {}));
+    unawaited(() async {
+      try {
+        // The root result is not asserted; session state is.
+        await result;
+      } on Object {
+        // The disposed sub may fail the root; that is not asserted here.
+      }
+    }());
     await entered.future;
     // Wait for the sub-execution's feed to start, so dispose meets it
     // running rather than just checked out.
     for (var i = 0; i < 1000 && sessions.length < 2; i++) {
       await Future<void>.delayed(Duration.zero);
     }
-    for (var i = 0; i < 1000 && sessions[1].feeds.isEmpty; i++) {
+    final sub = sessions.elementAtOrNull(1);
+    for (var i = 0; i < 1000 && (sub?.feeds.isEmpty ?? true); i++) {
       await Future<void>.delayed(Duration.zero);
     }
-    expect(sessions[1].feeds, hasLength(1));
+    expect(sub?.feeds, hasLength(1));
 
     await runtime.dispose();
 
-    expect(sessions[1].closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
     gate.complete();
   });
 
@@ -237,7 +255,7 @@ void main() {
 
     await runtime.execute('probe()').result;
 
-    expect(rootAnswers().single, isA<ExternalReturnValue>());
+    expect(rootAnswers().singleOrNull, isA<ExternalReturnValue>());
   });
 
   test('a bare-session bridge gives handlers no sub-executor', () async {
@@ -246,7 +264,7 @@ void main() {
       ..willReturn(const MontyNone());
     final bridge = SessionBridge(session: fake);
     addTearDown(bridge.dispose);
-    HostSubExecutor? seen = (_, {inputs}) async => const MontyNone();
+    HostSubExecutor? seen = (_, {inputs}) => Future.value(const MontyNone());
     bridge.register(
       HostFunction(
         schema: const HostFunctionSchema(name: 'probe'),
@@ -292,7 +310,14 @@ void main() {
       ),
     );
     final result = runtime.execute('probe()').result;
-    unawaited(result.then((_) {}, onError: (_) {}));
+    unawaited(() async {
+      try {
+        // The root result is not asserted; caught carries the failure.
+        await result;
+      } on Object {
+        // Not expected to fire: the handler catches the sub failure itself.
+      }
+    }());
     await entered.future;
 
     await runtime.dispose();
@@ -302,8 +327,8 @@ void main() {
     }
 
     expect(caught, isA<StateError>());
-    expect(sessions[1].closed, isTrue);
-    expect(sessions[1].feeds, isEmpty);
+    expect(sessions.elementAtOrNull(1)?.closed, isTrue);
+    expect(sessions.elementAtOrNull(1)?.feeds, isEmpty);
   });
 
   group('the caller ends first', () {
@@ -351,7 +376,14 @@ void main() {
         ),
       );
       final handle = runtime.execute('probe()');
-      unawaited(handle.result.then((_) {}, onError: (_) {}));
+      unawaited(() async {
+        try {
+          // The root result is not asserted; caught receives the failure.
+          await handle.result;
+        } on Object {
+          // Not expected to fire: the handler routes errors to caught.
+        }
+      }());
 
       return (runtime, handle);
     }
@@ -359,18 +391,27 @@ void main() {
     test('dispose closes a sub-execution started by invoke', () async {
       final gate = Completer<void>();
       addTearDown(() => gate.isCompleted ? null : gate.complete());
-      script[0] = (_) {};
+      script[0] = (_) {
+        // The invoke path runs no code on the root session.
+      };
       script[1] = (sub) => sub
         ..willHold(gate.future)
         ..willReturn(const MontyNone());
       final runtime = await start((ctx) => ctx.subExecute!('1'));
       final invoked = runtime.invoke('probe', {});
-      unawaited(invoked.then((_) {}, onError: (_) {}));
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      unawaited(() async {
+        try {
+          // The invoke result is not asserted; session state is.
+          await invoked;
+        } on Object {
+          // The disposed sub may fail the invoke; that is not asserted here.
+        }
+      }());
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       await runtime.dispose();
 
-      expect(sessions[1].closed, isTrue);
+      expect(sessions.elementAtOrNull(1)?.closed, isTrue);
     });
 
     for (final viaInvoke in [false, true]) {
@@ -382,7 +423,9 @@ void main() {
           final paused = Completer<void>();
           Object? error;
           script[0] = viaInvoke
-              ? (_) {}
+              ? (_) {
+                  // The invoke path runs no code on the root session.
+                }
               : (root) => root
                   ..willCall('probe')
                   ..willReturn(const MontyNone());
@@ -400,7 +443,14 @@ void main() {
           final call = viaInvoke
               ? runtime.invoke('probe', {})
               : runtime.execute('probe()').result;
-          unawaited(call.then((_) {}, onError: (_) {}));
+          unawaited(() async {
+            try {
+              // The call's value is not asserted; error carries the refusal.
+              await call;
+            } on Object {
+              // Not expected to fire: the handler catches the refusal itself.
+            }
+          }());
           await paused.future;
 
           await runtime.clearState();
@@ -422,11 +472,11 @@ void main() {
         feedGate: gate,
         caught: (e) => error = e,
       );
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       await handle.cancel();
 
-      await until(() => sessions[1].closed);
+      await until(() => sessions.elementAtOrNull(1)?.closed ?? false);
       await until(() => error != null);
     });
 
@@ -438,9 +488,8 @@ void main() {
         caught: (e) => error = e,
       );
       // The root's checkout is done; the sub-execution's waits on the gate.
-      await until(
-        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
-      );
+      final [root, ...] = sessions;
+      await until(() => (root.inner as FakeMontySession).feeds.isNotEmpty);
       await Future<void>.delayed(Duration.zero);
 
       await handle.cancel();
@@ -448,19 +497,24 @@ void main() {
 
       await until(() => error != null);
       expect(error, isA<StateError>());
-      expect(sessions[1].closed, isTrue);
-      expect(sessions[1].feeds, isEmpty);
+      expect(sessions.elementAtOrNull(1)?.closed, isTrue);
+      expect(sessions.elementAtOrNull(1)?.feeds, isEmpty);
     });
 
     test('clearState closes a running sub-execution', () async {
       final gate = Completer<void>();
       addTearDown(() => gate.isCompleted ? null : gate.complete());
-      final (runtime, _) = await holdSub(feedGate: gate, caught: (_) {});
-      await until(() => sessions.length > 1 && sessions[1].feeds.isNotEmpty);
+      final (runtime, _) = await holdSub(
+        feedGate: gate,
+        caught: (_) {
+          // The sub error is not asserted; the session's closing is.
+        },
+      );
+      await until(() => sessions.elementAtOrNull(1)?.feeds.isNotEmpty ?? false);
 
       final clearing = runtime.clearState();
 
-      await until(() => sessions[1].closed);
+      await until(() => sessions.elementAtOrNull(1)?.closed ?? false);
       gate.complete();
       await clearing;
     });
@@ -472,9 +526,8 @@ void main() {
         checkoutGate: gate,
         caught: (e) => error = e,
       );
-      await until(
-        () => (sessions.first.inner as FakeMontySession).feeds.isNotEmpty,
-      );
+      final [root, ...] = sessions;
+      await until(() => (root.inner as FakeMontySession).feeds.isNotEmpty);
       await Future<void>.delayed(Duration.zero);
 
       final clearing = runtime.clearState();

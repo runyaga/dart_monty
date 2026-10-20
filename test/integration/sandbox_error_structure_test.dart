@@ -35,16 +35,17 @@ void main() {
               ),
             ),
           );
-          final error = events
+          final [error] = events
               .whereType<BridgeChildEvent>()
               .map((e) => e.inner)
               .whereType<BridgeRunError>()
-              .single;
+              .toList();
+          final childError = error.exception?.exception;
           expect(
-            error.exception?.exception.excType,
+            childError?.excType,
             syntax ? 'SyntaxError' : 'NameError',
           );
-          expect(error.exception?.exception.message, isNotEmpty);
+          expect(childError?.message, isNotEmpty);
         },
       );
     }

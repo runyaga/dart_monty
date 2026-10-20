@@ -49,6 +49,7 @@ Map<String, ({String? kind, Set<String> names})> _exports(String lib) {
   }
 
   walk(lib);
+
   return out;
 }
 

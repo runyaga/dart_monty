@@ -59,6 +59,7 @@ void registerTypedHostRuntimeTests() {
   Future<MontyRuntime> start({bool sandbox = false}) async {
     final runtime = await MontyRuntime.start(pool: pool, sandbox: sandbox);
     addTearDown(runtime.dispose);
+
     return runtime;
   }
 
@@ -74,11 +75,12 @@ void registerTypedHostRuntimeTests() {
             final seen = <MontyValue>[];
             Future<MontyValue> handler(
               Map<String, MontyValue> args,
-              HostContext ctx,
-            ) async {
+              HostContext _,
+            ) {
               final value = args['x']!;
               seen.add(value);
-              return MontyBool(identical(value, sentinel));
+
+              return Future.value(MontyBool(identical(value, sentinel)));
             }
 
             runtime.register(
@@ -96,7 +98,7 @@ void registerTypedHostRuntimeTests() {
                 ),
                 dispatch: mode,
                 handler: explicitSlot
-                    ? (_, _) async => throw StateError('wrong slot')
+                    ? (_, _) => throw StateError('wrong slot')
                     : handler,
                 ffiHandler: explicitSlot
                     ? (args, ctx) {
@@ -118,23 +120,24 @@ void registerTypedHostRuntimeTests() {
               await runtime.execute(_call(mode, '')).result,
               const MontyBool(true),
             );
-            expect(identical(seen.last, sentinel), isTrue);
+            expect(identical(seen.lastOrNull, sentinel), isTrue);
             expect(await runtime.invoke('probe', {}), const MontyBool(true));
-            expect(identical(seen.last, sentinel), isTrue);
+            expect(seen.lastOrNull, same(sentinel));
             expect(
               await runtime.execute(_call(mode, 'None')).result,
               const MontyBool(false),
             );
-            expect(seen.last, isA<MontyNone>());
+            expect(seen.lastOrNull, isA<MontyNone>());
+            final freshSentinel = _sentinel(type);
             expect(
-              await runtime.invoke('probe', {'x': _sentinel(type)}),
+              await runtime.invoke('probe', {'x': freshSentinel}),
               const MontyBool(false),
             );
             expect(
               await runtime
                   .execute(
                     _call(mode, 'value'),
-                    inputs: {'value': _sentinel(type)},
+                    inputs: {'value': freshSentinel},
                   )
                   .result,
               const MontyBool(false),
@@ -161,22 +164,32 @@ void registerTypedHostRuntimeTests() {
               handler: (_, ctx) async {
                 expect(Zone.current[key], same(marker));
                 tokens.add(ctx.cancelToken);
+
                 return const MontyNone();
               },
             ),
           );
+          final probeCall = _call(mode, '');
           for (var run = 0; run < 2; run++) {
             await runZoned(
-              () => runtime
-                  .execute('${_call(mode, '')}\n${_call(mode, '')}')
-                  .result,
+              () => runtime.execute('$probeCall\n$probeCall').result,
               zoneValues: {key: marker},
             );
           }
           expect(tokens, hasLength(4));
-          expect(identical(tokens[0], tokens[1]), isTrue);
-          expect(identical(tokens[2], tokens[3]), isTrue);
-          expect(identical(tokens[0], tokens[2]), isFalse);
+          expect(
+            identical(tokens.firstOrNull, tokens.elementAtOrNull(1)),
+            isTrue,
+          );
+          final secondRunToken = tokens.elementAtOrNull(2);
+          expect(
+            identical(secondRunToken, tokens.elementAtOrNull(3)),
+            isTrue,
+          );
+          expect(
+            identical(tokens.firstOrNull, secondRunToken),
+            isFalse,
+          );
         },
       );
     }
@@ -202,6 +215,7 @@ void registerTypedHostRuntimeTests() {
           handler: (_, ctx) async {
             entered.complete();
             await ctx.cancelToken.future;
+
             return const MontyNone();
           },
         ),
@@ -213,7 +227,7 @@ void registerTypedHostRuntimeTests() {
       await expectLater(runtime.execute('2').result, throwsStateError);
       await first.cancel();
       await failed;
-      expect(sessions.single.closed, isTrue);
+      expect(sessions.singleOrNull?.closed, isTrue);
       expect(await runtime.execute('42').result, const MontyInt(42));
     },
   );
@@ -305,6 +319,7 @@ void registerTypedHostRuntimeTests() {
           dispatch: mode,
           handler: (args, _) async {
             seen.add(args['x']!);
+
             return args['x']!;
           },
         ),
@@ -312,20 +327,28 @@ void registerTypedHostRuntimeTests() {
       for (final code in ['1', '1.0', '-0.0', '2 ** 100']) {
         await runtime.execute(_call(mode, code)).result;
       }
-      expect(seen[0], isA<MontyInt>());
-      expect(seen[1], isA<MontyFloat>());
-      expect((seen[2] as MontyFloat).value.isNegative, isTrue);
-      expect((seen[3] as MontyBigInt).value, BigInt.one << 100);
+      final isMontyInt = isA<MontyInt>();
+      expect(seen.firstOrNull, isMontyInt);
+      expect(seen.elementAtOrNull(1), isA<MontyFloat>());
+      expect((seen.elementAtOrNull(2)! as MontyFloat).value.isNegative, isTrue);
+      expect(
+        (seen.elementAtOrNull(3)! as MontyBigInt).value,
+        BigInt.one << 100,
+      );
       await runtime
           .execute(
             'child = {7: [1], (8, 9): -0.0}\n'
             '${_call(mode, '{1: child, (2, 3): child}')}',
           )
           .result;
-      final pairs = (seen.last as MontyDict).pairs;
-      expect(pairs[0].$1, isA<MontyInt>());
-      expect(pairs[1].$1, isA<MontyTuple>());
-      expect(identical(pairs[0].$2, pairs[1].$2), isTrue);
+      final pairs = (seen.lastOrNull! as MontyDict).pairs;
+      final secondPair = pairs.elementAtOrNull(1);
+      expect(pairs.firstOrNull?.$1, isMontyInt);
+      expect(secondPair?.$1, isA<MontyTuple>());
+      expect(
+        identical(pairs.firstOrNull?.$2, secondPair?.$2),
+        isTrue,
+      );
     });
   }
 

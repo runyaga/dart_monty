@@ -24,11 +24,10 @@ Future<MontyRuntime> _runtimeWithSandbox() =>
 
 /// Child events are delivered asynchronously relative to `execute().result`,
 /// so settle the microtask/event queue before asserting on them.
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 300));
+Future<void> _settle() => Future.delayed(const Duration(milliseconds: 300));
 
 /// The pool every runtime in this file checks out from.
-late Monty pool;
+late final Monty pool;
 
 void main() {
   setUpAll(
@@ -170,9 +169,10 @@ void main() {
       await _settle();
 
       expect(children, hasLength(1));
-      expect(children.single.childHandle, '7');
+      final [child] = children;
+      expect(child.childHandle, '7');
       expect(
-        identical(children.single.inner, inner),
+        identical(child.inner, inner),
         isTrue,
         reason: 'the payload must be forwarded, not reconstructed',
       );

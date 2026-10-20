@@ -33,7 +33,7 @@ void main() {
     late MontyRuntime session;
 
     setUp(() async {
-      final osContribs = <String, OsHandler>{
+      final osContribs = {
         'Path.': OSAccess().call,
       };
       final tmpl = TemplateStubExtension();
@@ -119,7 +119,7 @@ sandbox_free(handle=h)
     late MontyRuntime session;
 
     setUp(() async {
-      final osContribs = <String, OsHandler>{
+      final osContribs = {
         'Path.': OSAccess().call,
       };
       final tmpl = TemplateStubExtension();

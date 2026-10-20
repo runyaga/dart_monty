@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/bridge/session_bridge.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
@@ -90,10 +91,12 @@ void main() {
     );
     final handle = await spawnChild(runtime, '42');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
-    sessions.first.closeError = StateError('root close fault');
+    if (sessions case [final rootSession, ...]) {
+      rootSession.closeError = StateError('root close fault');
+    }
     var eventsClosed = false;
     final subscription = runtime.events.listen(
-      // ignore: no-empty-block, this witness observes stream closure only.
+      // This witness observes stream closure only.
       (_) {
         // Only stream closure is observed in this disposal witness.
       },
@@ -131,7 +134,7 @@ void main() {
     final handle = await spawnChild(runtime, '42');
     expect(await awaitChild(runtime, handle), const MontyInt(42));
     await runtime.dispose();
-    expect(sessions[1].closeCalls, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
   });
 
   test('child admission keeps its checkout', () async {
@@ -233,7 +236,7 @@ void main() {
       } else {
         expect(await awaitChild(runtime, handle), const MontyInt(42));
       }
-      expect(sessions[1].closeCalls, 1);
+      expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
       await expectLater(spawnChild(runtime, '43'), throwsStateError);
       expect(sessions, hasLength(2));
       await freeChild(runtime, handle);
@@ -387,12 +390,13 @@ sandbox_await(h, collect={'output': '/parent/second'})
         } else {
           expect(await awaitChild(runtime, handle), const MontyInt(42));
         }
-        expect(extension.clones.single.disposals, 1);
-        expect(sessions[1].closeCalls, 1);
+        expect(extension.clones.singleOrNull?.disposals, 1);
+        final childSession = sessions.elementAtOrNull(1);
+        expect(childSession?.closeCalls, 1);
         await freeChild(runtime, handle);
         await spawnChild(runtime, '7');
         await runtime.dispose();
-        expect(sessions[1].closeCalls, 1);
+        expect(childSession?.closeCalls, 1);
       },
     );
   }
@@ -423,8 +427,8 @@ sandbox_await(h, collect={'output': '/parent/second'})
     );
     expect(sessions, hasLength(1));
     await expectLater(spawnChild(runtime, '42'), throwsStateError);
-    expect(sessions[1].closeCalls, 1);
-    expect(extension.clones.single.disposals, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
+    expect(extension.clones.singleOrNull?.disposals, 1);
     extension.throwAttach = false;
     expect(
       await awaitChild(runtime, await spawnChild(runtime, '42')),
@@ -448,12 +452,10 @@ sandbox_await(h, collect={'output': '/parent/second'})
       extensions: [SandboxExtension()],
     );
     final handle = await spawnChild(runtime, '42');
-    await Future.wait([
-      freeChild(runtime, handle),
-      freeChild(runtime, handle),
-      runtime.dispose(),
-    ]);
-    expect(sessions[1].closeCalls, 1);
+    final first = freeChild(runtime, handle);
+    final joined = freeChild(runtime, handle);
+    await Future.wait([first, joined, runtime.dispose()]);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     held.complete();
   });
 
@@ -478,12 +480,10 @@ sandbox_await(h, collect={'output': '/parent/second'})
       awaitChild(runtime, handle),
       throwsA(predicate<Object>((e) => e.toString().contains('worker crash'))),
     );
-    expect(sessions[1].closeCalls, 1);
+    expect(sessions.elementAtOrNull(1)?.closeCalls, 1);
     await freeChild(runtime, handle);
-    expect(
-      await awaitChild(runtime, await spawnChild(runtime, '42')),
-      const MontyInt(42),
-    );
+    final respawned = await spawnChild(runtime, '42');
+    expect(await awaitChild(runtime, respawned), const MontyInt(42));
   });
 
   for (final crash in [false, true]) {
@@ -538,11 +538,15 @@ sandbox_await(h, collect={'output': '/parent/second'})
           release.complete();
         }
         await refused;
-        for (var i = 0; i < 20 && sessions[2].closeCalls == 0; i++) {
+        for (
+          var i = 0;
+          i < 20 && sessions.elementAtOrNull(2)?.closeCalls == 0;
+          i++
+        ) {
           await Future<void>.delayed(Duration.zero);
         }
-        expect(sessions[2].closeCalls, 1);
-        expect(sessions[1].closeCalls, 0);
+        expect(sessions.elementAtOrNull(2)?.closeCalls, 1);
+        expect(sessions.elementAtOrNull(1)?.closeCalls, 0);
         await freeChild(runtime, const MontyInt(0));
         await freeChild(runtime, const MontyInt(1));
         expect(
@@ -566,7 +570,7 @@ sandbox_await(h, collect={'output': '/parent/second'})
     expect(extension.waiters, hasLength(1));
     await freeChild(runtime, handle);
     expect(extension.waiters, isEmpty);
-    expect(extension.clones.single.disposals, 1);
+    expect(extension.clones.singleOrNull?.disposals, 1);
     expect(await runtime.execute('resource_id()').result, const MontyInt(-1));
   });
 
@@ -579,14 +583,16 @@ sandbox_await(h, collect={'output': '/parent/second'})
       ..register(first)
       ..register(throwing)
       ..register(last);
-    await parent.attachTo(await childContractBridge(pool));
+    final parentBridge = await childContractBridge(pool);
+    await parent.attachTo(parentBridge);
+    final childBridge = await childContractBridge(pool);
     final child = await parent.spawnChild(
       context: const ChildSpawnContext(childId: 1),
-      bridge: await childContractBridge(pool),
+      bridge: childBridge,
     );
     await expectLater(child.disposeAll(), throwsStateError);
     for (final extension in [first, throwing, last]) {
-      expect(extension.clones.single.disposals, 1);
+      expect(extension.clones.singleOrNull?.disposals, 1);
       expect(extension.disposals, 0);
     }
     await expectLater(parent.disposeAll(), throwsStateError);
@@ -654,7 +660,7 @@ final class _LifecycleExtension extends MontyExtension {
     if (streamError) {
       (ctx as SessionBridge).addStreamWrapper((_, stream) {
         final controller = StreamController<BridgeEvent>();
-        // ignore: no-empty-block, deliberately discard ordinary events.
+        // Ordinary events are discarded on purpose.
         final sub = stream.listen((_) {
           /* Only the injected error is delivered to the child. */
         });
@@ -691,7 +697,7 @@ final class _TerminalLogFault implements BridgeLogger {
   void info(String message, {Map<String, Object?>? attributes}) =>
       throw StateError('log fault');
   @override
-  // ignore: no-empty-block, only terminal logging throws in this fault probe.
+  // Only terminal logging throws in this fault probe.
   void debug(String message, {Map<String, Object?>? attributes}) {
     /* Creation logging succeeds. */
   }

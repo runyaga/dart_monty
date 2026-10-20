@@ -10,6 +10,7 @@
 @Tags(['integration'])
 library;
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
@@ -60,7 +61,7 @@ except Exception as e:
 result
 ''');
 
-      expect(r.dartValue.toString(), contains('caught'));
+      expect(r.dartValue?.toString(), contains('caught'));
     });
 
     test('error in one tool does not block unrelated tools', () async {
@@ -284,9 +285,7 @@ log_event(event='end', seq=2)
 
       final calls = h.callsTo('log_event');
       expect(calls, hasLength(3));
-      expect(calls[0].args['seq'], 0);
-      expect(calls[1].args['seq'], 1);
-      expect(calls[2].args['seq'], 2);
+      expect(calls.map((c) => c.args['seq']), [0, 1, 2]);
     });
 
     test('resetCalls() clears between sub-experiments', () async {
@@ -303,8 +302,9 @@ log_event(event='end', seq=2)
     test('succeeded calls have no error', () async {
       await h.run("log_event(event='ok')");
       final calls = h.callsTo('log_event');
-      expect(calls.first.succeeded, isTrue);
-      expect(calls.first.result, isNull);
+      expect(calls, hasLength(1));
+      expect(calls.firstOrNull?.succeeded, isTrue);
+      expect(calls.firstOrNull?.result, isNull);
     });
 
     test('failed calls have error recorded', () async {
@@ -315,8 +315,8 @@ log_event(event='end', seq=2)
       );
 
       final calls = h.callsTo('log_event');
-      expect(calls.first.succeeded, isFalse);
-      expect(calls.first.error, isNotNull);
+      expect(calls.firstOrNull?.succeeded, isFalse);
+      expect(calls.firstOrNull?.error, isNotNull);
     });
 
     test('assertNoErrors passes when all calls succeeded', () async {

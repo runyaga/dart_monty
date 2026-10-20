@@ -33,7 +33,10 @@ void main() {
           cwd: '/work',
         )
         .toList();
-    expect((events.last as BridgeRunFinished).value, ['/work', true]);
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', ['/work', true]),
+    );
   });
   for (final readOnly in [false, true]) {
     for (final destination in ['.', './', './.', 'a/..']) {
@@ -112,16 +115,17 @@ void main() {
     );
   });
   test('transfers reject a missing adapter', () async {
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(files: {'in': '/parent/in'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     final w = await transfers.copyIn();
     addTearDown(w.dispose);
     await h.run(w, "Path('out').write_text('x')");
     await expectLater(
       transfers.collect(w, {'out': '/parent/out'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
   });
   test('transfers preserve protected rename behavior', () async {
@@ -164,9 +168,10 @@ void main() {
       parent: (name, args, kwargs) {
         if (reject &&
             name == 'Path.write_bytes' &&
-            args.first.dartValue == '/parent/b') {
+            args.firstOrNull?.dartValue == '/parent/b') {
           throw const ExternalException('OSError', 'destination unavailable');
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -219,6 +224,7 @@ void main() {
                 os: w.call,
               ),
             );
+
             return const MontyNone();
           },
         ),
@@ -228,6 +234,7 @@ void main() {
           schema: const HostFunctionSchema(name: 'collect_output'),
           handler: (_, _) async {
             await transfers.collect(captured!, {'in': '/parent/out'});
+
             return const MontyNone();
           },
         ),
@@ -241,14 +248,21 @@ os.chdir('/')
 collect_output()
 (Path('/parent/in').read_text(), Path('/parent/out').read_text())
 """).toList();
-    expect((events.last as BridgeRunFinished).value, ['source', 'independent']);
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', [
+        'source',
+        'independent',
+      ]),
+    );
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       transfers.copyIn(parent: parent.call, files: {'in': 'parent/in'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     await expectLater(
       transfers.collect(captured!, {'in': 'relative'}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
   });
   test('T2-overlay-rejection', () async {
@@ -286,6 +300,7 @@ collect_output()
         schema: const HostFunctionSchema(name: 'collect_live'),
         handler: (_, _) async {
           await transfers.collect(w, {'in': '/parent/out'});
+
           return const MontyNone();
         },
       ),
@@ -295,7 +310,10 @@ collect_output()
           "collect_live()\nPath('/parent/out').read_text()",
         )
         .toList();
-    expect((events.last as BridgeRunFinished).value, 'result');
+    expect(
+      events.lastOrNull,
+      isA<BridgeRunFinished>().having((e) => e.value, 'value', 'result'),
+    );
   });
   test('T5-dispose-order', () async {
     final admitted = Completer<void>();
@@ -306,6 +324,7 @@ collect_output()
           admitted.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -313,9 +332,10 @@ collect_output()
     final collecting = transfers.collect(w, {'a': '/parent/a'});
     await admitted.future;
     var disposed = false;
-    final disposing = w.dispose().then((_) {
+    final disposing = () async {
+      await w.dispose();
       disposed = true;
-    });
+    }();
     await Future<void>.delayed(Duration.zero);
     try {
       expect(disposed, false);

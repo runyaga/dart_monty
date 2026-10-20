@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:dart_monty/src/workspace/disk_backing_io.dart';
 import 'package:dart_monty/src/workspace/persistent_transfer.dart';
 import 'package:dart_monty/src/workspace/workspace.dart';
@@ -50,9 +51,8 @@ except PermissionError as e:
       "[Errno 30] Read-only file system: '/work/locked'",
       'seed',
     ]);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(File('${owned.path}/locked').readAsStringSync(), 'seed');
   });
 
@@ -104,12 +104,13 @@ values
         'tool': MontyHostFunction(
           'tool',
           coroutine((args, _) async {
-            final n = (args.single as MontyInt).value;
+            final n = (args.singleOrNull! as MontyInt).value;
             started.add(n);
             if (started.length == 3) barrier.complete();
             await barrier.future.timeout(const Duration(seconds: 2));
             await Future<void>.delayed(Duration(milliseconds: n));
             completed.add(n);
+
             return MontyInt(n);
           }),
         ),
@@ -132,9 +133,10 @@ values
       parent: (name, args, kwargs) {
         if (fail &&
             name == 'Path.write_bytes' &&
-            args.first == MontyPath('/b')) {
+            args.firstOrNull == MontyPath('/b')) {
           throw const ExternalException('OSError', 'second destination failed');
         }
+
         return parent.call(name, args, kwargs);
       },
     );
@@ -175,13 +177,17 @@ values
           entered.complete();
           await release.future;
         }
+
         return parent.call(name, args, kwargs);
       },
     );
     final collect = transfers.collect(w, {'out': '/out'});
     await entered.future;
     var disposed = false;
-    final disposal = w.dispose().then((_) => disposed = true);
+    final disposal = () async {
+      await w.dispose();
+      disposed = true;
+    }();
     await Future<void>.delayed(Duration.zero);
     expect(disposed, false);
     expect(base.listSync(), hasLength(1));
@@ -247,6 +253,7 @@ values
         },
         () {
           calls.add('workspace');
+
           return w.dispose();
         },
       ]),
@@ -265,6 +272,7 @@ values
       externalLookup: {
         'hold': MontyHostFunction('hold', (_, _) {
           entered.complete();
+
           return release.future;
         }),
       },
@@ -293,24 +301,25 @@ values
       directories: {'dir'},
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final outside = Directory('${base.path}/outside')..createSync();
     File('${outside.path}/secret').writeAsStringSync('unchanged');
-    Link('${owned.path}/escape').createSync(outside.absolute.path);
+    final escapeTarget = outside.absolute.path;
+    final throwsMontyError = throwsA(isA<MontyError>());
+    Link('${owned.path}/escape').createSync(escapeTarget);
     await expectLater(
       w.driver(session)(
         "from pathlib import Path\nPath('escape/secret').write_text('bad')",
       ),
-      throwsA(isA<MontyError>()),
+      throwsMontyError,
     );
     expect(File('${outside.path}/secret').readAsStringSync(), 'unchanged');
     Link('${owned.path}/escape').deleteSync();
-    Link('${owned.path}/dir/escape').createSync(outside.absolute.path);
+    Link('${owned.path}/dir/escape').createSync(escapeTarget);
     await expectLater(
       w.driver(session)("Path('dir').rename('moved')"),
-      throwsA(isA<MontyError>()),
+      throwsMontyError,
     );
     expect(Directory('${owned.path}/dir').existsSync(), true);
     expect(Directory('${owned.path}/moved').existsSync(), false);
@@ -367,9 +376,8 @@ values
       memoryUsageLimit: null,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     File('${owned.path}/large').openSync(mode: FileMode.write)
       ..truncateSync(8388609)
       ..closeSync();
@@ -396,9 +404,8 @@ values
     addTearDown(w.dispose);
     addTearDown(fake.close);
     await w.driver(fake)('scripted');
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(File('${owned.path}/fake').readAsStringSync(), 'real disk');
   });
 
@@ -444,6 +451,7 @@ Path('/work/output').read_text()
               transfers.collect(child, {'out': 'relative'}),
               throwsA(isA<ExternalException>()),
             );
+
             return const MontyNone();
           } finally {
             await child.dispose();
@@ -473,9 +481,10 @@ Path('/work/output').read_text()
     addTearDown(finite.close);
     final held = await finite.checkout();
     final adapter = PersistentTransfer(finite, [overlay]);
+    final throwsExternal = throwsA(isA<ExternalException>());
     await expectLater(
       adapter.call('Path.stat', [MontyPath('/work/seed')], {}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     final persistent = PersistentTransfer(finite, [readonly]);
     await expectLater(
@@ -492,7 +501,7 @@ Path('/work/output').read_text()
         MontyPath('/work/seed'),
         MontyBytes(Uint8List.fromList([1])),
       ], {}),
-      throwsA(isA<ExternalException>()),
+      throwsExternal,
     );
     expect(File('${root.path}/seed').readAsStringSync(), 'disk');
   });
@@ -546,9 +555,8 @@ Path('/work/output').read_text()
     );
     expect(w.writeBytes, 2);
     expect(w.memoryUsage, 64);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     expect(owned.listSync(), isEmpty);
     await w.driver(session)("Path('a').write_text('x')");
     expect(w.writeBytes, 3);
@@ -612,9 +620,8 @@ Path('/work/output').read_text()
       parent: parent.call,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     File('${owned.path}/unselected').openSync(mode: FileMode.write)
       ..truncateSync(8388609)
       ..closeSync();
@@ -634,9 +641,8 @@ Path('/work/output').read_text()
       memoryUsageLimit: null,
     );
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final file = File('${owned.path}/large');
     file.openSync(mode: FileMode.write)
       ..truncateSync(4194304)
@@ -667,9 +673,8 @@ Path('/work/output').read_text()
     final parent = OSAccess();
     final w = Workspace(sandboxBaseDir: base.path, parent: parent.call);
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final dir = Directory('${owned.path}/bulk')..createSync();
     for (var i = 0; i < 4095; i++) {
       File('${dir.path}/f$i').writeAsStringSync('');
@@ -696,9 +701,8 @@ Path('/work/output').read_text()
     final parent = OSAccess();
     final w = Workspace(sandboxBaseDir: base.path, parent: parent.call);
     addTearDown(w.dispose);
-    final owned = Directory(
-      '${(base.listSync().single as Directory).path}/work',
-    );
+    final [sandbox] = base.listSync();
+    final owned = Directory('${(sandbox as Directory).path}/work');
     final deep = '${owned.path}/tree${'/d' * 32}';
     Directory(deep).createSync(recursive: true);
     final transfers = WorkspaceTransfers();
@@ -736,8 +740,9 @@ Path('/work/output').read_text()
     } finally {
       await oracle.close();
     }
-    expect(manual, isA<MontyRuntimeError>());
-    expect(automatic, isA<MontyRuntimeError>());
+    final isRuntimeError = isA<MontyRuntimeError>();
+    expect(manual, isRuntimeError);
+    expect(automatic, isRuntimeError);
     expect(manual?.exception.excType, automatic?.exception.excType);
     expect(manual?.exception.message, automatic?.exception.message);
     expect(
@@ -780,7 +785,7 @@ Path('/work/output').read_text()
   }
 }
 
-const diskParity = <String, String>{
+const diskParity = {
   '01-read': "Path('seed').read_text()",
   '02-write': "Path('out').write_text('é')\nPath('out').read_text()",
   '03-bytes': "Path('out').write_bytes(b'abc')\nPath('out').read_bytes()",
@@ -839,6 +844,7 @@ final class _MountRecordingSession implements MontySession {
     bool skipTypeCheck = false,
   }) {
     mounts = mount;
+
     return inner.feedStart(
       code,
       inputs: inputs,

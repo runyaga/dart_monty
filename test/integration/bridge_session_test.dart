@@ -38,8 +38,8 @@ void main() {
         .execute('print("hello")\nprint("world")\n6 * 7')
         .toList();
 
-    expect(events.first, isA<BridgeRunStarted>());
-    final finished = events.last as BridgeRunFinished;
+    expect(events.firstOrNull, isA<BridgeRunStarted>());
+    final finished = events.lastOrNull! as BridgeRunFinished;
     expect(finished.value, 42);
     expect(finished.montyValue, const MontyInt(42));
     expect(finished.printOutput, 'hello\nworld\n');
@@ -50,7 +50,7 @@ void main() {
         .execute('print("before")\nraise ValueError("boom")')
         .toList();
 
-    final error = events.last as BridgeRunError;
+    final error = events.lastOrNull! as BridgeRunError;
     expect(events.whereType<BridgeRunError>(), hasLength(1));
     expect(error.exception, isA<MontyRuntimeError>());
     expect(error.message, 'ValueError: boom');
@@ -61,7 +61,7 @@ void main() {
     final events = await bridge.execute('def (').toList();
 
     expect(
-      events.whereType<BridgeRunError>().single.exception,
+      events.whereType<BridgeRunError>().singleOrNull?.exception,
       isA<MontySyntaxError>(),
     );
   });
@@ -75,7 +75,7 @@ void main() {
     final events = await b.execute('x: int = "not an int"').toList();
 
     expect(
-      events.whereType<BridgeRunError>().single.exception,
+      events.whereType<BridgeRunError>().singleOrNull?.exception,
       isA<MontyTypingError>(),
     );
   });
@@ -96,7 +96,7 @@ void main() {
     expect(events.whereType<BridgeOsCallStart>(), isEmpty);
     expect(events.whereType<BridgeOsCallResult>(), isEmpty);
     expect(
-      (events.last as BridgeRunFinished).value,
+      (events.lastOrNull! as BridgeRunFinished).value,
       allOf(startsWith('RuntimeError'), contains('not supported')),
     );
   });
@@ -111,10 +111,13 @@ void main() {
         .toList();
 
     expect(
-      (events.last as BridgeRunFinished).value,
+      (events.lastOrNull! as BridgeRunFinished).value,
       allOf(startsWith('PermissionError'), contains('/nope.txt')),
     );
-    expect(events.whereType<BridgeOsCallResult>().single.result, 'Declined');
+    expect(
+      events.whereType<BridgeOsCallResult>().singleOrNull?.result,
+      'Declined',
+    );
   });
 
   test(
@@ -129,13 +132,16 @@ void main() {
           .toList();
 
       expect(
-        (events.last as BridgeRunFinished).value,
+        (events.lastOrNull! as BridgeRunFinished).value,
         allOf(
           startsWith('RuntimeError'),
           contains('is not supported in this environment'),
         ),
       );
-      expect(events.whereType<BridgeOsCallResult>().single.result, 'Declined');
+      expect(
+        events.whereType<BridgeOsCallResult>().singleOrNull?.result,
+        'Declined',
+      );
     },
   );
 
@@ -149,10 +155,10 @@ void main() {
         .execute('import os\nos.getenv("APP_ENV")')
         .toList();
 
-    expect((events.last as BridgeRunFinished).value, 'from-host');
-    final start = events.whereType<BridgeOsCallStart>().single;
+    expect((events.lastOrNull! as BridgeRunFinished).value, 'from-host');
+    final start = events.whereType<BridgeOsCallStart>().singleOrNull!;
     expect(start.operationName, 'os.getenv');
-    final result = events.whereType<BridgeOsCallResult>().single;
+    final result = events.whereType<BridgeOsCallResult>().singleOrNull!;
     expect(result.callId, start.callId);
     expect(result.result, 'from-host');
     expect(result.durationMs, isNotNull);
@@ -168,9 +174,12 @@ void main() {
         .execute(_tryCatch("open('/x.txt').read()"))
         .toList();
 
-    expect((events.last as BridgeRunFinished).value, 'FileNotFoundError: gone');
     expect(
-      events.whereType<BridgeOsCallResult>().single.result,
+      (events.lastOrNull! as BridgeRunFinished).value,
+      'FileNotFoundError: gone',
+    );
+    expect(
+      events.whereType<BridgeOsCallResult>().singleOrNull?.result,
       'Error: gone',
     );
   });
@@ -193,7 +202,7 @@ void main() {
         .toList();
     sw.stop();
 
-    expect((events.last as BridgeRunFinished).value, isTrue);
+    expect((events.lastOrNull! as BridgeRunFinished).value, isTrue);
     expect(reached, 0);
     expect(events.whereType<BridgeOsCallStart>(), isEmpty);
     // The session waited the sleep itself.
@@ -217,10 +226,10 @@ void main() {
 
     Future<Object?> run(String code) async {
       final events = await bridge.execute(code).toList();
-      final last = events.last;
+      final last = events.lastOrNull;
       if (last is BridgeRunError) fail('run failed: ${last.message}');
 
-      return (last as BridgeRunFinished).value;
+      return (last! as BridgeRunFinished).value;
     }
 
     test('a sync-mode call returns its value at the call site, with its '
@@ -235,7 +244,7 @@ void main() {
 
       final events = await bridge.execute('inc(x=20) * 2').toList();
 
-      expect((events.last as BridgeRunFinished).value, 42);
+      expect((events.lastOrNull! as BridgeRunFinished).value, 42);
       expect(
         [
           for (final e in events)
@@ -311,9 +320,9 @@ void main() {
           .execute('x = []\nfor _ in range(30):\n    x = [x, x]\ntake(x)')
           .toList();
 
-      expect((events.last as BridgeRunFinished).value, 'ran');
+      expect((events.lastOrNull! as BridgeRunFinished).value, 'ran');
       expect(
-        events.whereType<BridgeFunctionCallArgs>().single.delta,
+        events.whereType<BridgeFunctionCallArgs>().singleOrNull?.delta,
         startsWith('"arguments not shown: over '),
       );
     }, timeout: const Timeout(Duration(seconds: 20)));
@@ -335,9 +344,9 @@ void main() {
           .execute('x = []\nfor _ in range(30):\n    x = [x, x]\nlen(echo(x))')
           .toList();
 
-      expect((events.last as BridgeRunFinished).value, 2);
+      expect((events.lastOrNull! as BridgeRunFinished).value, 2);
       expect(
-        events.whereType<BridgeFunctionCallResult>().single.result,
+        events.whereType<BridgeFunctionCallResult>().singleOrNull?.result,
         endsWith('... (cut at 1048576 characters)'),
       );
     }, timeout: const Timeout(Duration(seconds: 20)));
@@ -365,11 +374,11 @@ void main() {
           .toList();
 
       expect(
-        (events.last as BridgeRunFinished).value,
+        (events.lastOrNull! as BridgeRunFinished).value,
         endsWith('(cut at 1048576 characters)'),
       );
       expect(
-        events.whereType<BridgeFunctionCallResult>().single.result,
+        events.whereType<BridgeFunctionCallResult>().singleOrNull?.result,
         allOf(
           startsWith('Error: [[['),
           endsWith('(cut at 1048576 characters)'),
@@ -399,8 +408,8 @@ void main() {
       final events = await bridge.execute('not_registered(x=1)').toList();
 
       expect(events.whereType<BridgeCallStarted>(), isEmpty);
-      final error = events.whereType<BridgeRunError>().single;
-      expect(error.exception?.exception.excType, 'NameError');
+      final error = events.whereType<BridgeRunError>().singleOrNull;
+      expect(error?.exception?.exception.excType, 'NameError');
     });
 
     test('a function with no handler on this backend is a NameError', () async {
@@ -499,5 +508,5 @@ out
 Future<String> _caught(MontyBridge bridge, String expr) async {
   final events = await bridge.execute(_tryCatch(expr)).toList();
 
-  return (events.last as BridgeRunFinished).value! as String;
+  return (events.lastOrNull! as BridgeRunFinished).value! as String;
 }

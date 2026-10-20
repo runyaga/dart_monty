@@ -60,16 +60,16 @@ class ServedRequest {
 class DemoServer {
   DemoServer._(this._server, this._root);
 
-  final HttpServer _server;
-  final String _root;
-
   /// Every request answered so far, oldest first.
   final List<ServedRequest> requests = <ServedRequest>[];
+
+  final HttpServer _server;
+  final String _root;
 
   /// The origin pages should be loaded from, e.g. `http://127.0.0.1:53124`.
   String get origin => 'http://127.0.0.1:${_server.port}';
 
-  static const _contentTypes = <String, String>{
+  static const _contentTypes = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
@@ -89,6 +89,7 @@ class DemoServer {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final demo = DemoServer._(server, p.canonicalize(root));
     unawaited(demo._accept());
+
     return demo;
   }
 
@@ -235,9 +236,10 @@ class PageLoad {
     for (final e in consoleErrors) {
       buffer.writeln('console err: $e');
     }
-    for (final e in examples.where((e) => !e.ok)) {
+    for (final e in examples.where((run) => !run.ok)) {
       buffer.writeln('example:     $e');
     }
+
     return buffer.toString();
   }
 }
@@ -304,7 +306,7 @@ class Chrome {
   bool _closed = false;
 
   /// Executables to try, in order, when `CHROME_EXECUTABLE` is not set.
-  static const _candidates = <String>[
+  static const _candidates = [
     'google-chrome-stable',
     'google-chrome',
     'chromium',
@@ -327,19 +329,20 @@ class Chrome {
         if (File(candidate).existsSync()) return candidate;
         continue;
       }
-      final which = Process.runSync('which', <String>[candidate]);
+      final which = Process.runSync('which', [candidate]);
       if (which.exitCode == 0) {
         final path = (which.stdout as String).trim();
         if (path.isNotEmpty) return path;
       }
     }
+
     return null;
   }
 
   /// Launches [executable] headless with a throwaway profile and attaches.
   static Future<Chrome> launch(String executable) async {
     final profile = Directory.systemTemp.createTempSync('monty-demo-chrome-');
-    final process = await Process.start(executable, <String>[
+    final process = await Process.start(executable, [
       '--headless=new',
       '--disable-gpu',
       '--no-sandbox',
@@ -353,18 +356,20 @@ class Chrome {
     ]);
     // Drain both pipes. Chrome is chatty on stderr (dbus, GPU) and a full
     // pipe wedges the process with no error anywhere.
-    unawaited(process.stdout.drain<void>());
-    unawaited(process.stderr.drain<void>());
+    unawaited(process.stdout.drain());
+    unawaited(process.stderr.drain());
 
     final portFile = File(p.join(profile.path, 'DevToolsActivePort'));
     final deadline = DateTime.now().add(const Duration(seconds: 60));
     while (DateTime.now().isBefore(deadline)) {
       if (portFile.existsSync()) {
         final lines = portFile.readAsLinesSync();
-        if (lines.length >= 2 && int.tryParse(lines[0]) != null) {
+        if (lines.length >= 2 && int.tryParse(lines.first) != null) {
+          final [port, browserPath, ...] = lines;
           final socket = await WebSocket.connect(
-            'ws://127.0.0.1:${lines[0]}${lines[1]}',
+            'ws://127.0.0.1:$port$browserPath',
           );
+
           return Chrome._(process, socket, profile);
         }
       }
@@ -409,27 +414,8 @@ class Chrome {
         'sessionId': ?sessionId,
       }),
     );
-    return completer.future.timeout(timeout);
-  }
 
-  void _onMessage(dynamic raw) {
-    final message = jsonDecode(raw as String) as Map<String, dynamic>;
-    final id = message['id'];
-    if (id is int) {
-      final completer = _pending.remove(id);
-      if (completer == null) return;
-      final error = message['error'];
-      if (error != null) {
-        completer.completeError(StateError('CDP error: ${jsonEncode(error)}'));
-      } else {
-        completer.complete(
-          (message['result'] as Map<String, dynamic>?) ??
-              const <String, dynamic>{},
-        );
-      }
-      return;
-    }
-    _events.add(message);
+    return completer.future.timeout(timeout);
   }
 
   /// Loads [url] in a fresh tab and waits for its boot signal.
@@ -576,6 +562,30 @@ class Chrome {
     );
   }
 
+  void _onMessage(dynamic raw) {
+    final message = jsonDecode(raw as String) as Map<String, dynamic>;
+    final id = message['id'];
+    if (id is int) {
+      final completer = _pending.remove(id);
+      if (completer == null) return;
+      final error = message['error'];
+      if (error != null) {
+        completer.completeError(
+          StateError('CDP error: ${jsonEncode(error)}'),
+          StackTrace.current,
+        );
+      } else {
+        completer.complete(
+          (message['result'] as Map<String, dynamic>?) ??
+              const <String, dynamic>{},
+        );
+      }
+
+      return;
+    }
+    _events.add(message);
+  }
+
   Future<Map<String, dynamic>?> _probeBoot(String sessionId) async {
     // A page that reloads itself (coi-serviceworker does, once, when the
     // origin is not cross-origin isolated) destroys the execution context
@@ -583,6 +593,7 @@ class Chrome {
     try {
       final value = await _evaluateString(sessionId, _bootProbeJs);
       if (value == null) return null;
+
       return jsonDecode(value) as Map<String, dynamic>;
     } on Object catch (_) {
       return null;
@@ -595,6 +606,7 @@ class Chrome {
       final text = entry as String;
       if (!out.contains(text)) out.add(text);
     }
+
     return out;
   }
 
@@ -614,6 +626,7 @@ class Chrome {
       );
     } on Object catch (e) {
       stopwatch.stop();
+
       return ExampleRun(
         key: key,
         ok: false,
@@ -633,6 +646,7 @@ class Chrome {
       );
     }
     final decoded = jsonDecode(value) as Map<String, dynamic>;
+
     return ExampleRun(
       key: key,
       ok: decoded['ok'] as bool,
@@ -662,6 +676,7 @@ class Chrome {
     if (details != null) {
       throw StateError('evaluate threw: ${jsonEncode(details)}');
     }
+
     return (result['result'] as Map<String, dynamic>?)?['value'] as String?;
   }
 }
@@ -677,7 +692,7 @@ class Chrome {
 /// A glob that matches nothing is a FAILURE, never an empty pass: that is how
 /// a rename turns a gate into a no-op that still reports success.
 List<String> trackedFiles(String pattern) {
-  final result = Process.runSync('git', <String>['ls-files', pattern]);
+  final result = Process.runSync('git', ['ls-files', pattern]);
   if (result.exitCode != 0) {
     throw StateError(
       'git ls-files $pattern failed (${result.exitCode}): ${result.stderr}',
@@ -696,6 +711,7 @@ List<String> trackedFiles(String pattern) {
       'would make this gate verify nothing at all, so it fails instead.',
     );
   }
+
   return files;
 }
 
@@ -707,6 +723,7 @@ List<String> trackedFiles(String pattern) {
 /// were in before this gate existed.
 List<String> scriptsLoadedBy(String pageFile) {
   final html = File(pageFile).readAsStringSync();
+
   return RegExp(
     r'''src=["']([A-Za-z0-9_]+\.dart\.js)["']''',
   ).allMatches(html).map((m) => m.group(1)!).toSet().toList()..sort();
@@ -756,5 +773,6 @@ List<String> exampleKeysInHtml(String html) {
     if (key.isEmpty || keys.contains(key)) continue;
     keys.add(key);
   }
+
   return keys;
 }
