@@ -8,6 +8,9 @@
 `dart_monty_core` with stateful runtimes, Dart host functions, extensions,
 execution events, and OS-call policy.
 
+This documentation covers `dart_monty 0.110.0-dev.4` with
+`dart_monty_core e962659e47d41e7b6bce3f15408f521940a3fcc7`.
+
 Use `MontyRuntime` when Python needs application capabilities or state that
 persists between calls. Use core's `Monty` and `MontySession` directly for a
 session feed without those features. Both choices require explicit disposal.
