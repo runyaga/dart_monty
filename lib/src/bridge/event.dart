@@ -3,11 +3,7 @@ import 'package:dart_monty/src/bridge/run_failure.dart';
 import 'package:dart_monty/src/host/context.dart' show HostContext;
 import 'package:dart_monty_core/dart_monty_core.dart';
 
-/// Protocol-agnostic lifecycle events emitted by a bridge.
-///
-/// These events describe what happened during Python execution without
-/// coupling to any specific event protocol (e.g. ag-ui). Downstream
-/// consumers map these to their own protocol types.
+/// Describes bridge activity without selecting a consumer protocol.
 sealed class BridgeEvent {
   /// Creates a [BridgeEvent].
   const BridgeEvent();
@@ -43,16 +39,10 @@ class BridgeRunFinished extends BridgeEvent {
   /// Run identifier.
   final String runId;
 
-  /// The Python return value as a plain Dart value (collections
-  /// recursively unwrapped). Loses `__type` envelopes — a Python
-  /// dataclass returns as a `Map<String, Object?>` here. Suitable for
-  /// telemetry and UI display.
+  /// Provides the recursively unwrapped Python value for display or telemetry.
   final Object? value;
 
-  /// The Python return value as a typed [MontyValue], preserving
-  /// `__type` envelopes (e.g. `MontyDataclass`, `MontyNamedTuple`).
-  /// Use this when downstream code needs to distinguish typed values
-  /// from plain dicts.
+  /// Preserves the typed Python value and its type envelopes.
   final MontyValue? montyValue;
 
   /// Captured print output (when available).
@@ -74,17 +64,10 @@ class BridgeRunError extends BridgeEvent {
   /// Captured print output before the error (when available).
   final String? printOutput;
 
-  /// The original [MontyError] when the error originated from Python.
-  ///
-  /// Preserves structured fields (`exception.excType`, the traceback) that
-  /// are lost in the [message] string. Null when the error is not a
-  /// Python exception (e.g. infrastructure errors).
+  /// Preserves a structured Python failure when one caused the event.
   final MontyError? exception;
 
-  /// Formatted diagnostic message for Dart-host inspection:
-  /// - `display()` for syntax, runtime, and typing errors;
-  /// - `toString()` for crashes;
-  /// - [message] for infrastructure-only or unassociated events.
+  /// Formats the most specific available diagnostic for Dart inspection.
   String get displayMessage => switch (exception) {
     final MontySyntaxError e => e.display(),
     final MontyRuntimeError e => e.display(),
@@ -93,17 +76,13 @@ class BridgeRunError extends BridgeEvent {
     null => message,
   };
 
-  /// The underlying [MontyError] for Python failures, the recorded throw for
-  /// infrastructure failures, or `null` for manually constructed events
-  /// without an associated cause.
+  /// Returns the recorded Python or infrastructure cause when available.
   Object? get cause => exception ?? runFailureOf(this)?.$1;
 
   /// The captured catch stack trace when recorded by the bridge, or `null`.
   StackTrace? get causeStack => runFailureOf(this)?.$2;
 
-  /// Rethrows [cause] with [causeStack] via [Error.throwWithStackTrace] when a
-  /// stack was captured, throws [cause] directly when only [exception] is
-  /// present, or throws `StateError(message)` for unassociated manual events.
+  /// Rethrows the recorded cause or a [StateError] for an unassociated event.
   Never throwCause() {
     if (cause case final target?) {
       if (causeStack case final stack?) {
@@ -180,15 +159,12 @@ class BridgeFunctionCallResult extends BridgeEvent {
   final String result;
 }
 
-/// Intermediate text emitted by a host function handler via [HostContext.emit].
-///
-/// Emitted mid-call for streaming progress updates or partial results.
-/// Arrives between [BridgeFunctionCallStart] and [BridgeFunctionCallResult].
+/// Carries text emitted through [HostContext.emitText] before a handler result.
 class BridgeFunctionEmit extends BridgeEvent {
   /// Creates a [BridgeFunctionEmit].
   const BridgeFunctionEmit({required this.callId, required this.text});
 
-  /// Call identifier — matches the enclosing [BridgeFunctionCallStart.callId].
+  /// Matches the enclosing [BridgeFunctionCallStart.callId].
   final String callId;
 
   /// Emitted text.
@@ -211,24 +187,16 @@ class BridgeOsCallStart extends BridgeEvent {
   /// The OS operation name, e.g. `"Path.read_text"`, `"os.getenv"`.
   final String operationName;
 
-  /// Human-readable summary of the call's arguments (for telemetry).
-  ///
-  /// Example: `"'/sandbox/test.txt'"` for a read_text call.
-  /// May be null for calls with no arguments.
+  /// Summarizes call arguments for telemetry when arguments are present.
   final String? argumentSummary;
 }
 
-/// Wraps an event re-emitted from a child runtime on its parent's stream.
-///
-/// Used by child-spawning plugins (e.g. `SandboxExtension`) to aggregate child
-/// execution events into the parent runtime's broadcast `events` stream so
-/// observers see a single, attributed ordering across the ownership tree.
+/// Attributes a child runtime event on its parent's stream.
 class BridgeChildEvent extends BridgeEvent {
   /// Creates a [BridgeChildEvent].
   const BridgeChildEvent({required this.childHandle, required this.inner});
 
-  /// Identifier of the child that produced [inner] (namespace-local to the
-  /// plugin that spawned the child, e.g. a sandbox child id).
+  /// Identifies the child within the spawning extension's namespace.
   final String childHandle;
 
   /// The original event emitted by the child.
@@ -251,8 +219,6 @@ class BridgeOsCallResult extends BridgeEvent {
   /// Result string (or error description).
   final String result;
 
-  /// Wall-clock duration of the handler invocation in milliseconds.
-  ///
-  /// Null when the call was rejected (no handler registered).
+  /// Handler wall time.
   final int? durationMs;
 }

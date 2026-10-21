@@ -25,9 +25,7 @@ import 'package:meta/meta.dart';
 typedef _RuntimeCheckout =
     Future<MontySession> Function({ResourceLimits? limits});
 
-/// The `maxProcesses` of the pool [MontyRuntime.start] starts when it is
-/// given none: a root execution, a sub-execution, and the `maxChildren` of
-/// the [SandboxExtension] among [extensions] (none without one).
+/// Sizes an owned pool for root, sub-execution, and sandbox child sessions.
 @visibleForTesting
 // ignore: unnecessarily-public-code, pool sizing is asserted by runtime tests.
 int defaultPoolSize(List<MontyExtension>? extensions) {
@@ -36,8 +34,7 @@ int defaultPoolSize(List<MontyExtension>? extensions) {
   return (sandbox?.maxChildren ?? 0) + 2;
 }
 
-/// The shared-mode [ExtensionCoordinator] of [runtime]; `null` in sandbox
-/// mode, where each `execute()` owns a transient one. Internal to dm.
+/// Returns the shared coordinator used by package tests.
 @visibleForTesting
 // ignore: unnecessarily-public-code, unused-code, integration tests inspect coordinator identity.
 ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
@@ -47,8 +44,7 @@ ExtensionCoordinator? runtimeCoordinator(MontyRuntime runtime) =>
 // ignore: unnecessarily-public-code, internal cross-library access only.
 ResourceLimits? runtimeLimits(MontyRuntime runtime) => runtime._limits;
 
-/// Captures the originating execution before child preparation first awaits.
-/// Internal library hand-off; deliberately absent from the facade.
+/// Captures the originating execution before child preparation awaits.
 // ignore: library_private_types_in_public_api, unnecessarily-public-code, internal hand-off, not exported.
 _ChildExecutionContext captureChildContext(
   MontyRuntime runtime,
@@ -131,11 +127,7 @@ final class _ChildExecutionContext {
       !token.isCancelled;
 }
 
-/// Starts a [MontyRuntime] whose sessions come from [checkout] instead of a
-/// pool; [closePool] runs once when the runtime is disposed.
-///
-/// The seam for tests that script sessions (core's `FakeMontySession`).
-/// The other parameters are [MontyRuntime.start]'s.
+/// Starts a test runtime from an injected session checkout.
 @visibleForTesting
 // ignore: unnecessarily-public-code, unused-code, number-of-parameters, test seam mirrors MontyRuntime.start options.
 Future<MontyRuntime> startRuntimeWith({
@@ -167,32 +159,7 @@ Future<MontyRuntime> startRuntimeWith({
   );
 }
 
-/// High-level agent session — stateful Python execution with tools and
-/// extensions.
-///
-/// Combines `MontyBridge`, `ExtensionCoordinator`, and OS providers into a
-/// single API, on sessions checked out of a [Monty] pool.
-///
-/// Two execution modes:
-///
-/// **Shared interpreter** (default): one session across all `execute()`
-/// calls. Variables, functions, classes, and modules defined in one call are
-/// available in every subsequent call.
-///
-/// **Fresh sandbox** (`sandbox: true`): each `execute()` runs on its own
-/// session, closed after it. State does not persist between calls.
-///
-/// ```dart
-/// import 'package:dart_monty/dart_monty.dart';
-///
-/// final pool = await Monty.start(workerLocation: workerPath);
-/// final runtime = await MontyRuntime.start(
-///   pool: pool,
-///   os: OSAccess().call,
-/// );
-/// await runtime.execute('x = 42').result;
-/// final value = await runtime.execute('x + 1').result; // MontyInt(43)
-/// ```
+/// Owns stateful or isolated Python execution with host capabilities.
 class MontyRuntime implements MontyRuntimeRef {
   MontyRuntime._({
     required _RuntimeCheckout checkout,
@@ -210,8 +177,7 @@ class MontyRuntime implements MontyRuntimeRef {
        _sandbox = sandbox,
        _limits = limits;
 
-  /// How long a checkout from the runtime's default pool waits for a free
-  /// worker before it fails with [TimeoutException].
+  /// Bounds checkout from a pool created by the runtime.
   static const Duration defaultCheckoutTimeout = Duration(seconds: 30);
 
   final _RuntimeCheckout _checkout;
@@ -257,41 +223,14 @@ class MontyRuntime implements MontyRuntimeRef {
   final StreamController<BridgeEvent> _eventsController =
       StreamController<BridgeEvent>.broadcast();
 
-  /// Starts an agent session.
-  ///
-  /// The runtime's sessions come from [pool], which the caller sizes and
-  /// closes. Without one the runtime starts its own pool, with room for a
-  /// root execution, a sub-execution and the `maxChildren` of a
-  /// [SandboxExtension] in [extensions], and a [defaultCheckoutTimeout];
-  /// [dispose] closes it. That pool finds the worker by core's own
-  /// discovery, which throws [StateError] when it finds none.
-  ///
-  /// An injected pool must have a finite `checkoutTimeout` for bounded
-  /// child, sub-execution and transfer acquisition. No timeout is inferred.
-  ///
-  /// When [sandbox] is false (default), the runtime checks out one session
-  /// before the future completes and runs every `execute()` on it. When
-  /// [sandbox] is true, each `execute()` call checks out its own session and
-  /// closes it afterwards; state does not persist between calls.
-  ///
-  /// [os] is the OS handler of every feed; [osHandlers] is composed into
-  /// one. Pass at most one of them. Extensions attach at the first
-  /// `execute()` or [invoke], not here.
-  ///
-  /// [limits] are the resource limits of the sessions the runtime runs
-  /// `execute()` on: the held session in shared mode (and each one that
-  /// replaces it), each execution's session in sandbox mode. A
-  /// sub-execution inherits the same configured limits. Null keeps
-  /// upstream's defaults.
-  ///
-  /// In shared mode a feed that ends the held session replaces it: a
-  /// [MontyCrashedError] (the worker died or was killed), or an uncaught
-  /// `MemoryError` or `TimeoutError`, which a memory or time limit raises
-  /// and after which upstream says to discard the session. The type decides,
-  /// not what raised it: the code's own uncaught `raise TimeoutError()`
-  /// replaces the session too. The session is closed, and the next
-  /// `execute()` checks out a fresh one, with empty globals; the extensions
-  /// stay attached, and it is not a [clearState].
+  /// Starts shared-session mode by default. A pool created here uses core
+  /// worker discovery, which throws [StateError] when it finds no worker. With
+  /// [sandbox] true, each
+  /// execution owns a fresh session, bridge, and extension attachment. An
+  /// owned pool has capacity for a root, a sub-execution, and sandbox children
+  /// and closes on [dispose]. An injected [pool] must use a finite
+  /// `checkoutTimeout` so acquisition remains bounded. Supplied extensions
+  /// attach before first [execute] or [invoke] use.
   // ignore: number-of-parameters, the public options of a runtime.
   static Future<MontyRuntime> start({
     Monty? pool,
@@ -332,23 +271,11 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// All registered tool schemas — feed these to an LLM as tool definitions.
-  ///
-  /// In shared mode, the functions registered on the shared bridge, the
-  /// extensions' included once they are attached. In sandbox mode each
-  /// execution builds its own bridge, so there is no registry to read: the
-  /// list is the one fixed at construction, empty, and [register] does not
-  /// change it.
+  /// Provides attached shared-mode tool schemas for discovery.
   @override
   List<HostFunctionSchema> get schemas => _sharedBridge?.schemas ?? const [];
 
-  /// Broadcast stream of all [BridgeEvent]s emitted across every execution,
-  /// including child executions spawned via extensions such as
-  /// `SandboxExtension`.
-  ///
-  /// Child-plugin events arrive wrapped in [BridgeChildEvent] with
-  /// `childHandle` set to the plugin's local handle (e.g. a sandbox child
-  /// id).
+  /// Broadcasts parent and attributed child events across executions.
   Stream<BridgeEvent> get events => _eventsController.stream;
 
   @override
@@ -363,9 +290,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// Whether this session creates a fresh interpreter per `execute()`.
   bool get isSandboxMode => _sandbox;
 
-  /// Registers an additional host function.
-  ///
-  /// In sandbox mode, the function is registered on every fresh bridge.
+  /// Registers a host function on current or future execution bridges.
   void register(HostFunction function) {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     validateDefaults(function.schema);
@@ -373,25 +298,10 @@ class MontyRuntime implements MontyRuntimeRef {
     _extraFunctions.add(function);
   }
 
-  /// Executes Python [code] with state persistence and full tool access.
-  ///
-  /// Returns an [ExecutionHandle] at once, with an `executionId` of the form
-  /// `exec-<n>` (`n` counting from 0 per runtime), the execution's events,
-  /// its result and a cancel hook. The code runs as one feed: on the held
-  /// session in shared mode, on a session checked out for this call in
-  /// sandbox mode.
-  ///
-  /// [inputs] are bound as Python globals by the feed, each converted with
-  /// [MontyValue.fromDart]; a value it refuses is an [ArgumentError], thrown
-  /// here before a handle exists. Passing [os] replaces the runtime's OS
-  /// handler for this one execution: it is the feed's `os` handler, and the
-  /// `os` of the execution's host-function contexts.
-  ///
-  /// The result completes with the feed's [MontyValue], or fails with its
-  /// [MontyError]; besides that [ArgumentError], only a disposed runtime's
-  /// [StateError] is thrown from here. In shared mode a second `execute`
-  /// while one runs runs nothing and fails its result with
-  /// `StateError('Bridge is already executing')`.
+  /// Starts one feed and returns immediately. [inputs] accepts bool, int,
+  /// double, String, List, Map, null, and [MontyNone]. Null and [MontyNone]
+  /// become Python `None`. A shared-mode overlap returns a handle whose result
+  /// fails with [StateError].
   @override
   ExecutionHandle execute(
     String code, {
@@ -424,16 +334,8 @@ class MontyRuntime implements MontyRuntimeRef {
     );
   }
 
-  /// Invokes a registered host function directly from Dart — useful for
-  /// exercising tools without routing through Python. No Python runs.
-  ///
-  /// Attaches the extensions first if no execution has. [args] are
-  /// validated against the function's schema.
-  ///
-  /// Throws:
-  /// - [StateError] if the runtime is disposed.
-  /// - [UnsupportedError] if called on a sandbox-mode runtime.
-  /// - [ArgumentError] if [name] is not registered.
+  /// Invokes a validated host function without Python and rejects fresh-session
+  /// mode.
   Future<MontyValue> invoke(
     String name,
     Map<String, MontyValue> args, {
@@ -451,10 +353,8 @@ class MontyRuntime implements MontyRuntimeRef {
     return bridge.invokeHostFunction(name, args, onEvent: onEvent);
   }
 
-  /// Clears all persisted Python state: disposes the extensions, closes the
-  /// held session and checks out a new one, with a new bridge and
-  /// coordinator. The next `execute()` starts with empty globals and
-  /// attaches the extensions again. A no-op in sandbox mode.
+  /// Replaces shared state and attachments with an empty session and does
+  /// nothing in fresh-session mode.
   Future<void> clearState() async {
     if (_disposed) throw StateError('MontyRuntime has been disposed');
     if (_sandbox) return;
@@ -468,13 +368,8 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// Releases all resources: closes the session of every execution still
-  /// running (its result fails as for a cancel), disposes the extensions,
-  /// closes the held session, closes the pool when the runtime started it
-  /// (a caller's pool stays open), and closes [events]. Idempotent.
-  ///
-  /// An extension whose `onDispose` throws makes `dispose` throw that error
-  /// after the rest is released.
+  /// Releases live sessions and extensions before its owned pool, and is
+  /// idempotent.
   Future<void> dispose() {
     final pending = _disposal;
     if (pending != null) return pending;
@@ -513,19 +408,7 @@ class MontyRuntime implements MontyRuntimeRef {
   // Executions
   // ---------------------------------------------------------------------------
 
-  /// Runs [code] on a second session checked out of the pool, with
-  /// the runtime's configured limits, [inputs] bound as globals by the feed,
-  /// no OS handler
-  /// and no host functions; the session is closed afterwards. Every
-  /// `HostContext.subExecute` of this runtime's bridges, with
-  /// [cancelToken] the calling execution's and [generation] the
-  /// [clearState] count when the calling bridge was built.
-  ///
-  /// Completes with the feed's [MontyValue]; fails with its [MontyError],
-  /// or with the checkout's error (a pool's `checkoutTimeout` included).
-  /// [dispose], [clearState] and a cancel of [cancelToken] close a running
-  /// sub-execution's session, so its feed fails; a checkout that arrives
-  /// after one of them is closed unfed, and this fails with [StateError].
+  /// Runs isolated Python under the parent execution's lifetime and limits.
   Future<MontyValue> _subExecute(
     String code, {
     required int generation,
@@ -565,8 +448,7 @@ class MontyRuntime implements MontyRuntimeRef {
     return null;
   }
 
-  /// The sub-executor of a bridge built now: its sub-executions stop at the
-  /// next [clearState], even one that starts after it.
+  /// Binds sub-execution to the current state generation.
   RuntimeSubExecutor _subExecutor() {
     final generation = _generation;
 
@@ -587,8 +469,7 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// Runs [body] for [run], completing its result with the value or the
-  /// error, then closing its event stream.
+  /// Settles an execution result and closes its event stream.
   Future<void> _settle(
     _Execution run,
     Future<MontyValue> Function() body,
@@ -620,8 +501,7 @@ class MontyRuntime implements MontyRuntimeRef {
     unawaited(run.events.close());
   }
 
-  /// Cancels [run]: flips its token and, while its feed is running, closes
-  /// its session. Does nothing more once the execution has finished.
+  /// Cancels a run and closes its active session.
   Future<void> _cancel(_Execution run) async {
     run.token.cancel();
     if (run.finished || run.cancelled) return;
@@ -630,8 +510,7 @@ class MontyRuntime implements MontyRuntimeRef {
     if (session != null) await _closeBusy(run, session);
   }
 
-  /// Closes [session], [run]'s busy session; in shared mode the next
-  /// execution then checks out a fresh one.
+  /// Closes a busy session and marks shared state stale.
   Future<void> _closeBusy(_Execution run, MontySession session) {
     if (!_sandbox && identical(session, _sharedBridge?.session)) {
       _sharedStale = true;
@@ -640,8 +519,7 @@ class MontyRuntime implements MontyRuntimeRef {
     return session.close();
   }
 
-  /// Marks [session] as [run]'s busy session; one cancelled before it got
-  /// there is closed at once, so its feed fails.
+  /// Associates a session with a run and closes it if already cancelled.
   Future<void> _hold(_Execution run, MontySession session) async {
     run.session = session;
     if (run.cancelled) await _closeBusy(run, session);
@@ -686,15 +564,15 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// Closes [session] when it is still the held one, so the next execution
-  /// checks out a fresh one; the bridge, its extensions and the clearState
-  /// count stay.
+  /// Retires the held session without replacing bridge registrations.
   Future<void> _retire(MontySession session) async {
     if (!identical(session, _sharedBridge?.session)) return;
     _sharedStale = true;
     await session.close();
   }
 
+  /// Runs one fresh-session execution and disposes extensions and the bridge
+  /// before closing its session.
   Future<MontyValue> _runSandboxed(
     _Execution run,
     String code,
@@ -741,8 +619,7 @@ class MontyRuntime implements MontyRuntimeRef {
     return value!;
   }
 
-  /// Initializes [runtime]; a shared-mode one checks out its
-  /// session first.
+  /// Initializes shared mode with its held session.
   static Future<MontyRuntime> _start(MontyRuntime runtime) async {
     if (!runtime._sandbox) await runtime._openShared();
 
@@ -771,8 +648,7 @@ class MontyRuntime implements MontyRuntimeRef {
   /// A checkout of a root session, with the runtime's limits.
   Future<MontySession> _checkoutRoot() => _checkout(limits: _limits);
 
-  /// A checkout for the shared mode; one that completes after [dispose] is
-  /// closed, and throws [StateError].
+  /// Rejects a shared checkout that completes after disposal.
   Future<MontySession> _checkoutLive() async {
     final session = await _checkoutRoot();
     if (_disposed) {
@@ -808,9 +684,7 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// [checkout]'s session for [run]. When [run] is stopped first, this
-  /// throws at once, and the session is closed when it arrives: a waiting
-  /// checkout cannot be withdrawn.
+  /// Closes a pending checkout if its run stops before arrival.
   Future<MontySession> _checkoutFor(
     _Execution run,
     Future<MontySession> Function() checkout,
@@ -828,8 +702,7 @@ class MontyRuntime implements MontyRuntimeRef {
     return session;
   }
 
-  /// Waits for an attachment in progress, whatever its outcome, so the
-  /// extensions are disposed only after they attached.
+  /// Waits for attachment to settle before disposal continues.
   Future<void> _attachSettled() async {
     final attach = _sharedAttach;
     if (attach == null) return;
@@ -840,9 +713,7 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// Returns once no clearState is in progress, each one that starts during
-  /// the wait included; [run], when given and stopped, ends the wait with
-  /// [StateError].
+  /// Waits through consecutive state clears unless the run stops.
   Future<void> _clearingDone(_Execution? run) async {
     for (var clearing = _clearing; clearing != null; clearing = _clearing) {
       final stopped = await Future.any<bool>([
@@ -855,8 +726,7 @@ class MontyRuntime implements MontyRuntimeRef {
     }
   }
 
-  /// The shared bridge, with the extensions attached, once no clearState is
-  /// in progress; [run], when given, stops the wait.
+  /// Returns the attached shared bridge after state clearing settles.
   Future<SessionBridge> _attachShared([_Execution? run]) async {
     // Re-checked with no await before the attachment starts.
     while (_clearing != null) {
@@ -871,8 +741,7 @@ class MontyRuntime implements MontyRuntimeRef {
     return bridge;
   }
 
-  /// Forwards [stream]'s events to [run] and to [events], and returns the
-  /// value its terminal event carries.
+  /// Forwards execution events and extracts their terminal value.
   Future<MontyValue> _drive(
     _Execution run,
     Stream<BridgeEvent> stream,
@@ -924,8 +793,8 @@ Future<void> _closeOnArrival(Future<MontySession> pending) async {
   await session.close();
 }
 
-/// Whether [error] leaves its session unusable: a dead worker, or a memory
-/// or time limit, after which upstream says to discard the session.
+/// Reports whether a crash or a `MemoryError` or `TimeoutError` makes a session
+/// unusable.
 bool _endsSession(MontyError error) =>
     error is MontyCrashedError ||
     switch (error.exception.excType) {
@@ -933,7 +802,7 @@ bool _endsSession(MontyError error) =>
       _ => false,
     };
 
-/// [inputs] as the feed's values, each through [MontyValue.fromDart].
+/// Converts feed inputs through [MontyValue.fromDart].
 Map<String, MontyValue>? _inputValues(Map<String, Object?>? inputs) =>
     inputs?.map((name, value) => MapEntry(name, MontyValue.fromDart(value)));
 

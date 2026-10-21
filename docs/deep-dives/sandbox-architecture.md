@@ -2,9 +2,8 @@
 
 ## Overview
 
-`SandboxExtension` runs Python scripts in child interpreters. Each child owns
-a `MontySession`, a `MontyBridge`, an extension attachment, and a workspace.
-The parent Python script controls children through host functions.
+`SandboxExtension` runs Python scripts in child interpreters. The parent Python
+script controls children through host functions.
 
 ### Architecture Diagram
 
@@ -21,7 +20,7 @@ graph TD
         E[MontySession]
         F[MontyBridge]
         G[Child extensions]
-        H[Workspace at /work]
+        H[Workspace]
     end
 
     A --> B
@@ -35,30 +34,15 @@ graph TD
     H --> F
 ```
 
-### Cross-platform Support
+### Cross-platform support
 
-`SandboxExtension` supports the FFI and WASM backends. A child checks out a
-separate core session and receives an independent workspace. Core supplies the
-native-worker or Web Worker transport for that session.
+Core supplies the native-worker or Web Worker transport appropriate to the
+platform.
 
-## Host Functions
-
-- `sandbox_spawn(code, timeout_ms?, memory_bytes?, files?, ro_files?, write_bytes_limit?, memory_usage_limit?)`
-- `sandbox_await(handle, collect?)`
-- `sandbox_await_all(handles)`
-- `sandbox_gather(handles)`
-- `sandbox_is_alive(handle)`
-- `sandbox_free(handle)`
-- `sandbox_get_output(handle)`
+[SandboxExtension](https://github.com/runyaga/dart_monty/blob/main/lib/src/extensions/sandbox.dart)
+defines the Python-facing schemas.
 
 ## Isolation Model
-
-Each child owns:
-
-- A checked-out `MontySession` with independent interpreter state.
-- A `MontyBridge` that dispatches host calls and emits child events.
-- An extension attachment built from the parent extensions' child policies.
-- A workspace rooted at `/work`, backed by memory or an owned native directory.
 
 The child bridge uses the child's workspace when it composes OS handling.
 Workspace access does not expose the parent workspace unless `files` or
@@ -67,25 +51,13 @@ Workspace access does not expose the parent workspace unless `files` or
 ## Extension Inheritance
 
 `SandboxExtension` asks its attached extension owner to create a child
-attachment. Every parent `MontyExtension` declares a `ChildPolicy`:
-
-- `ChildPolicy.exclude` keeps the extension out of the child.
-- `ChildPolicy.clone` calls `createChildInstance` with a `ChildSpawnContext`.
-- `ChildPolicy.inherit` attaches the parent instance to the child.
-
-`ChildSpawnContext` provides the child identifier and its virtual working
-directory. A cloned extension returns a distinct instance and receives its own
-attachment lifecycle.
+attachment. [ChildPolicy](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/extension.dart)
+defines each extension's participation.
 
 ## Workspace ownership
 
-Each child receives an independent namespace with cwd `/work`. Memory is the
-default. `sandboxBaseDir` selects an owned native directory on VM.
-`files` and `ro_files` map child-relative destinations to absolute parent
-sources. `collect` on `sandbox_await` maps child-relative sources to absolute
-parent destinations. Copies are explicit snapshots, and collections are
-repeatable. Filesystem calls outside `/work` decline synchronously to core and
-never fall through to the parent filesystem.
+A child receives selected parent sources through copy-in, and a parent receives
+selected child outputs through collection. Copies are snapshots.
 
 See [workspace policy](oscall-vfs.md) for caps, transfer bounds and disposal.
 

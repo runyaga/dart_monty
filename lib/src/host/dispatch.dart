@@ -13,9 +13,7 @@ import 'package:dart_monty/src/runtime/runtime_ref.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-/// The most characters [_argsJson] or [_resultText] writes before it gives
-/// up: a list shared at each level of a value expands at every use, so a
-/// small value can have an enormous text.
+/// Bounds rendered log values without affecting execution.
 const int _textLimit = 1 << 20;
 
 /// Thrown once a bounded writer passes [_textLimit].
@@ -26,8 +24,7 @@ final class _TooLong implements Exception {
   String toString() => 'over $_textLimit characters';
 }
 
-/// A string sink that throws [_TooLong] once more than [_textLimit]
-/// characters were added, so an encoder writing into it stops there.
+/// Stops retaining rendered text after the logging limit.
 final class _BoundedSink implements Sink<String> {
   final StringBuffer _buffer = StringBuffer();
 
@@ -68,12 +65,7 @@ final class _Open {
   bool first = true;
 }
 
-/// Writes [root] to [out] as its `toString()` reads for a [List], a [Set]
-/// or a [Map] (a container already being written is `[...]` or `{...}`, as
-/// Dart writes it), and as its own `toString()` otherwise. Iterative, so
-/// nesting depth costs no call stack; throws [_TooLong] as soon as [out]
-/// would pass [_textLimit], so the work is bounded by the output. An
-/// object's own `toString()` (not a list, set or map) is called as it is.
+/// Renders bounded collection text while detecting identity cycles.
 void _writeText(Object? root, StringBuffer out) {
   void put(String text) {
     if (out.length + text.length > _textLimit) throw const _TooLong();
@@ -134,8 +126,7 @@ void _writeText(Object? root, StringBuffer out) {
   }
 }
 
-/// [value]'s text ([_writeText]), cut at [_textLimit] characters with a
-/// note saying so.
+/// Renders one value within the logging limit.
 String _boundedText(Object value) {
   final out = StringBuffer();
   try {
@@ -147,13 +138,11 @@ String _boundedText(Object value) {
   return out.toString();
 }
 
-/// [result] as [BridgeFunctionCallResult.result]: its text
-/// ([_boundedText]), `''` for null.
+/// Renders a host result for its bridge event.
 String _resultText(MontyValue result) =>
     result is MontyNone ? '' : _boundedText(result);
 
-/// Canonical Monty 1.1.0 conversion failure message for an unconvertible
-/// parity host function return [value].
+/// Formats an upstream-compatible result-conversion failure.
 String _parityConversionMessage(Object? value) {
   final typeName = value.runtimeType == Object
       ? 'builtins.object'
@@ -226,12 +215,7 @@ Future<Object?> _invokeParityCall(
   return raw;
 }
 
-/// [args] as JSON for [BridgeFunctionCallArgs.delta]: a value JSON has no
-/// form for is written as its text ([_writeText]).
-///
-/// Never throws. Arguments whose JSON would pass [_textLimit] characters,
-/// or that hold a cycle, are written as a JSON string saying so, and the
-/// call goes on.
+/// Renders bounded host arguments for a bridge event without failing the call.
 String _argsJson(Map<String, MontyValue> args) {
   final sink = _BoundedSink();
   // A value's own text past the limit: the encoder would wrap a throw from
@@ -269,8 +253,7 @@ String _argsJson(Map<String, MontyValue> args) {
       : sink.text;
 }
 
-/// The runtime's sub-executor: [HostSubExecutor] plus the token of the
-/// call that runs it, so a cancelled execution stops its sub-executions.
+/// Runs sub-execution with the parent call's cancellation token.
 typedef RuntimeSubExecutor =
     Future<MontyValue> Function(
       String code, {
@@ -279,20 +262,13 @@ typedef RuntimeSubExecutor =
     });
 
 // ---------------------------------------------------------------------------
-// HostDispatch — function registry + tool dispatch.
+// HostDispatch manages the function registry and tool dispatch.
 // ---------------------------------------------------------------------------
 
-/// Manages host function registration and tool call dispatch for a
-/// `MontyBridge`.
-///
-/// This is an internal implementation-detail class — it is not part of the
-/// public `MontyBridge` API. Callers access it through the bridge's delegation
-/// methods.
+/// Manages bridge host registration and dispatch.
 @internal
 class HostDispatch {
-  /// Creates a [HostDispatch].
-  ///
-  /// [log] is used for warning/error messages emitted during dispatch.
+  /// Creates host dispatch with runtime and logging context.
   HostDispatch({
     required BridgeLogger log,
     required MontyRuntimeRef? runtime,
@@ -301,8 +277,7 @@ class HostDispatch {
        _runtime = runtime,
        _subExecute = subExecute;
 
-  /// Current OS call handler — mirrored from the owning bridge so handlers
-  /// receive it via [HostContext.os]. Updated by the bridge's `registerOs`.
+  /// Mirrors the owning bridge's OS handler into host contexts.
   OsHandler? osHandler;
 
   final BridgeLogger _log;
@@ -346,10 +321,7 @@ class HostDispatch {
     return result;
   }
 
-  /// Registers [function] under an optional [category].
-  ///
-  /// Silently skips functions whose [HostFunction.handler] is `null` on the
-  /// current backend — no `supportedBackends` declaration required.
+  /// Registers a function when it supports the current backend.
   void register(HostFunction function, {String? category}) {
     if (!function.hasActiveHandler) return;
     validateDefaults(function.schema);
@@ -361,16 +333,7 @@ class HostDispatch {
   /// Unregisters the function with [name].
   void unregister(String name) => _functions.remove(name);
 
-  /// Invokes a registered host function by [name] directly from Dart.
-  ///
-  /// When [onEvent] is provided, any [BridgeEvent] the handler emits via
-  /// `HostContext.emit` / `HostContext.emitText` is delivered to the callback
-  /// before the returned future completes. When [onEvent] is omitted, emissions
-  /// are dropped (direct-Dart calls have no stream). Stream wrappers registered
-  /// by extensions apply to Python-`execute` runs only and are NOT applied to
-  /// direct invocations.
-  ///
-  /// Callback exceptions are logged via the bridge logger and swallowed.
+  /// Invokes a registered function without Python execution or stream wrappers.
   Future<MontyValue> invokeHostFunction(
     String name,
     Map<String, MontyValue> args, {
@@ -415,17 +378,7 @@ class HostDispatch {
   // Calls from Python.
   // ---------------------------------------------------------------------------
 
-  /// The registered functions as a feed's `externalLookup`, each wrapped so
-  /// its calls emit their events through [emit].
-  ///
-  /// A [DispatchMode.future] function is marked with core's [coroutine]: a
-  /// call is a coroutine in the sandbox, settled when its handler's future
-  /// completes. A [DispatchMode.sync] function is unmarked: core awaits the
-  /// handler and Python sees the value at the call site. A name not in the
-  /// map is Python's `NameError`, raised by the worker without reaching dm.
-  ///
-  /// Each call's [HostContext] carries [os] (the run's OS handler) and
-  /// [cancelToken] (the run's token; a fresh one when null).
+  /// Builds the feed lookup that reports host calls through the event sink.
   Map<String, MontyValue> externals(
     void Function(BridgeEvent) emit, {
     required OsHandler? os,
@@ -465,9 +418,7 @@ class HostDispatch {
     };
   }
 
-  /// A handler's [HostContext.subExecute]: the runtime's, bound to
-  /// [cancelToken], the token of the call's execution (none for a direct
-  /// invocation).
+  /// Binds runtime sub-execution to the current cancellation token.
   HostSubExecutor? _subExecuteFor(CancelToken? cancelToken) {
     final subExecute = _subExecute;
     if (subExecute == null) return null;
@@ -476,6 +427,8 @@ class HostDispatch {
         subExecute(code, inputs: inputs, cancelToken: cancelToken);
   }
 
+  /// Converts legacy argument-binding failures to Python `RuntimeError` before
+  /// invoking the handler.
   Map<String, MontyValue> _validateCall(
     HostFunction fn,
     List<MontyValue> args,
@@ -503,19 +456,7 @@ class HostDispatch {
     }
   }
 
-  /// One call of [fn] from Python, with its events.
-  ///
-  /// Emits [BridgeCallStarted] and [BridgeFunctionCallStart], then either
-  /// [BridgeFunctionCallArgs] (the validated arguments as JSON) and
-  /// [BridgeFunctionCallEnd], the handler's own events, and the result, or,
-  /// when validation fails, the result alone. The result is
-  /// [BridgeFunctionCallResult] (the value's text, `''` for null, or
-  /// `Error: <error>`, each bounded as [_boundedText]) followed by
-  /// [BridgeCallFinished].
-  ///
-  /// The core value reaches Python unchanged. A validation or handler
-  /// failure is thrown as `ExternalException('RuntimeError', text)`,
-  /// except a handler's own [ExternalException], which is thrown as it is.
+  /// Runs one Python-originated host call and emits its ordered events.
   Future<MontyValue> _call(
     HostFunction fn,
     List<MontyValue> args,

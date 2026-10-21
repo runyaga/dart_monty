@@ -18,15 +18,10 @@ enum HostParamType {
   /// Map/dict parameter. Monty Python `dict`.
   map,
 
-  /// Any type — passes through validation without type checking.
-  ///
-  /// Used for parameters like filter values that accept str, int, float, etc.
+  /// Accepts every core value without type checking.
   any;
 
-  /// JSON Schema type name for display and serialization.
-  ///
-  /// For JSON Schema generation, prefer `HostParam.toJsonSchema()` which
-  /// handles `any` by omitting the `type` key entirely (unconstrained).
+  /// Provides the corresponding JSON Schema type name.
   String get jsonSchemaType => switch (this) {
     string => 'string',
     integer => 'integer',

@@ -3,15 +3,9 @@ import 'dart:async';
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
-/// Handle to an in-flight `MontyRuntime.execute()` call.
-///
-/// Exposes the full lifecycle of one execution in a single value:
-/// - [events]: broadcast stream of this execution's `BridgeEvent`s.
-/// - [result]: resolves with the final [MontyValue] (or errors).
-/// - [cancel]: requests cancellation.
-/// - [executionId]: correlate per-execution events with telemetry.
+/// Tracks events, result, identity, and cancellation for one execution.
 class ExecutionHandle {
-  /// Creates an [ExecutionHandle].
+  /// Captures one execution's observable lifecycle.
   const ExecutionHandle({
     required this.events,
     required this.result,
@@ -19,48 +13,24 @@ class ExecutionHandle {
     required Future<void> Function() cancel,
   }) : _cancel = cancel;
 
-  /// Broadcast stream of bridge events emitted during this execution.
-  ///
-  /// The stream closes when execution finishes (success or error). Late
-  /// subscribers may miss events emitted before they attach — subscribe
-  /// synchronously after obtaining the handle to see the full sequence.
+  /// Broadcasts events until execution settles without replaying earlier
+  /// events.
   final Stream<BridgeEvent> events;
 
-  /// Completes with the final [MontyValue] when the execution finishes,
-  /// or an error if the execution failed.
+  /// Completes with the final value or the originating failure.
   final Future<MontyValue> result;
 
-  /// Stable identifier for this execution. Used to correlate events and
-  /// telemetry across the ownership tree.
+  /// Correlates this execution with events and telemetry.
   final String executionId;
 
   final Future<void> Function() _cancel;
 
-  /// Requests cooperative cancellation of the execution. Idempotent.
-  ///
-  /// Flips the execution's `CancelToken`; cooperating host function
-  /// handlers race it against their own long-running work to bail early.
-  /// The bridge does not forcibly terminate Python execution.
+  /// Idempotently signals the execution cancellation token. Handlers decide
+  /// how to stop pending work, and the runtime closes the active session.
   Future<void> cancel() => _cancel();
 }
 
-/// Cooperative cancellation token handed to host function handlers via
-/// `HostContext.cancelToken`.
-///
-/// Fires [future] (completes `void`) when the owning execution is cancelled.
-/// Handlers that do long work can race their own futures against
-/// `cancelToken.future` to bail out early:
-///
-/// ```dart
-/// final result = await Future.any([
-///   _slowFetch(),
-///   ctx.cancelToken.future.then((_) => throw const CancelledException()),
-/// ]);
-/// ```
-///
-/// Cancellation is best-effort — the bridge does not forcibly terminate
-/// in-flight Python execution. The token simply flips `isCancelled` true
-/// and resolves [future] so cooperating handlers can short-circuit.
+/// Signals best-effort cancellation to cooperating host handlers.
 class CancelToken {
   /// Creates a new, un-cancelled token.
   CancelToken();

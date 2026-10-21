@@ -1,16 +1,11 @@
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 
-/// Extracts the terminal value from a completed bridge event list.
-///
-/// A [BridgeRunError] carrying a [MontyError] throws that error. One the
-/// bridge emitted for any other throw rethrows that throw; any other
-/// [BridgeRunError] throws [StateError] with its message. Throws
-/// [StateError] if no [BridgeRunFinished]/[BridgeRunError] event exists.
+/// Returns a terminal bridge value or rethrows its recorded failure.
 MontyValue extractBridgeResult(List<BridgeEvent> events) {
   for (final event in events.reversed) {
     if (event is BridgeRunFinished) {
-      // Prefer the typed MontyValue when the bridge attached one — falling
+      // Prefer the typed MontyValue when the bridge attached one. Falling
       // back to fromDart loses typed values (dataclass, namedtuple, ...)
       // because event.value is the dartValue, a plain Dart shape.
       return event.montyValue ?? MontyValue.fromDart(event.value);

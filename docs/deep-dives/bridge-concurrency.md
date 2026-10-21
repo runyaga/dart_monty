@@ -1,33 +1,14 @@
-# Bridge concurrency and serialization
+# Runtime concurrency and state
 
-`MontyRuntime` runs Python on sessions checked out from a `Monty` pool. Its
-execution mode determines whether Python state persists and how concurrent
-calls acquire sessions.
+`MontyRuntime` runs Python on sessions from a `Monty` pool. Choose shared mode
+when later code must read state created by earlier code. Choose fresh-session
+mode when calls require isolated globals or independent scheduling.
 
-## Shared sessions serialize execution
+## Shared mode requires caller serialization
 
-`MontyRuntime.start()` uses shared-session mode by default. It checks out one
-session for the runtime and preserves Python globals between completed
-executions. One `execute()` call runs at a time. A concurrent call returns an
-`ExecutionHandle` whose `result` fails with `StateError`.
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  final runtime = await MontyRuntime.start();
-  try {
-    await runtime.execute('x = 42').result;
-    final value = await runtime.execute('x + 1').result;
-    print(value);
-  } finally {
-    await runtime.dispose();
-  }
-}
-```
-
-Use shared mode when later code reads state created by earlier code. A caller
-that accepts concurrent requests serializes them before calling `execute()`.
+The runtime retains one session in shared mode. The application must serialize
+requests when several callers share that runtime. A small queue can preserve
+request order without moving that policy into the runtime:
 
 ```dart
 import 'dart:async';
@@ -56,45 +37,14 @@ class RuntimeQueue {
 }
 ```
 
-## Fresh sessions isolate executions
+## Fresh mode trades state for concurrency
 
-Pass `sandbox: true` to `MontyRuntime.start` for one session per execution.
-Each `execute()` call checks out a session, disposes its bridge and extensions
-after completion, then closes the session. Python state does not persist
-between calls, and independent calls can run concurrently while the pool has
-available sessions.
+Fresh mode isolates Python globals while pool capacity permits independent
+calls. Pool capacity must also cover nested work started by host functions or
+sandbox children.
 
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  final runtime = await MontyRuntime.start(sandbox: true);
-  try {
-    final values = await Future.wait([
-      runtime.execute('21 * 2').result,
-      runtime.execute('6 * 7').result,
-    ]);
-    print(values);
-  } finally {
-    await runtime.dispose();
-  }
-}
-```
-
-Provide a `Monty` pool to `MontyRuntime.start(pool: ...)` when the application
-controls worker location, pool capacity, checkout timeout, and pool lifetime.
-The caller closes an injected pool after disposing runtimes that use it. A
-runtime-created pool closes when the runtime is disposed.
-
-## Execution handles expose results and events
-
-`execute()` returns immediately with an `ExecutionHandle`. Its `result`
-completes with a `MontyValue` or fails with a `MontyError`. Its `events` stream
-contains bridge events for that execution, and `cancel()` closes a running
-session. In shared mode, the next execution checks out a fresh session after a
-cancelled run.
-
-## See also
-
-- [Extension system](extension-system.md) describes extension attachment and
-  child execution.
+[MontyRuntime](https://github.com/runyaga/dart_monty/blob/main/lib/src/runtime/runtime.dart)
+and
+[ExecutionHandle](https://github.com/runyaga/dart_monty/blob/main/lib/src/runtime/execution_handle.dart)
+define lifecycle contracts. See [Extension system](extension-system.md) for
+attachment and child-execution ownership.

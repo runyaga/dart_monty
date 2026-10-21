@@ -16,7 +16,8 @@ part 'workspace_unicode.dart';
 
 /// Private memory backing retained until its admitted collections settle.
 final class Workspace {
-  /// Builds an independent namespace; seed bytes do not count as guest writes.
+  /// Builds an independent `/work` namespace without charging seed bytes as
+  /// guest writes. Both byte limits default to 8 MiB. Null disables a limit.
   Workspace({
     Map<String, Object> files = const {},
     Set<String> directories = const {},
@@ -55,16 +56,18 @@ final class Workspace {
     }
   }
 
-  /// Cumulative accepted guest payload ceiling; null explicitly opts out.
   DiskBacking? _disk;
   Future<Monty>? _transferPool;
   Future<void> _transferDone = Future<void>.value();
   MontySession? _execution;
   Completer<void>? _executionDone;
 
+  /// Limits cumulative accepted guest payload bytes, with null selecting no
+  /// limit.
   final int? _writeLimit;
 
-  /// Retained content plus 64 bytes per workspace entry; null opts out.
+  /// Limits retained content plus 64 bytes per workspace entry, with null
+  /// selecting no limit.
   final int? _memoryLimit;
   OsHandler? _parent;
   final Set<String> _protected;
@@ -131,7 +134,8 @@ final class Workspace {
     return _mutate(name, normalized, kwargs, path, target);
   }
 
-  /// Refuses new leases immediately; admitted collection may finish its writes.
+  /// Refuses new leases immediately while allowing an admitted collection to
+  /// finish.
   Future<void> dispose() {
     _freeing = true;
 
@@ -277,8 +281,8 @@ void _validateCap(int? cap) {
   }
 }
 
-/// Validates a guest reduction without converting explicit host null to
-/// default.
+/// Validates a guest cap reduction. A supplied guest cap replaces an unbounded
+/// host cap.
 int? reduceWorkspaceCap(int? host, int? guest) {
   _validateCap(host);
   _validateCap(guest);

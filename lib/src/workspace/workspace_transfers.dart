@@ -1,8 +1,15 @@
 part of 'workspace.dart';
 
+/// Limits staged content for one copy or collection to 8 MiB.
 const _transferBytes = 8388608;
+
+/// Limits entry occurrences for one copy or collection to 4,096.
 const _transferEntries = 4096;
+
+/// Limits traversal to 32 levels beneath each selected root.
 const _transferDepth = 32;
+
+/// Limits each normalized path to 4,096 UTF-8 bytes.
 const _transferPath = 4096;
 
 ExternalException _transferError(String detail) =>
@@ -126,8 +133,7 @@ final class WorkspaceTransfers {
     });
   }
 
-  /// Collects through the captured parent callback; a failed write is
-  /// retryable.
+  /// Collects through the captured parent callback with retryable writes.
   Future<void> collect(Workspace workspace, Map<String, String> collect) async {
     if (workspace._freeing) throw StateError('Workspace is disposed');
     // Refuse a second request before copying or retaining its mapping.
@@ -238,6 +244,8 @@ Future<void> _noLinks(OsHandler handler, String path) async {
   }
 }
 
+/// Holds accepted staged content. Its bounds exclude allocations in callbacks
+/// that provide source or destination access.
 final class _Stage {
   final List<_StagedEntry> entries = [];
   int _bytes = 0;

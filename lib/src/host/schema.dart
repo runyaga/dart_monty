@@ -2,17 +2,10 @@ import 'package:dart_monty/src/host/param.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 
-/// Schema for a host function callable from Python.
-///
-/// Defines the function's name, description, and ordered parameters.
-/// Handles mapping Monty's positional/keyword arguments to named parameters
-/// and validates types before the handler runs.
+/// Describes and validates a Python-callable host function.
 @immutable
 class HostFunctionSchema {
-  /// Creates a [HostFunctionSchema].
-  ///
-  /// [description] is optional. Infrastructure functions (e.g. `help`) may
-  /// omit it.
+  /// Declares a host function's name and ordered parameters.
   const HostFunctionSchema({
     required this.name,
     this.description,
@@ -22,28 +15,13 @@ class HostFunctionSchema {
   /// Function name as registered with the Monty runtime.
   final String name;
 
-  /// Human-readable description for tool export.
-  ///
-  /// `null` when no description has been provided. Omitted from JSON schema
-  /// and system-prompt output when `null`.
+  /// Supplies optional prose for tool export.
   final String? description;
 
-  /// Ordered parameter definitions.
-  ///
-  /// Positional args from Monty are mapped to params by insertion order.
-  /// Keyword args overlay by name.
+  /// Defines positional binding order and keyword names.
   final List<HostParam> params;
 
-  /// Returns a JSON Schema object describing this function's input.
-  ///
-  /// Produces a schema compatible with MCP tool `inputSchema`:
-  /// ```json
-  /// {
-  ///   "type": "object",
-  ///   "properties": { ... },
-  ///   "required": ["param1"]
-  /// }
-  /// ```
+  /// Builds an MCP-compatible JSON input schema.
   Map<String, Object?> toJsonSchema() {
     final properties = <String, Object?>{};
     final required = <String>[];
@@ -61,14 +39,8 @@ class HostFunctionSchema {
   }
 }
 
-/// Maps a call's positional [args] and keyword [kwargs], as
-/// `MontyHostFunction.fn` receives them, to [schema]'s named parameters.
-///
-/// 1. Positional args are matched to `params` by order.
-/// 2. Keyword args (`kwargs`) overlay by name.
-/// 3. Each param is validated via [HostParam.validate].
-///
-/// Throws [FormatException] if required params are missing or types mismatch.
+/// Binds positional arguments in declaration order, overlays keywords, and
+/// rejects an unknown, missing, or mistyped argument before a handler runs.
 Map<String, MontyValue> mapAndValidate(
   HostFunctionSchema schema,
   List<MontyValue> args,
@@ -91,7 +63,7 @@ Map<String, MontyValue> mapAndValidate(
     raw[params[i].name] = positionalArgs[i];
   }
 
-  // Kwargs overlay — reject unknown keys.
+  // Keyword arguments overlay positional ones. Reject unknown keys.
   final paramNames = params.map((p) => p.name).toSet();
   for (final key in kwargs.keys) {
     if (!paramNames.contains(key)) {
@@ -108,7 +80,7 @@ Map<String, MontyValue> mapAndValidate(
     // `containsKey`, not a null check: `raw` holds only the arguments the
     // caller actually supplied, so this is the one place that can tell
     // "message omitted" from "message=None". HostParam.validate needs the
-    // difference — see the comment there.
+    // difference. See the comment there.
     validated[param.name] = param.validate(
       raw[param.name],
       isPresent: raw.containsKey(param.name),
@@ -125,14 +97,13 @@ void validateDefaults(HostFunctionSchema schema) {
   }
 }
 
-/// Thrown by [mapAndValidateParity] when positional or keyword binding fails
-/// with an upstream-compatible Python `TypeError`.
+/// Carries an upstream-compatible Python binding failure.
 @internal
 @immutable
 final class ParityBindingException implements Exception {
   const ParityBindingException._(this.message);
 
-  /// Upstream-compatible `TypeError` message (without `'TypeError: '` prefix).
+  /// Provides an upstream-compatible `TypeError` message without its prefix.
   final String message;
 
   @override
@@ -193,12 +164,7 @@ void _checkMissingArgs(
   );
 }
 
-/// Parity-mode binder for `HostFunction.parity`.
-///
-/// Throws [ParityBindingException] with Monty 1.1.0 `TypeError` text for too
-/// many positional arguments, unexpected keyword arguments, or missing required
-/// arguments. Delegates value/type checks to [HostParam.validate], which
-/// continues to throw [FormatException].
+/// Binds arguments with upstream-compatible Python failure messages.
 @internal
 Map<String, MontyValue> mapAndValidateParity(
   HostFunctionSchema schema,

@@ -9,31 +9,16 @@ import 'package:meta/meta.dart';
 // ChildPolicy
 // ---------------------------------------------------------------------------
 
-/// How an extension participates when a child sandbox is spawned.
-///
-/// Replaces the old `createChildInstance() → MontyExtension?` nullable
-/// signature, where `null` ambiguously meant "intentionally excluded" or
-/// "forgot to
-/// implement." Each extension now declares intent explicitly.
+/// Selects an extension's participation in child sandboxes.
 enum ChildPolicy {
-  /// The extension contributes a fresh instance to each child sandbox.
-  ///
-  /// `ExtensionCoordinator.spawnChild` calls
-  /// [MontyExtension.createChildInstance]; the returned instance must be a
-  /// *new* object (not `this`).
+  /// Calls [MontyExtension.createChildInstance] for a distinct instance in
+  /// each child.
   clone,
 
-  /// The child sandbox shares the parent extension's instance directly.
-  ///
-  /// No new object is created; the same extension is attached to both the
-  /// parent and each child coordinator. Use for extensions backed by shared
-  /// infrastructure that tolerates multiple registrations safely.
+  /// Attaches the parent extension instance to each child.
   inherit,
 
-  /// The extension is not present in child sandboxes. Default.
-  ///
-  /// This is the safe default — extensions opt into child propagation
-  /// explicitly by overriding [MontyExtension.childPolicy].
+  /// Omits the extension from child sandboxes.
   exclude,
 }
 
@@ -41,21 +26,16 @@ enum ChildPolicy {
 // ChildSpawnContext
 // ---------------------------------------------------------------------------
 
-/// Context passed to [MontyExtension.createChildInstance] when a child sandbox
-/// is spawned.
-///
-/// Carries the child's unique [childId] and an optional [workingDirectory]
-/// that the consumer can use for per-child filesystem isolation.
+/// Identifies the child passed to [MontyExtension.createChildInstance].
 class ChildSpawnContext {
-  /// Creates a [ChildSpawnContext].
+  /// Describes one child and its optional virtual working directory.
   // ignore: unnecessary-nullable-parameters, public D1 signature retains optional cwd.
   const ChildSpawnContext({required this.childId, this.workingDirectory});
 
   /// Unique identifier for this child within the parent `SandboxExtension`.
   final int childId;
 
-  /// Virtual child working directory, `/work` for sandbox children.
-  /// Native backing stays private; this never contains a host path.
+  /// Provides the virtual child directory without exposing native backing.
   // ignore: unnecessarily-public-code, consumed by external clone-policy extensions.
   final String? workingDirectory;
 }
@@ -64,117 +44,49 @@ class ChildSpawnContext {
 // MontyExtension
 // ---------------------------------------------------------------------------
 
-/// Extension point for providing host functions to an [AttachContext].
-///
-/// Each extension declares a unique [namespace], a set of [functions], and
-/// optional lifecycle hooks ([onAttach], [onDispose]).
-///
-/// Cross-extension communication goes through the bridge — invoke another
-/// extension's function via `MontyRuntime.invoke(name, args)` rather than
-/// holding a reference to a peer extension.
-///
-/// ## OS contributions
-///
-/// Extensions that need to intercept OS calls return a prefix map from
-/// [osContribution]. `ExtensionCoordinator.attachTo` merges contributions
-/// from all extensions, throws [StateError] if two extensions claim the
-/// same prefix, and calls `bridge.registerOs` with the composed handler:
-///
-/// ```dart
-/// @override
-/// Map<String, OsHandler>? get osContribution => {
-///   'Path.': _myFsHandler,
-///   'os.getcwd': _myFsHandler,
-/// };
-/// ```
+/// Groups host capabilities under one attachment and disposal lifecycle.
 abstract class MontyExtension {
-  /// Unique namespace prefix (e.g., `"df"`, `"chart"`, `"sqlite"`).
+  /// Provides the unique prefix required on every contributed function name.
   String get namespace;
 
-  /// Backends this extension supports.
-  ///
-  /// Attaching checks the current backend against this set and throws an
-  /// [Error] before any script runs if the extension declares it cannot
-  /// operate on the current backend.
-  ///
-  /// Defaults to all backends. Override to `{MontyBackendKind.ffi}` or
-  /// `{MontyBackendKind.wasm}` for backend-specific capabilities. Sandbox
-  /// children use independent sessions on both backends.
+  /// Declares the backends accepted before attachment begins.
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,
     MontyBackendKind.wasm,
   };
 
-  /// Attachment priority — higher values attach first and dispose last.
-  ///
-  /// Attaching runs [onAttach] in descending priority order; extensions of
-  /// equal priority attach in registration order, and dispose in the
-  /// reverse of the attach order. Default is `0`.
-  ///
-  /// Use a positive value to run [onAttach] early (e.g., a logging/tracing
-  /// extension that other extensions depend on). Use a negative value to run
-  /// late (e.g., an extension that wraps peers it discovers via the bridge).
+  /// Orders attachment from high to low and preserves registration order for
+  /// ties.
   int get priority => 0;
 
-  /// Logger for this extension, injected by `ExtensionCoordinator` during
-  /// attachment.
-  ///
-  /// Extensions should use this for all logging — never create loggers
-  /// independently via `LogManager.instance.getLogger()`.
-  ///
-  /// Defaults to [BridgeLogger.silent] until the coordinator sets it.
+  /// Receives the scoped logger during attachment. Extensions use it instead
+  /// of creating independent loggers.
   BridgeLogger logger = BridgeLogger.silent;
 
-  /// Human-readable description for LLM system prompt.
-  ///
-  /// Return `null` if the extension has no additional prompt context beyond
-  /// its function schemas.
+  /// Adds extension context to an LLM prompt when non-null.
   String? get systemPromptContext => null;
 
-  /// OS call prefix contributions for this extension.
-  ///
-  /// Each key is an operation-name prefix (e.g., `'Path.'`, `'os.'`); the
-  /// value is the [OsHandler] that handles those operations.
-  ///
-  /// `ExtensionCoordinator.attachTo` merges contributions from all extensions
-  /// and throws [StateError] if two extensions claim the same prefix. Returns
-  /// `null` (the default) if this extension does not intercept OS calls.
+  /// Contributes OS handlers with prefixes unique across extensions.
   Map<String, OsHandler>? get osContribution => null;
 
-  /// Host functions this extension provides.
+  /// Provides host functions whose names begin with [namespace].
   List<HostFunction> get functions;
 
-  /// Called when attached to an [AttachContext]. Default no-op.
+  /// Initializes resources after functions and OS handlers are registered.
   @mustCallSuper
   Future<void> onAttach(AttachContext ctx) async {}
 
-  /// Called when session ends. Must be idempotent.
+  /// Releases extension resources and must be idempotent.
   @mustCallSuper
   Future<void> onDispose() async {
     // Default no-op.
   }
 
-  /// Declares how this extension participates in child sandboxes.
-  ///
-  /// Default: [ChildPolicy.exclude] — the extension is not present in children.
-  /// Override to [ChildPolicy.clone] (and implement [createChildInstance])
-  /// or [ChildPolicy.inherit] (share this instance across children).
+  /// Excludes the extension from child sandboxes unless overridden.
   ChildPolicy get childPolicy => ChildPolicy.exclude;
 
-  /// Creates a fresh instance of this extension for a child sandbox.
-  ///
-  /// Called by `ExtensionCoordinator.spawnChild` **only when [childPolicy] is
-  /// [ChildPolicy.clone]**. The returned instance must be a new object
-  /// (not `this`) and is registered on a separate [AttachContext] and disposed
-  /// with the child.
-  ///
-  /// [context] carries the child's ID and optional per-child working
-  /// directory. Extensions that need filesystem isolation (e.g., `FsExtension`)
-  /// can use [ChildSpawnContext.workingDirectory] to create a private
-  /// directory for the child.
-  ///
-  /// The default throws [UnsupportedError]: an extension with
-  /// `childPolicy == clone` must override this method.
+  /// Creates a distinct separately attached child instance or throws
+  /// [UnsupportedError] for an unimplemented clone policy.
   MontyExtension createChildInstance(ChildSpawnContext context) {
     throw UnsupportedError(
       'Extension $runtimeType has childPolicy == ChildPolicy.clone but did not '

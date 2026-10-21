@@ -1,27 +1,21 @@
 # Core and dart_monty ownership
 
-`dart_monty` pins the complete M6 core at
-`e962659e47d41e7b6bce3f15408f521940a3fcc7`. All five YAML references, browser
-asset links and examples agree on that commit.
+`dart_monty_core` owns sessions, worker transport, Python values, resource
+limits, host mounts, memory files, and OS-call defaults. Applications import
+additional core primitives from its public library. `dart_monty` imports no
+core implementation libraries.
 
-Core owns sessions, worker transport, values, OSAccess memory files, host mounts
-and OS-call defaults. Applications import those primitives from core's public
-library. dm exports nine selected core names and 36 dm names (45 total after
-D4a), and imports no core implementation libraries.
+`dart_monty` owns bridge events, host-function dispatch, extensions, runtime
+state, and private sandbox workspace composition. Workspace code uses core's
+public `OSAccess`, `MemoryFile`, snapshot, and mount operations.
 
-The bridge drives public session feeds and reports host events. Extensions own
-application capabilities. Private workspace composition owns sandbox copy-in,
-collection, read-only protection, caps and disposal leases; it uses public
-`OSAccess` and `MemoryFile` operations. No legacy filesystem implementations or
-conditional filesystem exports remain in dm.
+`OSAccess` is a memory namespace. `MountDir` is native host backing. Native
+backing stays behind conditional imports so browser builds do not load native
+helpers.
 
-`OSAccess` is a memory namespace; `MountDir` is native host backing. They are
-different facilities. D4b supplies owned native backing, a private driver over
-public snapshots, and bounded persistent transfer sessions. Conditional imports
-keep native helpers out of web builds. Child checkout remains the D1-8 stub
-until D5. D5 keeps child state and error implementation details private.
+The facade in `lib/dart_monty.dart` is the supported package surface.
+[dart_monty.dart](https://github.com/runyaga/dart_monty/blob/main/lib/dart_monty.dart)
+exports the core and high-level declarations.
 
-See [workspace policy](../deep-dives/oscall-vfs.md) for the current transfer and
-accounting contract. Surface goldens and compiler fixtures enforce the facade;
-`tool/check_core_ref.sh` and `tool/check_no_core_src_imports.sh` enforce the
-pin and package boundary.
+See [Filesystem and workspace policy](../deep-dives/oscall-vfs.md) for transfer,
+accounting, and disposal guarantees.

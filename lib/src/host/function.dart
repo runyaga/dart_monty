@@ -9,16 +9,12 @@ import 'package:meta/meta.dart';
 
 /// How the bridge dispatches calls to a [HostFunction].
 enum DispatchMode {
-  /// The session awaits the handler's Future before Python continues.
-  /// Python sees a plain value at the call site, as from a `def`. Use for
-  /// functions with FIFO ordering invariants or simple
-  /// request-response handlers that don't benefit from concurrency.
+  /// Exposes a regular Python call and settles the handler before Python
+  /// continues in FIFO order.
   sync,
 
-  /// The handler is core's `coroutine`, as an `async def` host function:
-  /// Python gets an awaitable, settled when the handler's Future
-  /// completes. Enables `asyncio.gather` parallelism and `await ext()`
-  /// from Python.
+  /// Exposes an awaitable for Python `await` and concurrent
+  /// `asyncio.gather` calls.
   future,
 }
 
@@ -26,33 +22,16 @@ enum DispatchMode {
 typedef HostFunctionHandler =
     Future<MontyValue> Function(Map<String, MontyValue> args, HostContext ctx);
 
-/// Handler for [HostFunction.parity] that may return any Dart object or
-/// [MontyValue], synchronously or asynchronously.
+/// Accepts any convertible Dart result for an upstream-compatible host
+/// function.
 typedef ParityHostFunctionHandler =
     FutureOr<Object?> Function(Map<String, MontyValue> args, HostContext ctx);
 
-/// A host function: schema + per-backend handlers.
+/// Combines a Python schema with per-backend Dart handlers, including functions
+/// admitted to children by [MontyExtension.childPolicy].
 @immutable
 class HostFunction {
-  /// Creates a [HostFunction].
-  ///
-  /// Pass [handler] as a convenience shortcut to install the same
-  /// implementation on both [ffiHandler] and [wasmHandler]. Use the
-  /// backend-specific slots directly when the implementation differs per
-  /// platform (e.g. `dart:js_interop` on WASM, native packages on FFI).
-  ///
-  /// When only one backend slot is populated, `AttachContext.register()`
-  /// silently skips the function on the other backend — no
-  /// `supportedBackends` declaration required.
-  ///
-  /// A child sandbox never sees a function registered this way; children
-  /// get only the functions of extensions their [MontyExtension.childPolicy]
-  /// admits.
-  ///
-  /// [dispatch] controls whether the bridge dispatches this function
-  /// synchronously (default [DispatchMode.sync]) or as a deferred future
-  /// ([DispatchMode.future]). Use [DispatchMode.future] only for handlers
-  /// that benefit from concurrency (network I/O, `asyncio.gather` patterns).
+  /// Configures backend handlers and their Python dispatch behavior.
   const HostFunction({
     required this.schema,
     HostFunctionHandler? handler,
@@ -65,8 +44,7 @@ class HostFunction {
        _wasmParityHandler = null,
        _isParity = false;
 
-  /// Creates a parity [HostFunction] whose unconvertible return values and
-  /// upstream binding errors become Python `TypeError`.
+  /// Uses upstream-compatible binding and result-conversion failures.
   const HostFunction.parity({
     required this.schema,
     ParityHostFunctionHandler? handler,
@@ -82,21 +60,13 @@ class HostFunction {
   /// Describes name, parameters, and types.
   final HostFunctionSchema schema;
 
-  /// Handler for the FFI (native/VM) backend.
-  ///
-  /// `null` means this function is not registered on the FFI backend.
+  /// Handles native calls when non-null.
   final HostFunctionHandler? ffiHandler;
 
-  /// Handler for the WASM (browser) backend.
-  ///
-  /// `null` means this function is not registered on the WASM backend.
+  /// Handles browser calls when non-null.
   final HostFunctionHandler? wasmHandler;
 
-  /// How the bridge dispatches calls to this function.
-  ///
-  /// Defaults to [DispatchMode.sync] — the bridge awaits the handler before
-  /// resuming Python. Set to [DispatchMode.future] for handlers that benefit
-  /// from concurrent dispatch (e.g. network I/O, `asyncio.gather` callers).
+  /// Selects ordered or concurrent Python dispatch.
   final DispatchMode dispatch;
 
   final ParityHostFunctionHandler? _ffiParityHandler;
@@ -105,10 +75,7 @@ class HostFunction {
 
   final bool _isParity;
 
-  /// The handler for the current backend, or `null` if not available.
-  ///
-  /// `AttachContext.register()` uses this to silently skip functions that have
-  /// no implementation for the running backend.
+  /// Selects the handler for the current backend.
   HostFunctionHandler? get handler =>
       currentBackendKind == MontyBackendKind.ffi ? ffiHandler : wasmHandler;
 }
@@ -116,7 +83,7 @@ class HostFunction {
 /// Internal parity-mode accessors for [HostFunction].
 @internal
 extension HostFunctionParityInternal on HostFunction {
-  /// Whether this function was created with [HostFunction.parity].
+  /// Reports construction through [HostFunction.parity].
   bool get isParity => _isParity;
 
   /// The parity handler for the current backend, or `null` if not available.

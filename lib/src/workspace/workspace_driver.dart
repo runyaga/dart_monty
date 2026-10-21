@@ -8,7 +8,7 @@ typedef _RunOptions = ({
   String? cwd,
 });
 
-/// Internal execution selection; the memory path remains core's feedRun.
+/// Selects internal execution while the memory path remains core's `feedRun`.
 extension WorkspaceDriver on Workspace {
   /// Selects the private driver while preserving core's feed call shape.
   Future<MontyValue> Function(
@@ -72,9 +72,9 @@ extension WorkspaceDriver on Workspace {
     }
   }
 
+  /// Handles local sleeps with OSAccess's ten-second default while core charges
+  /// each surfaced sleep to the session budget.
   OsHandler _diskHandler(OsHandler? fallback) {
-    // OSAccess's default is ten seconds. Core charges each surfaced sleep;
-    // this handler supplies only the local wait absent from manual driving.
     final sleeps = OSAccess();
 
     return compose((name, args, kwargs) {

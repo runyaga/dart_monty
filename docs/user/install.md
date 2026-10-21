@@ -24,11 +24,10 @@ A package that imports core names directly also lists
 
 Run `dart pub get` after editing `pubspec.yaml`.
 
-Import `package:dart_monty/dart_monty.dart` for the runtime, host functions,
-`OSAccess`, and the value types `MontyBool`, `MontyInt`, `MontyFloat`,
-`MontyString`, `MontyList`, `MontyTuple`, `MontyDict`, and `MontyBytes`.
-Import `package:dart_monty_core/dart_monty_core.dart` for other core names,
-including `MemoryFile`, `MontyPath`, snapshots, and type-check types.
+Import `package:dart_monty/dart_monty.dart` for the supported high-level
+surface. [dart_monty.dart](https://github.com/runyaga/dart_monty/blob/main/lib/dart_monty.dart)
+lists its exports. Import `package:dart_monty_core/dart_monty_core.dart` for
+core declarations outside that facade.
 
 For local worktree development, use `path:` dependencies for both packages.
 
@@ -40,9 +39,9 @@ For local worktree development, use `path:` dependencies for both packages.
 invoke core's build hook. The hook installs the verified prebuilt worker for the
 host from the core release in a cache. A Rust toolchain is not required.
 
-Pass a worker executable through `workerLocation` to `Monty.start` when an
-explicit location is needed. `MountDir` needs the native mount library and the
-`dart_monty_core` `build_worker` hook opt-in in the root package.
+Core's public pool declaration describes how to select an explicit worker
+location. `MountDir` needs the native mount library and the `dart_monty_core`
+`build_worker` hook opt-in in the root package.
 
 ### Flutter Web
 
@@ -54,14 +53,11 @@ flutter:
     - package: dart_monty_core
 ```
 
-The worker loads when a pool starts. A web deployment needs these headers for
-`SharedArrayBuffer`:
-
-- `Cross-Origin-Opener-Policy: same-origin`
-- `Cross-Origin-Embedder-Policy: require-corp`
+The worker loads when a pool starts. [Deployment](deployment.md) lists the
+required web security headers.
 
 ### Plain Dart web
 
 Serve `dart_monty_core_worker.js` and `dart_monty_core_worker.wasm` from
-core's `lib/assets` directory at `packages/dart_monty_core/assets`. A pool can
-also receive that directory URL through `Monty.start(workerLocation: ...)`.
+core's `lib/assets` directory at `packages/dart_monty_core/assets`. Core's
+public pool declaration describes how to select another location.

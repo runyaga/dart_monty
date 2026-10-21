@@ -69,7 +69,13 @@ bash example/web/run.sh
 ```bash
 bash tool/gate.sh                        # Run ALL quality checks
 bash tool/test_python_ladder.sh          # Python ladder (WASM, headless Chrome)
+bash tool/check_core_ref.sh              # Check the shared core Git ref
+bash tool/check_no_core_src_imports.sh   # Keep imports on core's public API
 ```
+
+`tool/check_core_ref.sh` keeps every tracked YAML core reference on the pin in
+`pubspec.yaml`. `tool/check_no_core_src_imports.sh` rejects imports from core
+implementation libraries.
 
 ## Code Quality
 
@@ -298,7 +304,8 @@ After publishing:
 The project has a single `CHANGELOG.md` at the root. During development, add
 entries under `## Unreleased`. Before publishing, rename `## Unreleased` to the
 version heading. pub.dev displays the CHANGELOG entry matching the published
-version as the release notes.
+version as the release notes. Document every breaking change. Pin versions and
+read the changelog before upgrading.
 
 ### pub.dev admin setup (one-time)
 

@@ -3,34 +3,21 @@ import 'package:dart_monty/src/runtime/backend_kind_stub.dart'
     if (dart.library.js_interop) 'package:dart_monty/src/runtime/backend_kind_web.dart'
     as platform;
 
-/// The Monty execution backend the current Dart program is compiled against.
-///
-/// Determined at compile time via conditional import (see
-/// [currentBackendKind]).
+/// Identifies the compile-time Monty execution backend.
 enum MontyBackendKind {
-  /// Native FFI backend — available when `dart.library.ffi` is present
-  /// (Dart VM, Flutter desktop/mobile, server).
+  /// Uses native FFI on VM and Flutter native targets.
   ffi,
 
-  /// WASM backend — available when `dart.library.js_interop` is present
-  /// (browser).
+  /// Uses WASM on browser targets.
   wasm,
 }
 
-/// The backend this compile unit runs against.
-///
-/// Resolved at compile time. `ExtensionCoordinator.attachTo` compares each
-/// extension's `supportedBackends` against this value and throws
-/// [UnsupportedBackendError] if a extension declares it cannot run here.
+/// Returns the backend selected by conditional imports.
 MontyBackendKind get currentBackendKind => platform.currentBackendKind;
 
-/// Thrown when a extension's declared `supportedBackends` does not include the
-/// current runtime backend.
-///
-/// Raised from `ExtensionCoordinator.attachTo` before any script executes so
-/// the failure is a clean configuration error rather than a mid-run crash.
+/// Reports an extension that rejects the current backend before attachment.
 class UnsupportedBackendError extends Error {
-  /// Creates an [UnsupportedBackendError].
+  /// Captures the extension and its accepted backends.
   UnsupportedBackendError({
     required this.extensionNamespace,
     required this.current,
