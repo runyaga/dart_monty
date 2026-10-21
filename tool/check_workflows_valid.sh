@@ -61,5 +61,13 @@ if ! "$CACHE" -shellcheck= -pyflakes= .github/workflows/*.yaml .github/workflows
   exit 1
 fi
 
+PUBLISH_STEPS="$(rg -n --glob '*.yaml' --glob '*.yml' \
+  'pub[[:space:]]+publish' .github/workflows || true)"
+if [ -n "$PUBLISH_STEPS" ]; then
+  echo "ERROR: workflows must not publish this package to pub.dev:" >&2
+  echo "$PUBLISH_STEPS" >&2
+  exit 1
+fi
+
 N=$(ls .github/workflows/*.yaml .github/workflows/*.yml 2>/dev/null | wc -l | tr -d ' ')
 echo "PASS — all $N workflow files are valid."
