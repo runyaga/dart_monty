@@ -2,17 +2,7 @@
 // ignore_for_file: unused-files
 import 'package:dart_monty_core/dart_monty_core.dart';
 
-/// Typed accessors on [MontyValue] — avoid `.dartValue` casts at call sites.
-///
-/// Each method returns the typed Dart value when the receiver is the matching
-/// subtype, and `null` for every other subtype (including [MontyNone]).
-///
-/// ```dart
-/// final v = result.value;
-/// final s = v?.asString();          // String? — null if not a MontyString
-/// final n = v?.asInt() ?? 0;        // int, defaulting to 0
-/// final items = v?.asList() ?? [];  // List<MontyValue>
-/// ```
+/// Reads matching Dart payloads from core values without throwing.
 extension MontyValueX on MontyValue {
   /// Returns the [String] value if this is [MontyString], otherwise `null`.
   String? asString() => switch (this) {
@@ -38,8 +28,7 @@ extension MontyValueX on MontyValue {
     _ => null,
   };
 
-  /// Returns items if this is [MontyList], [MontyTuple], [MontySet], or
-  /// [MontyFrozenSet], otherwise `null`.
+  /// Returns sequence or set items when the receiver contains them.
   List<MontyValue>? asList() => switch (this) {
     MontyList(:final items) => items,
     MontyTuple(:final items) => items,
@@ -48,20 +37,7 @@ extension MontyValueX on MontyValue {
     _ => null,
   };
 
-  /// Returns entries if this is a [MontyDict] whose keys are ALL strings,
-  /// otherwise `null`.
-  ///
-  /// The string-key requirement is not new. Before `dart_monty_core` merged
-  /// `MontyPairsDict` into `MontyDict`, a dict with any non-string key was a
-  /// different Dart type, so this accessor — which only ever matched
-  /// `MontyDict` — already answered `null` for it. Keeping the signature and
-  /// the `null` keeps that contract through the merge, rather than widening a
-  /// convenience accessor and making every caller handle `MontyValue` keys.
-  ///
-  /// Reach for `MontyDict.pairs` directly when the general keyspace matters.
-  ///
-  /// Core 0.110 has no `asStringMap`, so the rule is applied here over
-  /// `MontyDict.pairs`.
+  /// Returns string-keyed dictionary entries or null for any non-string key.
   Map<String, MontyValue>? asMap() {
     if (this case MontyDict(:final pairs)) {
       final map = <String, MontyValue>{};

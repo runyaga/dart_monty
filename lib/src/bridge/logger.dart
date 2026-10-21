@@ -1,12 +1,6 @@
-/// Minimal structured logging interface for the Monty ecosystem.
-///
-/// A `null` logger selects dm's default, backed by struct_log under the
-/// root name `monty` (works on FFI and WASM); [silent] discards everything.
-///
-/// Override: implement this interface to bring your own logging framework.
+/// Accepts structured bridge log records.
 abstract interface class BridgeLogger {
-  /// A logger that discards everything: [child] returns it, and [close]
-  /// does nothing.
+  /// Discards all records and cleanup requests.
   static const BridgeLogger silent = _SilentBridgeLogger();
 
   /// Logs a trace-level message (finest granularity).
@@ -34,18 +28,10 @@ abstract interface class BridgeLogger {
     Map<String, Object?>? attributes,
   });
 
-  /// Creates a child logger with a hierarchical name.
-  ///
-  /// Example: `logger.child('sandbox').child('child.0')` produces
-  /// a logger named `root.sandbox.child.0`.
+  /// Creates a hierarchically named child logger.
   BridgeLogger child(String name);
 
-  /// Marks this logger (and all children created via [child]) as closed.
-  ///
-  /// After [close], all log methods become no-ops. This prevents late
-  /// Future resolutions from writing to disposed sinks.
-  ///
-  /// Implementations that don't need cleanup can make this a no-op.
+  /// Stops this logger and its children from accepting records.
   void close();
 }
 

@@ -1,8 +1,7 @@
 import 'package:dart_monty/src/bridge/event.dart';
 import 'package:meta/meta.dart';
 
-/// The original throw behind each [BridgeRunError] the bridge emitted for a
-/// Python (`MontyError`) or infrastructure failure, with its stack trace.
+/// Retains the original throw and stack behind a bridge run failure.
 final Expando<(Object, StackTrace)> _causes = Expando('run failure');
 
 /// Records [error] and [stackTrace] as the cause of [event].

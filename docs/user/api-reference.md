@@ -1,146 +1,30 @@
-# Monty API for Dart
+# API selection
 
-`dart_monty` provides a sandboxed Python runtime for Dart and Flutter.
+Use `MontyRuntime` when code needs registered Dart capabilities, extensions,
+execution events, or state that persists between calls. Its session mode lets
+the application choose persistent globals or independently scheduled calls.
 
-## MontyRuntime
+Use core's `Monty` and `MontySession` directly when an application needs only
+pool ownership and session feeds.
 
-`MontyRuntime` runs stateful Python code with host functions, extensions, and
-OS interception.
+Use `HostFunction` for one Python-callable Dart capability and
+`MontyExtension` when capabilities share attachment, child policy, OS-call
+contributions, or disposal. Use `HostContext.subExecute` for nested Python
+work so a suspended handler does not re-enter its bridge.
 
-```dart
-import 'package:dart_monty/dart_monty.dart';
+Use `OSAccess` for an in-memory namespace. Use native mounts only when Python
+must access host-backed files and the deployment can include core's native
+mount library.
 
-Future<void> main() async {
-  final runtime = await MontyRuntime.start(
-    extensions: [EventLoopExtension()],
-    osHandlers: {'Path.': OSAccess().call},
-  );
-  try {
-    await runtime.execute('x = 42').result;
-    final value = await runtime.execute('x + 1').result;
-    print(value.dartValue); // 43
-  } finally {
-    await runtime.dispose();
-  }
-}
-```
+The supported declarations are exported from
+[dart_monty.dart](https://github.com/runyaga/dart_monty/blob/main/lib/dart_monty.dart).
+[MontyRuntime](https://github.com/runyaga/dart_monty/blob/main/lib/src/runtime/runtime.dart),
+[HostFunction](https://github.com/runyaga/dart_monty/blob/main/lib/src/host/function.dart),
+[MontyExtension](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/extension.dart),
+and [BridgeEvent](https://github.com/runyaga/dart_monty/blob/main/lib/src/bridge/event.dart)
+define runtime, capability, extension, and event behavior.
 
-### Execution Modes
-
-- **Shared mode** is the default. One interpreter holds variables and
-  functions across executions.
-- **Sandbox mode** uses a fresh interpreter for each execution. Set
-  `sandbox: true` in `MontyRuntime.start`.
-
-## Monty
-
-`Monty` owns a pool and `MontySession` runs stateful Python execution.
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  await Monty.withPool((pool) async {
-    final session = await pool.checkout(typeCheck: true);
-    try {
-      await session.feedRun('x: int = 42');
-      final value = await session.feedRun('x + 1');
-      print(value.dartValue); // 43
-    } finally {
-      await session.close();
-    }
-  });
-}
-```
-
-### Session type checking
-
-`checkout(typeCheck: true)` checks each feed before execution. A rejected feed
-throws `MontyTypingError`, which comes from
-`package:dart_monty_core/dart_monty_core.dart`. Use `typeCheckStubs` on
-checkout to declare external names. The
-[type-checking demo](../../example/type_check_demo.dart) includes examples.
-
-## Per-call inputs
-
-`MontyRuntime.execute` binds `inputs` as Python globals before execution.
-
-```dart
-final value = await runtime
-    .execute(
-      'f"{greeting}, {name}!"',
-      inputs: {'greeting': 'hello', 'name': 'Alice'},
-    )
-    .result;
-print(value.dartValue); // hello, Alice!
-```
-
-Input values accept `bool`, `int`, `double`, `String`, `List`, `Map`, and
-`MontyNone()`. Dart `null` converts to `MontyNone`.
-
-## Host Functions
-
-`HostFunction` exposes a Dart callback to Python.
-
-```dart
-final fetch = HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'fetch',
-    description: 'Return content for a URL.',
-    params: [HostParam(name: 'url', type: HostParamType.string)],
-  ),
-  handler: (args, _) async {
-    final url = (args['url']! as MontyString).value;
-    return MontyString('content for $url');
-  },
-);
-runtime.register(fetch);
-```
-
-`HostContext` supplies the active `OsHandler` through `os`, an execution ID,
-a cancellation token, event emission, and an optional sub-executor. Its
-`parent` exposes child-event forwarding and schemas.
-
-### `buildRunScriptFunction`
-
-`buildRunScriptFunction` creates a `run_script` host function. The callback
-maps a requested path to source code, and the sub-script returns its final
-expression value.
-
-```dart
-runtime.register(buildRunScriptFunction((_) async => '40 + 2'));
-```
-
-See the [Inputs, `run_script`, and Sub-Execution tutorial](../tutorials/inputs-and-sub-scripts.md).
-
-## Extensions
-
-Extensions group related host functions and OS policy.
-
-| Extension | Description |
-| --- | --- |
-| `SandboxExtension` | Manages recursive child interpreters. |
-| `EventLoopExtension` | Exchanges events with long-running coroutines. |
-
-## OS Call Handlers
-
-An `OsHandler` intercepts Python `pathlib` and `os` calls. `OSAccess` is
-available from `package:dart_monty/dart_monty.dart` and supplies an in-memory
-filesystem and environment values. Pass `OSAccess().call` as `os` or through
-`osHandlers` when starting a runtime. `MemoryFile` comes from
-`package:dart_monty_core/dart_monty_core.dart`.
-
-`ExternalException` communicates an external OS error to Python.
-`OsCallNotHandledException` declines an operation so another handler can
-answer it.
-
-## Core Types
-
-- `MontyValue` represents a Python value. Its facade value types include
-  `MontyBool`, `MontyInt`, `MontyFloat`, `MontyString`, `MontyList`,
-  `MontyTuple`, `MontyDict`, and `MontyBytes`.
-- `ExecutionHandle` exposes `result`, `events`, `executionId`, and `cancel`.
-  `result` completes with a `MontyValue` or fails with a `MontyError` subclass.
-- `MontyError` and its subclasses come from `dart_monty_core`.
-- `ResourceLimits` configures runtime resource limits.
-- `BridgeEvent` is the event hierarchy for execution observation.
+See [Runtime concurrency](../deep-dives/bridge-concurrency.md),
+[Extension system](../deep-dives/extension-system.md), and
+[Failure propagation](../deep-dives/error-hierarchy.md) for cross-call
+guarantees.

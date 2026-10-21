@@ -1,26 +1,12 @@
 import 'package:dart_monty/src/bridge/logger.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// Default [BridgeLogger] backed by struct_log.
-///
-/// This is the batteries-included logger for the Monty bridge ecosystem.
-/// Works on both FFI (native console/file sinks) and WASM (browser console
-/// sink via dart:js_interop).
-///
-/// Use [StructLogBridgeLogger.root] to create a root logger from a
-/// [LogManager]. Child loggers are created via [child] and form a
-/// hierarchical tree (e.g., `monty.sandbox.child.0.fs`).
+/// Adapts struct_log to hierarchical bridge logging on native and web targets.
 class StructLogBridgeLogger implements BridgeLogger {
   /// Creates a logger wrapping a struct_log [Logger].
   StructLogBridgeLogger(this._logger, this._logManager);
 
-  /// Creates a root logger from a [LogManager].
-  ///
-  /// ```dart
-  /// final logger = StructLogBridgeLogger.root(LogManager.instance);
-  /// // or for test isolation:
-  /// final logger = StructLogBridgeLogger.root(LogManager.scoped(), 'test');
-  /// ```
+  /// Creates a named root logger from a log manager.
   factory StructLogBridgeLogger.root(
     LogManager logManager, [
     String name = 'monty',

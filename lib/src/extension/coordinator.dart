@@ -32,10 +32,7 @@ void _attachExtensionFunctions(
   }
 }
 
-/// Validates every extension's [MontyExtension.supportedBackends] against
-/// [currentBackendKind]. Logs and throws [UnsupportedBackendError] on the
-/// first mismatch so the failure is a clean configuration error before any
-/// lifecycle hook fires.
+/// Rejects unsupported extension backends before lifecycle hooks run.
 void _checkSupportedBackends(
   List<MontyExtension> extensions,
   BridgeLogger log,
@@ -61,8 +58,7 @@ void _checkSupportedBackends(
   }
 }
 
-/// Emits an `extension registered` info log per extension with namespace,
-/// function count, and declared supported backends.
+/// Logs each registered extension and its supported backends.
 void _logExtensionsRegistered(
   List<MontyExtension> attachOrder,
   BridgeLogger log,
@@ -94,9 +90,7 @@ void _attachExtraFunctions(
   );
 }
 
-/// Calls [MontyExtension.onAttach] for each extension in [attachOrder],
-/// collecting failures. Returns `(namespace, error)` pairs for every
-/// extension that threw.
+/// Attaches extensions in order and collects every failure.
 Future<List<(String, Object)>> _runExtensionOnAttaches(
   List<MontyExtension> attachOrder,
   AttachContext ctx,
@@ -118,22 +112,17 @@ Future<List<(String, Object)>> _runExtensionOnAttaches(
   return errors;
 }
 
-/// The coordinator each extension was last attached through.
+/// Records each extension's most recent coordinator.
 final Expando<ExtensionCoordinator> _owners = Expando('coordinator');
 
-/// The coordinator [extension] was last attached through, for extensions
-/// that spawn children (`SandboxExtension`). Internal to dm.
-///
-/// Throws [StateError] when [extension] was never attached.
+/// Returns the coordinator that last attached an extension.
 ExtensionCoordinator coordinatorOf(MontyExtension extension) =>
     _owners[extension] ??
     (throw StateError(
       'Extension "${extension.namespace}" is not attached to a runtime.',
     ));
 
-/// Records [coordinator] as the owner of each extension in [attachOrder],
-/// before [_runExtensionOnAttaches], so [coordinatorOf] works inside
-/// [MontyExtension.onAttach].
+/// Records extension ownership before attachment hooks run.
 void _injectCoordinators(
   List<MontyExtension> attachOrder,
   ExtensionCoordinator coordinator,
@@ -143,11 +132,7 @@ void _injectCoordinators(
   }
 }
 
-/// Collects OS call prefix contributions from all extensions in [attachOrder]
-/// and validates that no two extensions claim the same prefix.
-///
-/// Throws [StateError] if two extensions return the same prefix key from
-/// [MontyExtension.osContribution].
+/// Collects OS contributions while rejecting duplicate prefixes.
 Map<String, OsHandler> _collectOsContributions(
   List<MontyExtension> attachOrder,
 ) {
@@ -175,8 +160,7 @@ Map<String, OsHandler> _collectOsContributions(
   };
 }
 
-/// Composes [contributions] with [baseOs] as fallback and registers the result
-/// on [bridge]. No-op when there are no contributions and [baseOs] is `null`.
+/// Registers composed OS contributions with an optional fallback.
 void _applyOsContributions(
   MontyBridge bridge,
   Map<String, OsHandler> contributions,
@@ -190,12 +174,8 @@ void _applyOsContributions(
   bridge.registerOs(composed);
 }
 
-/// Collects [MontyExtension]s with namespace validation and function name
-/// collision detection.
-///
-/// All function names must be prefixed with the extension's namespace followed
-/// by an underscore (e.g., namespace `sqlite` requires functions named
-/// `sqlite_query`, `sqlite_execute`, etc.).
+/// Coordinates validated extension registration, attachment, children, and
+/// disposal.
 class ExtensionCoordinator {
   final List<MontyExtension> _extensions = [];
   List<MontyExtension>? _attachOrder;
@@ -209,17 +189,10 @@ class ExtensionCoordinator {
   final List<void Function()> _releaseLeases = [];
   Future<void>? _disposing;
 
-  /// The extension OS contributions resolved during [attachTo], keyed by
-  /// prefix.
-  ///
-  /// Captured so that [spawnChild] can re-compose a child handler per
-  /// its private workspace (including bare `open`) instead of
-  /// opaquely delegating to the already-composed parent handler.
+  /// Retains extension OS contributions for child workspace composition.
   Map<String, OsHandler>? _osContributions;
 
-  /// The `baseOs` passed to [attachTo], if any. Used as the fallback for any
-  /// prefix that no extension claims when [spawnChild] composes a child
-  /// handler.
+  /// Retains the parent OS fallback for child composition.
   OsHandler? _baseOs;
 
   static final RegExp _validNamespace = RegExp(r'^[a-z][a-z0-9_]*$');
@@ -230,13 +203,7 @@ class ExtensionCoordinator {
   // ignore: unnecessarily-public-code, internal coordinator tests inspect ownership.
   List<MontyExtension> get extensions => UnmodifiableListView(_extensions);
 
-  /// Validates [extension] namespace and function names, then registers it.
-  ///
-  /// Throws [ArgumentError] if the namespace is empty, malformed, or exceeds
-  /// 32 characters.
-  /// Throws [StateError] if the namespace is reserved, already registered,
-  /// any function name collides with a previously registered function, or
-  /// [attachTo] has already been called.
+  /// Registers an extension after namespace and function-name validation.
   void register(MontyExtension extension) {
     if (_attached) {
       throw StateError(
@@ -261,25 +228,8 @@ class ExtensionCoordinator {
     );
   }
 
-  /// Wires all extensions to [bridge], calls [MontyExtension.onAttach] for
-  /// each, registers introspection builtins, and registers [extraFunctions]
-  /// under the `'extra'` category. [MontyExtension.onAttach] errors are
-  /// collected and thrown together as a single [StateError] after all
-  /// extensions are processed.
-  ///
-  /// ## OS registration
-  ///
-  /// If any extensions return a non-null [MontyExtension.osContribution], their
-  /// prefix maps are merged (overlapping prefixes throw [StateError]) and
-  /// composed with [baseOs] as the fallback. The composed handler is then
-  /// registered on [bridge] via `registerOs`. If there are no contributions
-  /// and [baseOs] is non-null, [baseOs] is registered directly.
-  ///
-  /// ## Coordinator injection
-  ///
-  /// [coordinatorOf] returns this coordinator for each extension before
-  /// [MontyExtension.onAttach] is called, so extensions that spawn children
-  /// can reach for it from inside [MontyExtension.onAttach].
+  /// Attaches registered extensions and composes their host and OS
+  /// capabilities.
   Future<void> attachTo(
     MontyBridge bridge, {
     List<HostFunction>? extraFunctions,
@@ -352,31 +302,11 @@ class ExtensionCoordinator {
     );
   }
 
-  /// Settles sandbox owners first, then disposes the remaining extensions
-  /// in reverse attachment order (registration order if not yet attached).
-  ///
-  /// All extensions are disposed even if some throw — errors are collected and
-  /// thrown as a single [StateError] after all extensions have been disposed.
-  /// Safe to call multiple times — each extension's [MontyExtension.onDispose]
-  /// must be idempotent.
+  /// Disposes owned sandbox extensions first, then other owned extensions, and
+  /// combines failures.
   Future<void> disposeAll() => _disposing ??= _disposeAll();
 
-  /// Builds a child [ExtensionCoordinator] seeded from this (parent)
-  /// coordinator and attaches it to [bridge].
-  ///
-  /// Every parent extension contributes to the child according to its
-  /// [MontyExtension.childPolicy] — `clone` invokes
-  /// [MontyExtension.createChildInstance] for a fresh instance, `inherit`
-  /// re-registers the parent instance, and `exclude` skips the extension
-  /// entirely. The resulting coordinator is attached to [bridge] with an OS
-  /// handler confined to the supplied workspace.
-  ///
-  /// Non-`Path.` OS prefixes (e.g., `os.`, `date.`, `datetime.`) are
-  /// forwarded to the parent unchanged, and the parent's [attachTo] `baseOs`
-  /// is used as the child's fallback for any unclaimed prefix.
-  ///
-  /// Throws [StateError] if [attachTo] has not yet been called on this
-  /// coordinator — there is no parent OS state to inherit from.
+  /// Attaches a child coordinator under parent policy and workspace isolation.
   Future<ExtensionCoordinator> spawnChild({
     required ChildSpawnContext context,
     required MontyBridge bridge,

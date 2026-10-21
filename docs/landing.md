@@ -1,69 +1,19 @@
 # Documentation
 
-<p align="center">
-  <img src="assets/dart_monty.jpg" alt="dart_monty" width="200">
-</p>
+`dart_monty` provides stateful restricted-Python execution and application
+capabilities on top of `dart_monty_core`.
 
-Sandboxed Python interpreter for Dart and Flutter. Run Python from native,
-web, and mobile — one package, every platform.
+Start with [Installation](user/install.html), then choose the page for the
+application behavior:
 
-> Looking for a quick taste? Try the [live REPL](repl.html) or the
-> [agent demo](agent.html). For the API at a glance, see
-> [User Guide → API Reference](user/api-reference.html).
+- [Runtime lifecycle and concurrency](deep-dives/bridge-concurrency.html)
+- [Host functions](tutorials/host-functions-intro.html)
+- [Extensions](deep-dives/extension-system.html)
+- [Sandbox isolation](deep-dives/sandbox-architecture.html)
+- [Filesystem and workspace policy](deep-dives/oscall-vfs.html)
+- [Failure propagation](deep-dives/error-hierarchy.html)
+- [Deployment](user/deployment.html)
 
-## User Guide
-
-Practical, task-oriented docs for adding `dart_monty` to a project.
-
-- [Installation](user/install.html) — Add to your `pubspec.yaml`
-- [Deployment](user/deployment.html) — Native and web deployment notes
-- [REPL](user/repl.html) — Stateful interactive execution
-- [Extensions](user/extensions.html) — EventLoop, Sandbox
-- [API Reference](user/api-reference.html) — Method-by-method summary
-
-## Tutorials
-
-Walkthroughs that build something real, step by step.
-
-- [Host Functions Intro](tutorials/host-functions-intro.html)
-- [Host Functions Beginner](tutorials/host-functions-beginner.html)
-- [Host Functions Intermediate](tutorials/host-functions-intermediate.html)
-- [Host Functions Advanced](tutorials/host-functions-advanced.html)
-- [Bridge Middleware](tutorials/bridge-middleware.html)
-- [LLM Prompt Rules](tutorials/llm-prompt-rules.html)
-
-## Deep Dives
-
-How the package works under the hood.
-
-- [Architecture Overview](architecture/overview.html)
-- [Sandbox Architecture](deep-dives/sandbox-architecture.html)
-- [OsCall / VFS Layer](deep-dives/oscall-vfs.html)
-- [Error Hierarchy](deep-dives/error-hierarchy.html)
-- [Extension System](deep-dives/extension-system.html)
-- [Bridge Concurrency](deep-dives/bridge-concurrency.html)
-
-## Technical Reference
-
-Source-of-truth references for the internal contract surface.
-
-- [Bridge Integration](reference/bridge-integration.html)
-- [Internals](reference/internals.html)
-
-## Contributing
-
-- [Development Setup](contributor/setup.html)
-- [Testing](contributor/testing.html)
-
-## For LLMs
-
-A machine-readable index of this site is available at
-[`/llms.txt`](llms.txt) — see [llmstxt.org](https://llmstxt.org) for the
-spec.
-
-## Source
-
-Source lives at [github.com/runyaga/dart_monty](https://github.com/runyaga/dart_monty).
-The companion package
-[`dart_monty_core`](https://github.com/runyaga/dart_monty_core)
-ships the low-level FFI/WASM bindings.
+Contributor procedures are in [Development Setup](contributor/setup.html) and
+[Testing](contributor/testing.html). The public declarations are in
+[`lib/dart_monty.dart`](https://github.com/runyaga/dart_monty/blob/main/lib/dart_monty.dart).

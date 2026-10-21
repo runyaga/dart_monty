@@ -64,15 +64,10 @@ plugins:
         User Guide:
           - user/install.md
           - user/deployment.md
-          - user/repl.md
-          - user/extensions.md
           - user/api-reference.md
         Tutorials:
           - tutorials/host-functions-intro.md
-          - tutorials/host-functions-beginner.md
-          - tutorials/host-functions-intermediate.md
-          - tutorials/host-functions-advanced.md
-          - tutorials/bridge-middleware.md
+          - tutorials/inputs-and-sub-scripts.md
           - tutorials/llm-prompt-rules.md
         Deep Dives:
           - architecture/overview.md
@@ -84,7 +79,6 @@ plugins:
           - deep-dives/bridge-concurrency.md
         Technical Reference:
           - reference/bridge-integration.md
-          - reference/internals.md
           - reference/upstream-divergences.md
         Contributing:
           - contributor/setup.md
@@ -95,15 +89,10 @@ nav:
   - User Guide:
       - Installation: user/install.md
       - Deployment: user/deployment.md
-      - REPL: user/repl.md
-      - Extensions: user/extensions.md
       - API Reference: user/api-reference.md
   - Tutorials:
       - Host Functions Intro: tutorials/host-functions-intro.md
-      - Host Functions Beginner: tutorials/host-functions-beginner.md
-      - Host Functions Intermediate: tutorials/host-functions-intermediate.md
-      - Host Functions Advanced: tutorials/host-functions-advanced.md
-      - Bridge Middleware: tutorials/bridge-middleware.md
+      - Nested Execution: tutorials/inputs-and-sub-scripts.md
       - LLM Prompt Rules: tutorials/llm-prompt-rules.md
   - Deep Dives:
       - Architecture Overview: architecture/overview.md
@@ -115,9 +104,7 @@ nav:
       - Bridge Concurrency: deep-dives/bridge-concurrency.md
   - Technical Reference:
       - Bridge Integration: reference/bridge-integration.md
-      - Internals: reference/internals.md
       - Upstream Divergences: reference/upstream-divergences.md
   - Contributing:
       - Development Setup: contributor/setup.md
       - Testing: contributor/testing.md
-

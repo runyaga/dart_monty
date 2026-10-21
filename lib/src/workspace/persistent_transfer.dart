@@ -3,12 +3,9 @@ import 'dart:async';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:path/path.dart' as p;
 
-/// Internal transfer session over explicitly captured persistent mounts.
-/// The supplied pool must have a finite checkoutTimeout. The adapter adds an
-/// independent deadline and closes a checkout that arrives after that deadline.
-/// Owned backing must validate and bound reads before this callback is used.
+/// Transfers bounded content through explicitly captured persistent mounts.
 final class PersistentTransfer {
-  /// Captures immutable mount modes; overlay paths refuse before checkout.
+  /// Captures immutable mount modes and refuses overlay paths before checkout.
   PersistentTransfer(Monty pool, List<MountDir> mounts)
     : _pool = pool,
       _mounts = List.unmodifiable(mounts);
@@ -19,7 +16,8 @@ final class PersistentTransfer {
   /// Explicit captured capabilities, never the suspended session table.
   final List<MountDir> _mounts;
 
-  /// Fixed code and typed inputs; never feeds the suspended parent session.
+  /// Uses fixed code and typed inputs without feeding the suspended parent
+  /// session.
   Future<MontyValue> call(
     String name,
     List<MontyValue> args,

@@ -20,11 +20,7 @@ import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
-/// Exception thrown when a child sandbox fails or is disposed.
-///
-/// Preserves the [childId] and, when the failure originated from a Python
-/// exception, the full [exception] with structured fields (filename,
-/// lineNumber, excType, traceback).
+/// Retains a child failure and its structured Python error when available.
 class _ChildSandboxException implements Exception {
   /// Creates a [_ChildSandboxException].
   const _ChildSandboxException({
@@ -39,9 +35,7 @@ class _ChildSandboxException implements Exception {
   /// Human-readable error message.
   final String message;
 
-  /// The original [MontyError] when the error originated from Python.
-  ///
-  /// Null for disposal and non-Python errors.
+  /// Preserves the Python error when one caused the failure.
   final MontyError? exception;
 
   @override
@@ -49,7 +43,7 @@ class _ChildSandboxException implements Exception {
 }
 
 // ---------------------------------------------------------------------------
-// _ChildState — sealed lifecycle state for spawned children.
+// _ChildState is the sealed lifecycle state for spawned children.
 // ---------------------------------------------------------------------------
 
 /// Private lifecycle state of a retained child.
@@ -88,17 +82,14 @@ final class _ChildFailed extends _ChildState {
   /// Human-readable error description.
   final String message;
 
-  /// The original [MontyError] when the error came from Python.
-  ///
-  /// Null for non-Python failures.
+  /// Preserves the Python error when one caused the failure.
   final MontyError? exception;
 
   /// Captured `print()` output, or `null` if the child produced none.
   final String? printOutput;
 }
 
-/// The child was cancelled or the parent extension was disposed
-/// before completion.
+/// Marks a child stopped before completion.
 final class _ChildDisposed extends _ChildState {
   /// Creates a [_ChildDisposed].
   const _ChildDisposed();
@@ -127,7 +118,7 @@ class _ChildHandle {
   final ExtensionCoordinator coordinator;
   final Workspace workspace;
 
-  /// Reactive lifecycle state — starts as [_ChildRunning].
+  /// Tracks the child lifecycle from the running state.
   final Signal<_ChildState> state = signal(const _ChildRunning());
   Future<void>? _cleanup;
 
@@ -317,34 +308,9 @@ const _gatherSchema = HostFunctionSchema(
   ],
 );
 
-/// Extension that spawns Python scripts in separate Monty interpreter
-/// instances.
-///
-/// Each child gets its own [MontySession] and [MontyBridge]. The parent
-/// Python script can spawn children with
-/// `sandbox_spawn(code)` and await their results with `sandbox_await(handle)`.
-///
-/// Children are sandboxed: each has its own interpreter state.
-/// All living children are killed when this extension is disposed.
-///
-/// ## Child extension and VFS inheritance
-///
-/// Child extensions and OS handlers are inherited from the parent
-/// [ExtensionCoordinator] via [ExtensionCoordinator.spawnChild]. Extensions
-/// opt into inheritance by overriding [MontyExtension.createChildInstance];
-/// each child receives an independent workspace at `/work`, backed by memory
-/// or by an owned native directory when [sandboxBaseDir] is set.
-///
-/// `SandboxExtension` MUST be attached through an [ExtensionCoordinator] —
-/// it uses the parent coordinator to compose the child.
+/// Owns isolated child sessions, extension attachments, and workspaces.
 class SandboxExtension extends MontyExtension {
-  /// Creates a [SandboxExtension].
-  ///
-  /// [maxChildren] limits admitted, unfreed children (default: 16), including
-  /// completed and failed handles retained for collection.
-  /// [maxDepth] limits recursion depth if children also have SandboxExtension
-  /// (default: 3). Set [currentDepth] when creating nested plugins.
-  /// [childLimits] sets resource limits for child interpreters.
+  /// Configures child admission, nesting, resource, and workspace limits.
   SandboxExtension({
     this.maxChildren = 16,
     this.maxDepth = 3,
@@ -359,32 +325,31 @@ class SandboxExtension extends MontyExtension {
     if (maxChildren < 0) throw ArgumentError.value(maxChildren, 'maxChildren');
   }
 
-  /// Cumulative accepted workspace write bytes; explicit null is unbounded.
+  /// Limits cumulative accepted workspace writes to 8 MiB by default, with
+  /// explicit null selecting no limit.
   // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? writeBytesLimit;
 
-  /// Retained content plus 64 bytes per entry; explicit null is unbounded.
+  /// Limits retained content plus 64 bytes per entry to 8 MiB by default, with
+  /// explicit null selecting no limit.
   // ignore: unnecessarily-public-code, approved public D4a cap field.
   final int? memoryUsageLimit;
 
-  /// Maximum admitted, unfreed children, including completed and failed
-  /// handles.
+  /// Limits admitted handles until they are freed and defaults to 16.
   final int maxChildren;
 
-  /// Maximum recursion depth for nested sandbox plugins.
+  /// Limits nested sandboxes to three levels by default.
   final int maxDepth;
 
-  /// Current recursion depth.
+  /// Records the current recursion depth and defaults to the root level.
   final int currentDepth;
 
-  /// Independent per-child limits. Omission selects the owning runtime's
-  /// complete limits object, preserving null fields. Guest timeout and memory
-  /// settings may only reduce the selected ceilings.
+  /// Overrides inherited child limits. Without one, children use runtime
+  /// limits. Guest timeout and memory requests may only reduce those limits.
   final ResourceLimits? childLimits;
 
-  /// Opts into a fresh owned native directory per child (VM only).
-  /// Backing survives completion and collection until free or disposal.
-  /// Children always use the virtual cwd `/work`; null selects memory.
+  /// Selects owned native backing on the VM that remains available until free
+  /// or disposal. Web builds reject this setting with [UnsupportedError].
   final String? sandboxBaseDir;
 
   final WorkspaceTransfers _transfers = WorkspaceTransfers();
@@ -401,9 +366,7 @@ class SandboxExtension extends MontyExtension {
   @override
   String get namespace => 'sandbox';
 
-  /// Supported on both FFI and WASM backends.
-  ///
-  /// Each child runs on its own session.
+  /// Supports independent child sessions on native and browser backends.
   @override
   Set<MontyBackendKind> get supportedBackends => const {
     MontyBackendKind.ffi,

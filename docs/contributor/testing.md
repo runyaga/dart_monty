@@ -52,11 +52,10 @@ against `tool/test_floors.tsv`.
 
 ```bash
 bash tool/test_cell.sh vm
-bash tool/test_cell.sh chrome-dart2js
-bash tool/test_cell.sh chrome-dart2wasm
-bash tool/test_cell.sh firefox-dart2js
-bash tool/test_cell.sh firefox-dart2wasm
 ```
+
+The supported cells are `vm`, `chrome-dart2js`, `chrome-dart2wasm`,
+`firefox-dart2js`, and `firefox-dart2wasm`.
 
 The VM cell uses the prebuilt worker that core's hook installs. Its native
 workspace tests also need the root `build_worker: true` opt-in above. Set
@@ -70,10 +69,6 @@ CI runs the VM cell in the integration job and each browser cell in the
 browser-cell job. Core's build hook supplies the VM worker. The test workflow
 also runs the default suite, analysis, formatting, and focused checks.
 
-## Test locations
-
-- `test/` contains unit and shared tests.
-- `test/integration/` contains real-worker integration tests.
-- `test/acceptance/` contains worker and browser acceptance tests.
-- `test/fixtures/` contains shared test data.
-- `test/surface/` records the public package surface.
+Test selection follows the directories and tags under `test/`. Look at
+`dart_test.yaml`, `tool/test_cell.sh`, and `tool/test_floors.tsv` for the
+current suite definitions and platform floors.

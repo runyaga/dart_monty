@@ -8,7 +8,7 @@ extension HostArgs on Map<String, MontyValue> {
   /// A bounded integer used for a handle or configuration count.
   int intArg(String key) => (this[key]! as MontyInt).value;
 
-  /// An optional bounded integer; None means no override.
+  /// Reads an optional bounded integer and treats `None` as no override.
   int? intArgOrNull(String key) => switch (this[key]) {
     null || MontyNone() => null,
     final MontyInt value => value.value,

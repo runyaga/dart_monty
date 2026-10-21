@@ -16,29 +16,22 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:meta/meta.dart';
 import 'package:struct_log/struct_log.dart';
 
-/// `excType: message` for [BridgeRunError.message], or the message alone
-/// when the type is empty.
+/// Formats a bridge error from its Python type and message.
 String _composeMessage(String excType, String message) =>
     excType.isEmpty ? message : '$excType: $message';
 
-/// The collected print text, or null when nothing was printed.
+/// Returns collected print text, or null for empty output.
 String? _printed(CollectString collector) {
   final text = collector.output;
 
   return text.isEmpty ? null : text;
 }
 
-/// The [MontyBridge] implementation: runs its code on a [MontySession].
-///
-/// Each [execute] is one `feedRun` on the session. Core has no event stream,
-/// so the bridge builds its own: it wraps the [OsHandler] it passes to the
-/// feed, and collects print text through the feed's print callback. Calls
-/// the worker answers itself (mounts, the OS policy, the default for a
-/// declined call) never reach the bridge and emit no events.
+/// Adapts session feeds to host dispatch and bridge events.
 @internal
 class SessionBridge implements MontyBridge {
-  /// Creates a bridge over [session]; [subExecute] is every handler's
-  /// [HostContext.subExecute] (none when null).
+  /// Creates a bridge whose optional sub-executor backs
+  /// [HostContext.subExecute].
   SessionBridge({
     required this.session,
     // ignore: unnecessary-optional-parameters, tests build a bridge without a logger.
@@ -54,15 +47,13 @@ class SessionBridge implements MontyBridge {
          subExecute: subExecute,
        );
 
-  /// The session this bridge runs code on.
-  ///
-  /// A shared-mode runtime replaces it with a fresh checkout after a cancel
-  /// closed the one before; the functions and extensions stay registered.
+  /// Holds the current session while registrations remain on the bridge.
   @internal
   // ignore: dispose-class-fields, the runtime that checked it out closes it.
   MontySession session;
 
-  /// Internal child driver; ordinary bridge executions use core feedRun.
+  /// Drives internal child work while ordinary bridge executions use core
+  /// `feedRun`.
   @internal
   // The child owns backing beyond bridge completion, until explicit free.
   // ignore: dispose-class-fields
@@ -120,8 +111,7 @@ class SessionBridge implements MontyBridge {
     _host.osHandler = handler;
   }
 
-  /// Replaces the currently-registered OS handler with [handler] (or clears
-  /// it when `null`).
+  /// Replaces or clears the current OS handler.
   @internal
   // ignore: unnecessarily-public-code, tests exercise clearing and restoring handlers.
   void setOsHandler(OsHandler? handler) {
@@ -149,9 +139,7 @@ class SessionBridge implements MontyBridge {
   @override
   Stream<BridgeEvent> execute(String code) => executeWith(code);
 
-  /// [execute], with the feed's [inputs], an [os] handler in place of the
-  /// registered one for this run only, and the [cancelToken] each host
-  /// function call of the run sees as `HostContext.cancelToken`.
+  /// Executes with per-feed inputs, OS policy, and cancellation.
   @internal
   Stream<BridgeEvent> executeWith(
     String code, {
@@ -200,14 +188,7 @@ class SessionBridge implements MontyBridge {
     logger.close();
   }
 
-  /// Runs [code] as one feed on [session], adding its events to
-  /// [controller]: [BridgeRunStarted] first, then the OS-call events, then
-  /// [BridgeRunFinished] or [BridgeRunError].
-  ///
-  /// Each event is logged when it is emitted, whether or not the stream is
-  /// listened to. Nothing is emitted after the terminal event: an OS
-  /// handler that settles after its feed ended (the session was closed
-  /// meanwhile) reports nothing.
+  /// Runs one feed and emits ordered events through its terminal event.
   Future<void> _run(
     String code,
     StreamController<BridgeEvent> controller, {

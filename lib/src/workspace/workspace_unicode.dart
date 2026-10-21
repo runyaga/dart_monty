@@ -1,7 +1,6 @@
 part of 'workspace.dart';
 
-/// The supported subset is Latin-1 Supplement and Latin Extended-A/B.
-/// Other scripts retain their spelling unless the native host identifies them.
+/// Folds a conservative Latin subset for native path alias checks.
 String _canonicalComponent(String value) {
   final decomposed = _orderCombiningMarks(_decomposeLatin(value.toLowerCase()));
 

@@ -4,77 +4,32 @@
   <img src="assets/dart_monty.jpg" alt="dart_monty" width="280">
 </p>
 
-[![CI](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml/badge.svg)](https://github.com/runyaga/dart_monty/actions/workflows/ci.yaml)
-[![Pages](https://github.com/runyaga/dart_monty/actions/workflows/pages.yaml/badge.svg)](https://runyaga.github.io/dart_monty/)
-[![codecov](https://codecov.io/gh/runyaga/dart_monty/graph/badge.svg)](https://codecov.io/gh/runyaga/dart_monty)
+`dart_monty` runs restricted Python from Dart and Flutter. It builds on
+`dart_monty_core` with stateful runtimes, Dart host functions, extensions,
+execution events, and OS-call policy.
 
-**dart_monty v0.110.0-dev.4** &middot; built against `dart_monty_core` `e962659e47d41e7b6bce3f15408f521940a3fcc7`
+This documentation covers `dart_monty 0.110.0-dev.4` with
+`dart_monty_core e962659e47d41e7b6bce3f15408f521940a3fcc7`.
 
-[Live Demo](https://runyaga.github.io/dart_monty/) | [Documentation](https://runyaga.github.io/dart_monty/) | [GitHub](https://github.com/runyaga/dart_monty)
+Use `MontyRuntime` when Python needs application capabilities or state that
+persists between calls. Use core's `Monty` and `MontySession` directly for a
+session feed without those features. Both choices require explicit disposal.
 
-`dart_monty` provides sandboxed Python execution for Dart and Flutter.
-
-## Quick Start
-
-Install the packages from their matching Git tags. See
-[Installation](user/install.md) for the dependency entries.
-
-**One-shot execution**
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  final value = await Monty.withPool(
-    (pool) => pool.withSession((session) => session.feedRun('2 + 2')),
-  );
-  print(value.dartValue); // 4
-}
-```
-
-**Stateful session**
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  await Monty.withPool((pool) async {
-    final session = await pool.checkout();
-    try {
-      await session.feedRun('x = 42');
-      final value = await session.feedRun('x * 2');
-      print(value.dartValue); // 84
-    } finally {
-      await session.close();
-    }
-  });
-}
-```
-
-**Runtime with extensions**
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-Future<void> main() async {
-  final runtime = await MontyRuntime.start(
-    extensions: [EventLoopExtension()],
-  );
-  try {
-    final value = await runtime.execute('1 + 1').result;
-    print(value.dartValue); // 2
-  } finally {
-    await runtime.dispose();
-  }
-}
-```
+The package runs through a native worker on the Dart VM and through a Web
+Worker on browser targets. See [Installation](user/install.md) for dependency
+setup and [Deployment](user/deployment.md) for worker assets and platform
+requirements.
 
 ## Documentation
 
-- [**Installation**](user/install.md): Add the packages to a project.
-- [**Architecture**](architecture/overview.md): Module structure and internals.
-- [**REPL Guide**](user/repl.md): Stateful interactive execution.
-- [**Extensions**](user/extensions.md): Event loop and sandbox extensions.
-- [**Tutorials**](tutorials/host-functions-intro.md): Host functions and LLM rules.
-- [**Testing**](contributor/testing.md): Test suites and quality gates.
-- [**Contributor Setup**](contributor/setup.md): Build and test the library.
+- [Runtime lifecycle and concurrency](deep-dives/bridge-concurrency.md)
+- [Host functions](tutorials/host-functions-intro.md)
+- [Extension lifecycle](deep-dives/extension-system.md)
+- [Sandbox isolation](deep-dives/sandbox-architecture.md)
+- [Filesystem and workspace policy](deep-dives/oscall-vfs.md)
+- [Failure propagation](deep-dives/error-hierarchy.md)
+- [Contributor setup](contributor/setup.md)
+- [Testing](contributor/testing.md)
+
+The public API surface and declaration descriptions are in
+[`lib/dart_monty.dart`](https://github.com/runyaga/dart_monty/blob/main/lib/dart_monty.dart).

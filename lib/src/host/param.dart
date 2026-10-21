@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 /// Describes a single parameter of a host function.
 @immutable
 class HostParam {
-  /// Creates a [HostParam].
+  /// Declares one host-function parameter and its validation policy.
   const HostParam({
     required this.name,
     required this.type,
@@ -21,35 +21,20 @@ class HostParam {
   /// Expected type.
   final HostParamType type;
 
-  /// Whether the caller must supply a value.
+  /// Whether the caller must supply a value. Defaults to true.
   final bool isRequired;
 
   /// Human-readable description for JSON Schema export.
   final String? description;
 
-  /// Default value when the argument is absent and not required.
+  /// Default value when the argument is absent and not required. Defaults to
+  /// null, which supplies [MontyNone].
   final MontyValue? defaultValue;
 
-  /// Optional full JSON Schema override for this parameter.
-  ///
-  /// When set, [toJsonSchema] returns this map directly instead of
-  /// generating from [type] and [description]. Use this for complex
-  /// schemas (nested objects, enums, arrays with item types) that
-  /// [HostParamType] cannot express.
-  ///
-  /// **Important:** The override controls only the schema advertised to
-  /// external consumers (e.g. LLMs via MCP). Runtime validation in
-  /// [validate] still uses [type]. Ensure the override is consistent
-  /// with [type] to avoid mismatches where an LLM sends valid-per-schema
-  /// arguments that fail runtime validation.
+  /// Overrides the advertised schema without changing runtime validation.
   final Map<String, Object?>? jsonSchemaOverride;
 
-  /// Returns a JSON Schema property definition for this parameter.
-  /// A map is advertised as a JSON object, but runtime dict keys may be any
-  /// core-valid key. JSON Schema is not a reversible core value encoding.
-  ///
-  /// If [jsonSchemaOverride] is set, returns a copy of it. Otherwise
-  /// generates a schema from [type] and [description].
+  /// Builds the advertised JSON Schema property for this parameter.
   Map<String, Object?> toJsonSchema() {
     final schema = jsonSchemaOverride != null
         ? <String, Object?>{...jsonSchemaOverride!}
@@ -67,8 +52,8 @@ class HostParam {
     return schema;
   }
 
-  /// Validates a core value without conversion.
-  /// Presence is independent of None.
+  /// Validates a supplied value without conversion and supplies [defaultValue]
+  /// or [MontyNone] for an omitted optional value.
   MontyValue validate(MontyValue? value, {bool isPresent = true}) {
     if (!isPresent) {
       if (isRequired) {

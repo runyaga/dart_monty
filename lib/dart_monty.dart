@@ -1,15 +1,10 @@
-/// Pure Dart bindings for the Monty sandboxed Python interpreter.
+/// Runs restricted Python through native and web workers.
 ///
-/// ```dart
-/// import 'package:dart_monty/dart_monty.dart';
-///
-/// final value = await Monty.withPool(
-///   (monty) => monty.withSession((session) => session.feedRun('2 + 2')),
-/// );
-/// print(value); // MontyInt(4)
-/// ```
+/// The package does not follow semantic versioning. The package expects to
+/// stabilize its API and adopt semantic versioning within one to three months.
 library;
 
+/// Re-exports core primitives.
 export 'package:dart_monty_core/dart_monty_core.dart'
         // Keep the order of the approved 25-name facade.
         // ignore: combinators_ordering

@@ -10,17 +10,7 @@ import 'package:dart_monty_core/dart_monty_core.dart';
 /// Category name for introspection builtins.
 const introspectionCategory = 'introspection';
 
-/// Schema for the `help` introspection function.
-///
-/// When called with no arguments, lists all available host functions grouped
-/// by category. When called with a name, shows detailed information about
-/// that function.
-///
-/// ```monty
-/// help()                  # list all available functions
-/// help("csv_parse")       # detail on a specific function
-/// help("parse")           # bare name — disambiguates if needed
-/// ```
+/// Describes live host-function introspection.
 const helpSchema = HostFunctionSchema(
   name: 'help',
   description:
@@ -41,10 +31,7 @@ const helpSchema = HostFunctionSchema(
   ],
 );
 
-/// Builds the introspection host function (`help`).
-///
-/// Takes the [bridge] so introspection queries live state rather than a
-/// point-in-time snapshot. Functions registered after `attachTo` are visible.
+/// Builds introspection against the bridge's live registry.
 List<HostFunction> buildIntrospectionFunctions(MontyBridge bridge) {
   return [
     HostFunction(
@@ -82,11 +69,7 @@ Map<String, Object?> _serializeSchema(HostFunctionSchema schema) {
   };
 }
 
-/// Handler for `help()` with no arguments.
-///
-/// Returns JSON with all categories. The introspection category is already
-/// present in [schemasByCategory] because `help` is registered with that
-/// category on the bridge.
+/// Renders all live schema categories.
 String _handleListAll(Map<String, List<HostFunctionSchema>> schemasByCategory) {
   final tools = <String, Object?>{};
 
@@ -97,13 +80,7 @@ String _handleListAll(Map<String, List<HostFunctionSchema>> schemasByCategory) {
   return jsonEncode({'tools': tools});
 }
 
-/// Handler for `help(name)`.
-///
-/// Looks up [name] across all categories.
-/// Supports both fully-qualified names (`storage_get`) and bare names (`get`).
-/// When a bare name matches exactly one function, returns its detail.
-/// When multiple functions share the same bare name, returns a disambiguation
-/// list.
+/// Renders a named schema or its ambiguous matches.
 String _handleHelp(
   Map<String, List<HostFunctionSchema>> schemasByCategory,
   String name,

@@ -1,14 +1,15 @@
 # Upstream divergences
 
-pydantic-monty 1.1.0 is the specification for everything Python code can observe. This page lists every known place where dart_monty behaves differently, and why. A behaviour that differs from upstream and is missing from this list is a bug.
+pydantic-monty 1.1.0 specifies Python-visible behavior. This page lists each
+known dart_monty difference and its reason. An unlisted difference is a bug.
 
-dart_monty runs Python through dart_monty_core and inherits every row of the [dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/v0.110.0-dev.4/docs/reference/upstream-divergences.md) (C-1 to C-12). The rows below are the ones dart_monty adds.
+dart_monty runs Python through dart_monty_core and inherits every row in the
+[dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/v0.110.0-dev.4/docs/reference/upstream-divergences.md)
+(C-1 to C-12). The rows below describe dart_monty additions.
 
-Classes:
-
-- **API-TYPING**: Dart's static types rule out the upstream case at compile time.
-- **LEGACY-KEPT**: an existing API keeps its released behaviour, and an additive API matches upstream.
-- **ADDED-CHECK**: dart_monty checks something upstream does not check, and raises an error where upstream proceeds.
+The Class column distinguishes cases excluded by Dart static types, a released
+API behavior paired with an additive parity API, and package checks beyond
+upstream.
 
 Each test that pins a divergent outcome names the row id in its description.
 

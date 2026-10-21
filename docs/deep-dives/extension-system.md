@@ -1,76 +1,22 @@
-# Extension System
+# Extension system
 
-The extension system exposes Dart capabilities to Python execution. An
-extension contributes host functions, attachment hooks, and optional OS-call
-handlers to a `MontyRuntime`.
+An extension groups Dart capabilities that attach to a `MontyRuntime`. It can
+contribute host functions and OS-call handlers, initialize resources during
+attachment, and release them during disposal.
 
-## Guides
+The coordinator validates an extension set before Python executes.
+[MontyExtension](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/extension.dart)
+defines namespace, ordering, backend, and OS-prefix requirements.
 
-| Level | Document | Focus |
-|---|---|---|
-| Intro | [Host Functions Intro](../tutorials/host-functions-intro.md) | Host functions and schemas |
-| Beginner | [Host Functions Beginner](../tutorials/host-functions-beginner.md) | Parameters, validation, errors, and bridge events |
-| Intermediate | [Host Functions Intermediate](../tutorials/host-functions-intermediate.md) | Extensions, lifecycle hooks, and event-loop integration |
-| Advanced | [Host Functions Advanced](../tutorials/host-functions-advanced.md) | Child execution, limits, and workspace policy |
+An extension chooses its sandbox-child participation through
+[ChildPolicy](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/extension.dart).
 
-## Architecture at a Glance
+[AttachContext](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/attach_context.dart)
+keeps attachment separate from bridge execution and disposal. Cross-extension
+calls go through registered host functions instead of direct ownership of
+another extension.
 
-```text
-+--------------------------------------------------+
-| MontyRuntime                                     | runtime lifecycle and execution
-+--------------------------------------------------+
-| MontyExtension and AttachContext                 | capabilities and attachment hooks
-+--------------------------------------------------+
-| HostFunction, HostFunctionSchema, HostParam      | callable Python-facing functions
-+--------------------------------------------------+
-| MontyBridge and BridgeEvent                      | dispatch and execution events
-+--------------------------------------------------+
-| Monty, MontySession, MontyValue                  | core pool, session, and values
-+--------------------------------------------------+
-```
-
-`MontyExtension` declares a unique namespace and a list of host functions.
-The runtime attaches each extension and calls `onAttach` with an
-`AttachContext`. The context exposes registered schemas and `registerOs` for
-OS handler registration. `onDispose` releases extension-owned resources.
-
-```dart
-import 'package:dart_monty/dart_monty.dart';
-
-class SharedExtension extends MontyExtension {
-  @override
-  String get namespace => 'shared';
-
-  @override
-  List<HostFunction> get functions => const [];
-
-  @override
-  ChildPolicy get childPolicy => ChildPolicy.inherit;
-}
-```
-
-## Child Extension Policy
-
-`ChildPolicy` controls an extension's participation in a child created by
-`SandboxExtension`.
-
-- `ChildPolicy.exclude` omits the extension from child execution.
-- `ChildPolicy.clone` requires `createChildInstance(ChildSpawnContext)` to
-  return a distinct extension instance.
-- `ChildPolicy.inherit` attaches the parent extension instance to the child.
-
-`ChildSpawnContext` contains the child identifier and its virtual working
-directory. A cloned extension can use this context to configure state for one
-child. An inherited extension must tolerate attachment to each child that
-shares it.
-
-## Host Functions
-
-`HostFunction` combines a `HostFunctionSchema` with a handler. The schema
-describes the function name and `HostParam` values. The handler receives typed
-`MontyValue` arguments and returns a `Future<MontyValue>`. `MontyRuntime.register`
-adds a function after startup.
-
-Most applications pass extensions to `MontyRuntime.start`. The runtime
-attaches them before shared execution and disposes them when the runtime
-ends.
+See [Sandbox Architecture](sandbox-architecture.md) for child ownership and
+[Filesystem and workspace policy](oscall-vfs.md) for the workspace lifecycle.
+[MontyExtension](https://github.com/runyaga/dart_monty/blob/main/lib/src/extension/extension.dart)
+and the built-in extension declarations define the public extension surface.

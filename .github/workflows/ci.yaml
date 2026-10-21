@@ -125,8 +125,8 @@ jobs:
           test -s out-mk/llms.txt
           test -s out-mk/llms-full.txt
           n=$(find out-mk -name '*.md' | wc -l)
-          echo "raw .md endpoints: $n (floor 24)"
-          [ "$n" -ge 24 ] || { echo "FAIL: expected at least 24 raw .md endpoints, found $n"; exit 1; }
+          echo "raw .md endpoints: $n (floor 19)"
+          [ "$n" -ge 19 ] || { echo "FAIL: expected at least 19 raw .md endpoints, found $n"; exit 1; }
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()

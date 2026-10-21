@@ -42,19 +42,16 @@ Future<void> main() async {
 }
 ```
 
-`MontyRuntime.start` creates the runtime. Supplied extensions attach when
-`execute` or `invoke` first uses the runtime. `register` adds a function to
-that runtime. `execute` returns an
-`ExecutionHandle`, whose `result` completes with the Python expression's
-`MontyValue`.
+[HostFunction](https://github.com/runyaga/dart_monty/blob/main/lib/src/host/function.dart)
+defines the handler, and
+[HostContext](https://github.com/runyaga/dart_monty/blob/main/lib/src/host/context.dart)
+defines call capabilities.
 
-## How It Works
+## Host-function layers
 
-The handler signature is `Future<MontyValue> Function(Map<String,
-MontyValue>, HostContext)`. Read each value through its concrete type, such as
-`MontyString`, `MontyInt`, or `MontyDict`.
-
-## Next Steps
-
-The [Beginner guide](host-functions-beginner.md) covers schemas, validation,
-errors, and execution events.
+Use a `MontyExtension` when several functions share attachment or disposal.
+Use an OS handler when Python needs a namespace of filesystem or environment
+operations. Use sub-execution when a suspended handler needs independent
+Python work. See [Extension system](../deep-dives/extension-system.md),
+[Nested execution](inputs-and-sub-scripts.md), and
+[Failure propagation](../deep-dives/error-hierarchy.md).

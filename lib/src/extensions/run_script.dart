@@ -7,32 +7,9 @@ import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart'
     show MontyDict, MontyError, MontyString, MontyValue;
 
-/// Builds a `run_script` [HostFunction] that Python code can call to execute
-/// another script file and receive its last-expression value.
-///
-/// [readFile] is invoked with the requested path and must return the script's
-/// source code. Wire it to a VFS, `dart:io` file read, or any other source:
-///
-/// ```dart
-/// runtime.register(buildRunScriptFunction(
-///   (path) => vfs.readFile(path),
-/// ));
-/// ```
-///
-/// From Python:
-/// ```python
-/// greeting = run_script('greet.py', inputs={'name': 'Alice'})
-/// ```
-///
-/// The sub-script runs through `ctx.subExecute`, on a second session checked
-/// out of the runtime's pool while the caller stays suspended, so it shares
-/// no state and no registered host functions with the caller. Its
-/// last-expression [MontyValue] is returned to Python as it is.
-///
-/// Fails with [StateError] when the context has no `subExecute` (a bare
-/// test context), with `run_script: could not read "<path>": <error>` when
-/// [readFile] throws, and with `run_script("<path>") failed: <message>`,
-/// the [MontyError]'s `exception.message`, when the sub-script raises.
+/// Builds a host function that runs loaded source in an isolated sub-session.
+/// Input names must be non-keyword Python identifiers. Loader and input errors
+/// surface in Python.
 HostFunction buildRunScriptFunction(
   FutureOr<String> Function(String path) readFile,
 ) {
