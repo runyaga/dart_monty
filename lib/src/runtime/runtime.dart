@@ -510,7 +510,8 @@ class MontyRuntime implements MontyRuntimeRef {
     if (session != null) await _closeBusy(run, session);
   }
 
-  /// Closes a busy session and marks shared state stale.
+  /// Closes [session], [run]'s busy session; in shared mode the next
+  /// execution then checks out a fresh one.
   Future<void> _closeBusy(_Execution run, MontySession session) {
     if (!_sandbox && identical(session, _sharedBridge?.session)) {
       _sharedStale = true;

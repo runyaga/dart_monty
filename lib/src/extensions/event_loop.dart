@@ -12,31 +12,34 @@ import 'package:dart_monty/src/host/schema.dart';
 import 'package:dart_monty_core/dart_monty_core.dart';
 import 'package:signals_core/signals_core.dart';
 
-/// Represents the internal event-loop channel lifecycle.
+/// State of the event loop channel lifecycle; internal to dm (read it
+/// through [EventLoopChannel]).
+///
+/// Sealed — use exhaustive pattern matching to handle all states.
+/// [EventLoopWaiting] carries the live [Completer] so that the state
+/// object is the single source of truth: if no waiting state exists, there
+/// is no pending completer.
 sealed class EventLoopState {
+  /// Creates a [EventLoopState].
   const EventLoopState();
 }
 
 /// Bridge created but no script executing.
 final class EventLoopIdle extends EventLoopState {
-  // The type documentation covers this state.
-  // ignore: public_member_api_docs
+  /// Creates a [EventLoopIdle].
   const EventLoopIdle();
 }
 
 /// Python code is actively executing (not waiting for input).
 final class EventLoopExecuting extends EventLoopState {
-  // The type documentation covers this state.
-  // ignore: public_member_api_docs
+  /// Creates a [EventLoopExecuting].
   const EventLoopExecuting();
 }
 
 /// Python is paused at `el_recv()`, holding an unresolved [completer].
 final class EventLoopWaiting extends EventLoopState {
-  // The completer makes this state mutable.
-  // ignore: prefer-declaring-const-constructor
-  // The type documentation covers this state.
-  // ignore: public_member_api_docs
+  /// Creates a [EventLoopWaiting].
+  // ignore: prefer-declaring-const-constructor — Completer cannot be const
   EventLoopWaiting(this.completer);
 
   /// The pending completer that will resume Python when fulfilled.
@@ -45,22 +48,76 @@ final class EventLoopWaiting extends EventLoopState {
 
 /// Script completed (normally or with error).
 final class EventLoopCompleted extends EventLoopState {
-  // The type documentation covers this state.
-  // ignore: public_member_api_docs
+  /// Creates a [EventLoopCompleted].
   const EventLoopCompleted();
 }
 
 /// Plugin has been disposed.
 final class EventLoopDisposed extends EventLoopState {
-  // The type documentation covers this state.
-  // ignore: public_member_api_docs
+  /// Creates a [EventLoopDisposed].
   const EventLoopDisposed();
 }
 
-/// Runs a FIFO cooperative exchange within one Python execution.
+/// A `MontyExtension` that turns a single `execute` call into a long-running
+/// cooperative exchange between Python and Dart.
+///
+/// ## Pattern
+///
+/// Normal `execute` is a one-shot call: Python runs to completion and
+/// returns one value. [EventLoopExtension] extends this into a multi-round
+/// protocol. Python becomes a coroutine — it runs, emits output, suspends,
+/// waits for input, and continues — all within one `execute` call. Dart is
+/// the scheduler that decides when to resume it.
+///
+/// Two host functions are registered that Python calls directly:
+///
+/// - `el_emit(value)` — Python pushes a value to Dart (non-blocking). Dart
+///   observes the new value via [lastEmitted] or reacts to changes via
+///   [lastEmittedSignal].
+///
+/// - `el_recv()` — Python blocks until Dart calls [dispatch]. The return
+///   value of `el_recv()` is whatever was passed to [dispatch]. If values
+///   were queued before Python reached `el_recv()`, the oldest queued value
+///   is returned immediately without suspending.
+///
+/// ## Lifecycle
+///
+/// ```text
+/// idle → executing → waiting → executing → … → completed
+///                       ↑              ↓
+///                  dispatch(v)    (Python resumes with v)
+/// ```
+///
+/// Only one `el_recv()` can be pending at a time. Values dispatched while
+/// Python is executing (not yet at `el_recv()`) are queued and delivered
+/// FIFO when Python next calls `el_recv()`.
+///
+/// ## Usage
+///
+/// Register through `ExtensionCoordinator` for automatic wiring:
+///
+/// ```dart
+/// final ext = EventLoopExtension();
+/// final session = MontyRuntime(extensions: [ext]);
+/// session.executeStream(script);
+/// ext.dispatch(const MontyDict([
+///   (MontyString('action'), MontyString('increment')),
+/// ]));
+/// ```
+///
+/// This extension registers a stream wrapper in [onAttach] to track execution
+/// lifecycle state.
+///
+/// ## Reactive observation
+///
+/// [isWaiting] says whether Python waits at `el_recv()`; emitted values are
+/// exposed as a signal:
+///
+/// ```dart
+/// effect(() => showLabel(plugin.lastEmittedSignal.value));
+/// ```
 class EventLoopExtension extends MontyExtension {
-  // The type documentation covers this extension.
-  // ignore: public_member_api_docs
+  /// Creates an [EventLoopExtension] initialized at [EventLoopIdle].
   EventLoopExtension();
 
   final Signal<EventLoopState> _state = signal<EventLoopState>(
@@ -78,7 +135,10 @@ class EventLoopExtension extends MontyExtension {
       'Cooperative event loop: el_recv() pauses until the host dispatches '
       'an event; el_emit(value) sends a value back to the host.';
 
-  /// Signals each value emitted by Python.
+  /// Reactive last-emitted value.
+  ///
+  /// Updates whenever Python calls `el_emit`. Use [lastEmitted] for
+  /// non-reactive reads, or subscribe via [effect] to react to each emission.
   ReadonlySignal<MontyDict?> get lastEmittedSignal => _lastEmitted;
 
   /// The most recent value passed to `el_emit`, or `null` if none yet.
@@ -164,8 +224,13 @@ class EventLoopExtension extends MontyExtension {
     });
   }
 
-  /// Resumes a pending receive or queues the value in FIFO order, and rejects
-  /// dispatch after completion or disposal.
+  /// Dispatches a value to the Python coroutine.
+  ///
+  /// If Python is paused at `el_recv()`, it resumes immediately with [event].
+  /// Otherwise [event] is queued for the next `el_recv()` call.
+  ///
+  /// Throws [StateError] if the plugin has been disposed or if the previous
+  /// execution has already completed. Call `execute` again before dispatching.
   void dispatch(MontyDict event) {
     switch (_state.value) {
       case EventLoopDisposed():
@@ -213,8 +278,6 @@ class EventLoopExtension extends MontyExtension {
     _state.dispose();
   }
 
-  /// Supports one pending `el_recv` call. A later call replaces the pending
-  /// completer.
   Future<MontyValue> _handleRecv(
     Map<String, MontyValue> args,
     HostContext ctx,
@@ -224,7 +287,7 @@ class EventLoopExtension extends MontyExtension {
       return _eventQueue.removeAt(0);
     }
 
-    // With no queued event, park in a waiting state with the live completer.
+    // No events queued — park in waiting state with the live completer.
     final completer = Completer<MontyDict>();
     _state.value = EventLoopWaiting(completer);
     logger.trace('Waiting for event');
@@ -243,7 +306,8 @@ class EventLoopExtension extends MontyExtension {
   }
 }
 
-/// Exposes internal event-loop state within this package.
+/// The channel state of an [EventLoopExtension]. Internal to dm: the public
+/// barrel exports only [EventLoopExtension].
 extension EventLoopChannel on EventLoopExtension {
   /// Current channel state.
   EventLoopState get channelState => _state.value;
