@@ -1,6 +1,6 @@
 {
   "_dcm_version": "1.39.0",
-  "_grand_total": 116,
+  "_grand_total": 113,
   "checks": {
     "calculate-metrics": {
       "by_file": {
@@ -9,16 +9,14 @@
         "lib/src/extensions/sandbox.dart": 2,
         "lib/src/host/dispatch.dart": 2,
         "lib/src/host/param.dart": 1,
-        "lib/src/host/schema.dart": 1,
-        "lib/src/os_call/os_handlers.dart": 1,
-        "lib/src/runtime/runtime.dart": 2
+        "lib/src/runtime/runtime.dart": 1
       },
       "by_rule": {
         "cyclomatic-complexity": 2,
-        "lines-of-code": 8,
+        "lines-of-code": 5,
         "number-of-methods": 2
       },
-      "total": 12
+      "total": 9
     },
     "check-dependencies": {
       "by_file": {
