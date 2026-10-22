@@ -18,7 +18,7 @@ dart test
 ## Working Against a Local `dart_monty_core` Checkout
 
 When iterating on `dart_monty` and `dart_monty_core` together
-(rather than against the pub.dev release), wire up both halves:
+(rather than against a tagged release), wire up both halves:
 
 1. **Pub resolution** — create `pubspec_overrides.yaml` (gitignored) at
    the repo root pointing pub at your local checkout:
@@ -205,13 +205,8 @@ All code jobs run in parallel except where noted:
 
 ## Release Process
 
-The project is published as a single `dart_monty` package to pub.dev
-using **OIDC automated publishing**. No tokens or secrets needed — GitHub
-Actions generates a short-lived OIDC token that pub.dev verifies directly.
-
-A version tag triggers one workflow:
-
-- `publish_dart_monty.yaml` — publishes to pub.dev via OIDC
+This package is never published to pub.dev. Releases are immutable Git tags;
+there is no publishing workflow or pub.dev release step.
 
 Native artefacts live in `dart_monty_core`. This repository has no native
 code and no release binaries.
@@ -241,36 +236,30 @@ code and no release binaries.
    dart pub publish --dry-run
    ```
 
-### Release (tagging and publishing)
+### Release (tagging)
 
 ```bash
 git tag v<version>
 git push origin v<version>
 ```
 
-This triggers `publish_dart_monty.yaml`, which publishes to pub.dev.
+The pushed tag is the release. Do not delete, move, or recreate a release tag.
 
 ### Post-release verification
 
-1. **Check pub.dev** — verify the new version is live:
-
-   ```bash
-   curl -s https://pub.dev/api/packages/dart_monty | python3 -c \
-     "import sys,json; print(json.load(sys.stdin)['latest']['version'])"
-   ```
-
-2. **Check GitHub Actions**: the publish workflow should show green
-3. **Test downstream**: create a fresh project and add `dart_monty` as a
-   dependency to verify the published package resolves correctly:
+1. **Check GitHub**: verify the tag points at the intended release commit.
+2. **Test downstream**: create a fresh project with the release tag as its
+   Git dependency and run `dart pub get`:
 
    ```bash
    dart create test_install && cd test_install
-   dart pub add dart_monty
+   dart pub add dart_monty --git-url https://github.com/runyaga/dart_monty.git \
+     --git-ref v<version>
    ```
 
 ### Post-release cleanup
 
-After publishing:
+After release:
 
 1. **Reset CHANGELOG** — add `## Unreleased` heading above the just-released
    version in `CHANGELOG.md`
@@ -282,61 +271,23 @@ After publishing:
    git push origin main
    ```
 
-### If a publish fails
+### If a release issue is found
 
-- Check the Actions log for the exact error
-- Fix the issue on `main`
-- **If the version was NOT yet published** — delete the old tag, fix, re-tag
-  on the new commit, and push:
-
-  ```bash
-  git tag -d <tag> && git push origin :refs/tags/<tag>
-  # fix and push to main
-  git tag <tag> && git push origin <tag>
-  ```
-
-- **If the version WAS already published** — bump to the next patch version,
-  update CHANGELOG, commit, and tag the new version. A published version can
-  never be re-published.
+- Fix the issue on `main`, update the version and CHANGELOG, then create a new
+  tag. Existing release tags are immutable and must not be moved or reused.
 
 ### CHANGELOGs
 
 The project has a single `CHANGELOG.md` at the root. During development, add
-entries under `## Unreleased`. Before publishing, rename `## Unreleased` to the
-version heading. pub.dev displays the CHANGELOG entry matching the published
-version as the release notes. Document every breaking change. Pin versions and
-read the changelog before upgrading.
+entries under `## Unreleased`. Before a release, rename `## Unreleased` to the
+version heading. The matching CHANGELOG entry records that tagged release.
+Document every breaking change. Pin versions and read the changelog before
+upgrading.
 
-### pub.dev admin setup (one-time)
+### Release gotchas
 
-The `dart_monty` package is already configured. If reconfiguring:
-
-1. Publish the first version manually with `dart pub publish`
-2. Go to `https://pub.dev/packages/dart_monty/admin`
-3. Enable **Automated publishing** from GitHub Actions
-4. Set **Repository:** `runyaga/dart_monty`
-5. Set **Tag pattern:** `v{{version}}`
-6. Set **Environment:** `pub-dev`
-7. Save
-
-### Publishing gotchas
-
-- **OIDC requires `environment: pub-dev`.** The package on pub.dev is
-  configured with the `pub-dev` environment restriction. The publish
-  workflow must have `environment: pub-dev` on its job — without it,
-  `dart pub publish` fails with `Authentication failed!`.
-- **`pub-dev` environment needs a tag deployment policy.** The GitHub
-  `pub-dev` environment must have a deployment branch policy allowing
-  tags matching `v*`. Without this, tag pushes silently fail to
-  trigger the publish workflow. Check via Settings > Environments >
-  pub-dev > Deployment branches and tags.
-- **Tag filters use glob, not regex.** GitHub Actions `on.push.tags` uses
-  glob matching — `[0-9]+` is literal (matches `1+`), use `[0-9]*` for
-  "one or more digits".
-- **Flutter packages need both actions for OIDC.** `subosito/flutter-action`
-  does not configure OIDC credentials. If the publish workflow uses Flutter,
-  it must also include `dart-lang/setup-dart@v1` to enable `dart pub publish`
-  with OIDC.
+- **Tags are immutable.** If a release needs correction, create a new version
+  and tag; never force-push or move an existing release tag.
 - **Sealed-class exhaustiveness.** Adding a variant to `MontyProgress` (or
   any sealed class) requires updating every `switch` on that type and all
   mock implementations.

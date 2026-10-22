@@ -160,7 +160,6 @@
     <a href="#plugins">Plugins</a>
     <a href="#architecture">Architecture</a>
     <a href="#demos">Demos</a>
-    <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
     <a href="https://github.com/runyaga/dart_monty">GitHub</a>
   </div>
 </nav>
@@ -398,7 +397,8 @@ dart_monty_core (backends)
     <h2>Get Started</h2>
 
     <h3>Install</h3>
-<pre>dart pub add dart_monty</pre>
+<pre>dart pub add dart_monty --git-url https://github.com/runyaga/dart_monty.git \
+  --git-ref vX.Y.Z-dev.N</pre>
 
     <h3>Native</h3>
     <p>Python runs in <code>dart_monty_core</code>'s worker process, found
@@ -431,8 +431,7 @@ cp dart_monty_core/lib/assets/dart_monty_core_worker.wasm web/</pre>
   <div class="container">
     <p>
       dart_monty &mdash;
-      <a href="https://github.com/runyaga/dart_monty">GitHub</a> &middot;
-      <a href="https://pub.dev/packages/dart_monty">pub.dev</a>
+      <a href="https://github.com/runyaga/dart_monty">GitHub</a>
       <br>
       <span id="build-date"></span>
     </p>

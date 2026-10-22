@@ -25,6 +25,31 @@ set -euo pipefail
 PKG="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PKG"
 
+python3 -I - <<'PY'
+import glob
+import re
+import sys
+
+workflows = sorted(glob.glob('.github/workflows/*.y*ml'))
+if not workflows:
+    print('FAIL: no workflow files found', file=sys.stderr)
+    sys.exit(1)
+
+pattern = re.compile(r'\bpub\s+publish\b')
+failed = False
+for path in workflows:
+    with open(path, encoding='utf-8') as workflow:
+        for line_number, line in enumerate(workflow, start=1):
+            if pattern.search(line):
+                print(
+                    f'FAIL: {path}:{line_number}: workflows must not contain pub publish',
+                    file=sys.stderr,
+                )
+                failed = True
+
+sys.exit(1 if failed else 0)
+PY
+
 VERSION=1.7.7
 CACHE="${HOME}/.cache/actionlint-${VERSION}"
 
