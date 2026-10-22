@@ -25,6 +25,31 @@ set -euo pipefail
 PKG="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PKG"
 
+python3 -I - <<'PY'
+import glob
+import re
+import sys
+
+workflows = sorted(glob.glob('.github/workflows/*.y*ml'))
+if not workflows:
+    print('FAIL: no workflow files found', file=sys.stderr)
+    sys.exit(1)
+
+pattern = re.compile(r'\bpub\s+publish\b')
+failed = False
+for path in workflows:
+    with open(path, encoding='utf-8') as workflow:
+        for line_number, line in enumerate(workflow, start=1):
+            if pattern.search(line):
+                print(
+                    f'FAIL: {path}:{line_number}: workflows must not contain pub publish',
+                    file=sys.stderr,
+                )
+                failed = True
+
+sys.exit(1 if failed else 0)
+PY
+
 VERSION=1.7.7
 CACHE="${HOME}/.cache/actionlint-${VERSION}"
 
@@ -58,14 +83,6 @@ if ! "$CACHE" -shellcheck= -pyflakes= .github/workflows/*.yaml .github/workflows
   echo "  A workflow GitHub cannot parse does not fail loudly: it records a"
   echo "  0-job run and STOPS MATCHING ITS TRIGGERS, so PR checks quietly stop"
   echo "  running. Fix the file above before committing."
-  exit 1
-fi
-
-PUBLISH_STEPS="$(rg -n --glob '*.yaml' --glob '*.yml' \
-  'pub[[:space:]]+publish' .github/workflows || true)"
-if [ -n "$PUBLISH_STEPS" ]; then
-  echo "ERROR: workflows must not publish this package to pub.dev:" >&2
-  echo "$PUBLISH_STEPS" >&2
   exit 1
 fi
 

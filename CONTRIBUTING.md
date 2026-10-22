@@ -18,7 +18,7 @@ dart test
 ## Working Against a Local `dart_monty_core` Checkout
 
 When iterating on `dart_monty` and `dart_monty_core` together
-(rather than against the pub.dev release), wire up both halves:
+(rather than against a tagged release), wire up both halves:
 
 1. **Pub resolution** — create `pubspec_overrides.yaml` (gitignored) at
    the repo root pointing pub at your local checkout:
