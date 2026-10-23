@@ -13,6 +13,7 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
+import 'loopback_http.dart';
 
 HostFunction _httpGetFn() => HostFunction(
   schema: const HostFunctionSchema(
@@ -37,14 +38,19 @@ HostFunction _httpGetFn() => HostFunction(
   },
 );
 
-const _url = 'https://demo.toughserv.com/api/v1/installation/versions';
-
 /// The pool the runtime tests check out from.
 late final Monty pool;
 
 void main() {
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
+  late LoopbackHttpServer httpServer;
+  setUpAll(() async {
+    httpServer = await LoopbackHttpServer.start();
+    pool = await startTestPool();
+  });
+  tearDownAll(() async {
+    await pool.close();
+    await httpServer.close();
+  });
 
   test(
     'MontyBridge.execute — 3 sequential HTTP calls',
@@ -56,7 +62,9 @@ void main() {
       final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final events = await bridge.execute('http_get("$_url")').toList();
+        final events = await bridge
+            .execute('http_get("${httpServer.url('/small')}")')
+            .toList();
         final finished = events.whereType<BridgeRunFinished>().firstOrNull;
         print('  bridge.execute call $i: ${finished?.value}');
         expect(finished?.value, isA<String>());
@@ -79,7 +87,9 @@ void main() {
       final bridge = MontyBridge(session: session)..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final events = await bridge.execute('http_get("$_url")').toList();
+        final events = await bridge
+            .execute('http_get("${httpServer.url('/small')}")')
+            .toList();
         final finished = events.whereType<BridgeRunFinished>().firstOrNull;
         print('  bridge call $i value: ${finished?.value}');
         expect(finished?.value, isA<String>());
@@ -99,7 +109,9 @@ void main() {
         ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final result = await session.execute('http_get("$_url")').result;
+        final result = await session
+            .execute('http_get("${httpServer.url('/small')}")')
+            .result;
         print('  session.execute call $i: ${result.dartValue}');
         expect(result.dartValue, isA<String>());
       }
@@ -116,7 +128,9 @@ void main() {
         ..register(_httpGetFn());
 
       for (var i = 1; i <= 3; i++) {
-        final result = await session.execute('http_get("$_url")').result;
+        final result = await session
+            .execute('http_get("${httpServer.url('/small')}")')
+            .result;
         print('  sandbox.execute call $i: ${result.dartValue}');
         expect(result.dartValue, isA<String>());
       }
