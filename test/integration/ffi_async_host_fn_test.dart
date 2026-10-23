@@ -25,11 +25,9 @@ void main() {
   late LoopbackHttpServer httpServer;
   setUpAll(() async {
     httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
     pool = await startTestPool();
-  });
-  tearDownAll(() async {
-    await pool.close();
-    await httpServer.close();
+    addTearDown(pool.close);
   });
 
   group('FFI async host function regression (#271)', () {
@@ -127,7 +125,7 @@ void main() {
             ),
             handler: (args, _) async {
               final url = (args['url']! as MontyString).value;
-              final client = HttpClient();
+              final client = HttpClient()..findProxy = (_) => 'DIRECT';
               try {
                 final request = await client.getUrl(Uri.parse(url));
                 final response = await request.close();
@@ -146,7 +144,7 @@ void main() {
         );
 
         final firstCall = session.execute(
-          'http_get("${httpServer.url('/small')}")',
+          'http_get("${httpServer.url('/slow/small')}")',
         );
         final r1 = await firstCall.result;
         final isString = isA<String>();
@@ -155,7 +153,7 @@ void main() {
 
         // This is the call that crashes on #271
         final secondCall = session.execute(
-          'http_get("${httpServer.url('/small')}")',
+          'http_get("${httpServer.url('/slow/small')}")',
         );
         final r2 = await secondCall.result;
         expect(r2.dartValue, isString);
@@ -180,7 +178,7 @@ void main() {
             ),
             handler: (args, _) async {
               final url = (args['url']! as MontyString).value;
-              final client = HttpClient();
+              final client = HttpClient()..findProxy = (_) => 'DIRECT';
               try {
                 final request = await client.getUrl(Uri.parse(url));
                 final response = await request.close();
@@ -199,14 +197,14 @@ void main() {
         );
 
         final firstCall = session.execute(
-          'http_get("${httpServer.url('/small')}")',
+          'http_get("${httpServer.url('/slow/small')}")',
         );
         final r1 = await firstCall.result;
         final isString = isA<String>();
         expect(r1.dartValue, isString);
 
         final secondCall = session.execute(
-          'http_get("${httpServer.url('/small')}")',
+          'http_get("${httpServer.url('/slow/small')}")',
         );
         final r2 = await secondCall.result;
         expect(r2.dartValue, isString);
@@ -316,7 +314,7 @@ void main() {
             ),
             handler: (args, _) async {
               final url = (args['url']! as MontyString).value;
-              final client = HttpClient();
+              final client = HttpClient()..findProxy = (_) => 'DIRECT';
               try {
                 final request = await client.getUrl(Uri.parse(url));
                 final response = await request.close();
@@ -332,13 +330,13 @@ void main() {
         );
 
         final firstCall = session.execute(
-          'http_tiny("${httpServer.url('/small')}")',
+          'http_tiny("${httpServer.url('/slow/small')}")',
         );
         final r1 = await firstCall.result;
         expect(r1.dartValue, 200);
 
         final secondCall = session.execute(
-          'http_tiny("${httpServer.url('/small')}")',
+          'http_tiny("${httpServer.url('/slow/small')}")',
         );
         final r2 = await secondCall.result;
         expect(r2.dartValue, 200);
@@ -363,7 +361,7 @@ void main() {
             ),
             handler: (args, _) async {
               final url = (args['url']! as MontyString).value;
-              final client = HttpClient();
+              final client = HttpClient()..findProxy = (_) => 'DIRECT';
               try {
                 final request = await client.getUrl(Uri.parse(url));
                 final response = await request.close();
@@ -380,14 +378,14 @@ void main() {
         );
 
         final firstCall = session.execute(
-          'http_large("${httpServer.url('/large')}")',
+          'http_large("${httpServer.url('/slow/large')}")',
         );
         final r1 = await firstCall.result;
         final v1 = r1.dartValue! as String;
         expect(v1.length, greaterThan(10));
 
         final secondCall = session.execute(
-          'http_large("${httpServer.url('/large')}")',
+          'http_large("${httpServer.url('/slow/large')}")',
         );
         final r2 = await secondCall.result;
         expect(r2.dartValue, isA<String>());

@@ -28,11 +28,9 @@ void main() {
   late LoopbackHttpServer httpServer;
   setUpAll(() async {
     httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
     pool = await startTestPool();
-  });
-  tearDownAll(() async {
-    await pool.close();
-    await httpServer.close();
+    addTearDown(pool.close);
   });
 
   test(
@@ -78,7 +76,7 @@ void main() {
                   description: 'Real HTTP GET',
                 ),
                 handler: (_, _) async {
-                  final client = HttpClient();
+                  final client = HttpClient()..findProxy = (_) => 'DIRECT';
                   try {
                     final req = await client.getUrl(
                       Uri.parse(httpServer.url('/small')),

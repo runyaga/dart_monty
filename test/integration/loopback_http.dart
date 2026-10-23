@@ -36,10 +36,17 @@ class LoopbackHttpServer {
       return;
     }
 
+    final path = request.uri.path;
+    final isSlow = path.startsWith('/slow/');
+    final responsePath = isSlow ? path.substring('/slow'.length) : path;
+    if (isSlow) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+
     request.response
       ..statusCode = HttpStatus.ok
       ..headers.contentType = ContentType.json
-      ..write(request.uri.path == '/large' ? _largeJson : _json);
+      ..write(responsePath == '/large' ? _largeJson : _json);
     await request.response.close();
   }
 }

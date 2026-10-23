@@ -23,7 +23,7 @@ HostFunction _httpGetFn() => HostFunction(
   ),
   handler: (args, _) async {
     final url = (args['url']! as MontyString).value;
-    final client = HttpClient();
+    final client = HttpClient()..findProxy = (_) => 'DIRECT';
     try {
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();
@@ -45,11 +45,9 @@ void main() {
   late LoopbackHttpServer httpServer;
   setUpAll(() async {
     httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
     pool = await startTestPool();
-  });
-  tearDownAll(() async {
-    await pool.close();
-    await httpServer.close();
+    addTearDown(pool.close);
   });
 
   test(
