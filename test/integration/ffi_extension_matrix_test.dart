@@ -20,12 +20,18 @@ import 'package:test/test.dart';
 
 import '_worker.dart';
 import 'kv_stub_functions.dart';
+import 'loopback_http.dart';
 import 'template_stub_extension.dart';
 
 void main() {
   late Monty pool;
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
+  late LoopbackHttpServer httpServer;
+  setUpAll(() async {
+    httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
+    pool = await startTestPool();
+    addTearDown(pool.close);
+  });
 
   test(
     'FFI plugin matrix — 30 experiments in one session',
@@ -70,13 +76,10 @@ void main() {
                   description: 'Real HTTP GET',
                 ),
                 handler: (_, _) async {
-                  final client = HttpClient();
+                  final client = HttpClient()..findProxy = (_) => 'DIRECT';
                   try {
                     final req = await client.getUrl(
-                      Uri.parse(
-                        'https://demo.toughserv.com'
-                        '/api/v1/installation/versions',
-                      ),
+                      Uri.parse(httpServer.url('/small')),
                     );
                     final resp = await req.close();
                     final body = await resp

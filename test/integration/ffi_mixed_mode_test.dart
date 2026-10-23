@@ -22,6 +22,7 @@ import 'package:test/test.dart';
 import '_printed.dart';
 import '_worker.dart';
 import 'kv_stub_functions.dart';
+import 'loopback_http.dart';
 import 'template_stub_extension.dart';
 
 // ---------------------------------------------------------------------------
@@ -48,19 +49,15 @@ HostFunction delayFn() => HostFunction(
   },
 );
 
-HostFunction httpFn() => HostFunction(
+HostFunction httpFn(String url) => HostFunction(
   schema: const HostFunctionSchema(
     name: 'http_fn',
     description: 'Real HTTP GET',
   ),
   handler: (_, _) async {
-    final client = HttpClient();
+    final client = HttpClient()..findProxy = (_) => 'DIRECT';
     try {
-      final req = await client.getUrl(
-        Uri.parse(
-          'https://demo.toughserv.com/api/v1/installation/versions',
-        ),
-      );
+      final req = await client.getUrl(Uri.parse(url));
       final resp = await req.close();
       final body = await resp.transform(const SystemEncoding().decoder).join();
 
@@ -102,8 +99,15 @@ HostFunction accumFn() {
 
 void main() {
   late Monty pool;
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
+  late LoopbackHttpServer httpServer;
+  setUpAll(() async {
+    httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
+    pool = await startTestPool();
+    addTearDown(pool.close);
+  });
+
+  HostFunction http() => httpFn(httpServer.url('/small'));
 
   // ========================================================================
   // G. Shared mode — stress tests
@@ -137,7 +141,7 @@ void main() {
     test(
       '10 sequential http execute calls',
       () async {
-        final s = (await MontyRuntime.start(pool: pool))..register(httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(http());
         addTearDown(s.dispose);
         var passed = 0;
         for (var i = 0; i < 10; i++) {
@@ -201,7 +205,7 @@ void main() {
       () async {
         final s = (await MontyRuntime.start(pool: pool))
           ..register(syncFn())
-          ..register(httpFn());
+          ..register(http());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;
         // Raises.
@@ -269,7 +273,7 @@ content = Path("/data.txt").read_text()
         final s = (await MontyRuntime.start(
           pool: pool,
           extensions: [TemplateStubExtension()],
-        ))..register(httpFn());
+        ))..register(http());
         addTearDown(s.dispose);
         await s.execute('data = http_fn()').result;
         await s
@@ -288,7 +292,7 @@ content = Path("/data.txt").read_text()
       'H5. HTTP + counter across calls',
       () async {
         final s = (await MontyRuntime.start(pool: pool))
-          ..register(httpFn())
+          ..register(http())
           ..register(counterFn());
         addTearDown(s.dispose);
         final firstHttp = s.execute('http_fn()');
@@ -311,7 +315,7 @@ content = Path("/data.txt").read_text()
         final s = (await MontyRuntime.start(
           pool: pool,
           osHandlers: {'Path.': OSAccess().call},
-        ))..register(httpFn());
+        ))..register(http());
         kvStubFunctions(kv, storedResult: 'ok').forEach(s.register);
         addTearDown(s.dispose);
 

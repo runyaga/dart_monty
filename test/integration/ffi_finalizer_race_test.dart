@@ -17,20 +17,17 @@ import 'package:dart_monty/dart_monty.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
+import 'loopback_http.dart';
 
-HostFunction _httpFn() => HostFunction(
+HostFunction _httpFn(String url) => HostFunction(
   schema: const HostFunctionSchema(
     name: 'http_fn',
     description: 'HTTP GET',
   ),
   handler: (_, _) async {
-    final client = HttpClient();
+    final client = HttpClient()..findProxy = (_) => 'DIRECT';
     try {
-      final req = await client.getUrl(
-        Uri.parse(
-          'https://demo.toughserv.com/api/v1/installation/versions',
-        ),
-      );
+      final req = await client.getUrl(Uri.parse(url));
       final resp = await req.close();
       final body = await resp.transform(const SystemEncoding().decoder).join();
 
@@ -51,8 +48,15 @@ HostFunction _syncFn() => HostFunction(
 
 void main() {
   late Monty pool;
-  setUpAll(() async => pool = await startTestPool());
-  tearDownAll(() => pool.close());
+  late LoopbackHttpServer httpServer;
+  setUpAll(() async {
+    httpServer = await LoopbackHttpServer.start();
+    addTearDown(httpServer.close);
+    pool = await startTestPool();
+    addTearDown(pool.close);
+  });
+
+  HostFunction http() => _httpFn(httpServer.url('/small'));
 
   group('NativeFinalizer handle race (#271)', () {
     test(
@@ -66,7 +70,7 @@ void main() {
         }
 
         // 6th session with HTTP — crashed before the fix.
-        final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(http());
         final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  result: ${r.dartValue}');
@@ -79,7 +83,7 @@ void main() {
       'create/dispose 10 sessions with HTTP each',
       () async {
         for (var i = 0; i < 10; i++) {
-          final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
+          final s = (await MontyRuntime.start(pool: pool))..register(http());
           final r = await s.execute('http_fn()').result;
           await s.dispose();
           expect(r.dartValue, isA<String>());
@@ -95,7 +99,7 @@ void main() {
         for (var i = 0; i < 10; i++) {
           final s = (await MontyRuntime.start(pool: pool))
             ..register(_syncFn())
-            ..register(_httpFn());
+            ..register(http());
           if (i.isEven) {
             await s.execute('sync_fn()').result;
           } else {
@@ -118,7 +122,7 @@ void main() {
         }
 
         // Then one real session with HTTP.
-        final s = (await MontyRuntime.start(pool: pool))..register(_httpFn());
+        final s = (await MontyRuntime.start(pool: pool))..register(http());
         final r = await s.execute('http_fn()').result;
         await s.dispose();
         print('  survived 20 rapid dispose + 1 HTTP');
@@ -131,7 +135,7 @@ void main() {
       'sandbox mode: 10 execute calls with HTTP',
       () async {
         final s = (await MontyRuntime.start(pool: pool, sandbox: true))
-          ..register(_httpFn());
+          ..register(http());
         for (var i = 0; i < 10; i++) {
           final r = await s.execute('http_fn()').result;
           expect(r.dartValue, isA<String>());
