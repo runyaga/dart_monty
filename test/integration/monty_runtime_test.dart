@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:dart_monty/src/extension/coordinator.dart';
 import 'package:dart_monty/src/runtime/runtime.dart' show runtimeCoordinator;
+import 'package:dart_monty_core/dart_monty_core.dart' show MontyHostFunction;
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -23,6 +24,128 @@ void main() {
   late Monty pool;
   setUpAll(() async => pool = await startTestPool());
   tearDownAll(() => pool.close());
+
+  group('runtime external modules', () {
+    final modules = <String, Object?>{
+      'host_tools': ExternalModule({
+        'answer': MontyHostFunction('answer', (_, _) => const MontyInt(42)),
+      }),
+    };
+
+    test('shared session retains its imported module', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        externalModules: modules,
+      );
+      addTearDown(runtime.dispose);
+      expect(await runtime.execute(_moduleCode).result, const MontyInt(42));
+      expect(
+        await runtime.execute('host_tools.answer()').result,
+        const MontyInt(42),
+      );
+    });
+
+    test('fresh executions resolve module factories each time', () async {
+      var resolutions = 0;
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        sandbox: true,
+        externalModules: {
+          'host_tools': () {
+            resolutions++;
+            return modules['host_tools'];
+          },
+        },
+      );
+      addTearDown(runtime.dispose);
+      expect(await runtime.execute(_moduleCode).result, const MontyInt(42));
+      expect(await runtime.execute(_moduleCode).result, const MontyInt(42));
+      expect(resolutions, 2);
+    });
+
+    test('clearState replacement receives modules', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        externalModules: modules,
+      );
+      addTearDown(runtime.dispose);
+      expect(await runtime.execute(_moduleCode).result, const MontyInt(42));
+      await runtime.clearState();
+      expect(await runtime.execute(_moduleCode).result, const MontyInt(42));
+    });
+
+    test('sub-execution cannot import parent modules', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        externalModules: modules,
+        extensions: [_ModuleProbeExtension()],
+      );
+      addTearDown(runtime.dispose);
+      await expectLater(
+        runtime.execute('module_probe_run()').result,
+        throwsA(
+          predicate<Object>(
+            (error) => error.toString().contains('ModuleNotFoundError'),
+          ),
+        ),
+      );
+    });
+
+    test('sandbox child cannot import parent modules', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        externalModules: modules,
+        extensions: [SandboxExtension()],
+      );
+      addTearDown(runtime.dispose);
+      await expectLater(
+        runtime.execute(r'''
+child = sandbox_spawn(code="import host_tools\nhost_tools.answer()")
+sandbox_await(handle=child)
+''').result,
+        throwsA(
+          predicate<Object>(
+            (error) => error.toString().contains('ModuleNotFoundError'),
+          ),
+        ),
+      );
+    });
+
+    test('sandbox child imports only explicitly granted modules', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        externalModules: modules,
+        extensions: [
+          SandboxExtension(
+            childExternalModules: {
+              'child_tools': modules['host_tools'],
+            },
+          ),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      expect(
+        await runtime.execute(r'''
+child = sandbox_spawn(code="import child_tools\nchild_tools.answer()")
+a = sandbox_await(handle=child)
+sandbox_free(handle=child)
+a
+''').result,
+        const MontyInt(42),
+      );
+      await expectLater(
+        runtime.execute(r'''
+child = sandbox_spawn(code="import host_tools\nhost_tools.answer()")
+sandbox_await(handle=child)
+''').result,
+        throwsA(
+          predicate<Object>(
+            (error) => error.toString().contains('ModuleNotFoundError'),
+          ),
+        ),
+      );
+    });
+  });
 
   group('MontyRuntime stateful execution', () {
     late MontyRuntime session;
@@ -1096,4 +1219,26 @@ class _TrackingExtension extends MontyExtension {
     onDisposeCalled = true;
     disposeCount++;
   }
+}
+
+const _moduleCode = 'import host_tools\nhost_tools.answer()';
+
+final class _ModuleProbeExtension extends MontyExtension {
+  @override
+  String get namespace => 'module_probe';
+
+  @override
+  ChildPolicy get childPolicy => ChildPolicy.clone;
+
+  @override
+  MontyExtension createChildInstance(ChildSpawnContext context) =>
+      _ModuleProbeExtension();
+
+  @override
+  List<HostFunction> get functions => [
+    HostFunction(
+      schema: const HostFunctionSchema(name: 'module_probe_run'),
+      handler: (_, context) => context.subExecute!(_moduleCode),
+    ),
+  ];
 }

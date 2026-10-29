@@ -1,6 +1,8 @@
 # Installation
 
-`dart_monty` and `dart_monty_core` resolve from their Git tags.
+`dart_monty` uses branch `port-0.120`. Its core dependency is pinned to
+commit `29d1f4a` on branch 0.120, with upstream pydantic/monty 1.2.0.
+The core pin is not a release.
 `dart_monty_core` is not available from pub.dev, and
 `dependency_overrides` in a dependency's pubspec do not apply to your package,
 so the root pubspec overrides the core source:
@@ -10,17 +12,18 @@ dependencies:
   dart_monty:
     git:
       url: https://github.com/runyaga/dart_monty.git
-      ref: v0.110.0-dev.4
+      ref: port-0.120
 
 dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: v0.110.0-dev.4
+      ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc
 ```
 
 A package that imports core names directly also lists
-`dart_monty_core: ^0.110.0-dev.4` under `dependencies`.
+`dart_monty_core: any` under `dependencies`; the root Git override above
+selects the exact core commit.
 
 Run `dart pub get` after editing `pubspec.yaml`.
 
@@ -35,13 +38,20 @@ For local worktree development, use `path:` dependencies for both packages.
 
 ### Native (Desktop, Server, and Flutter)
 
-`dart pub get` resolves dependencies. `dart run`, `dart test`, and `dart build`
-invoke core's build hook. The hook installs the verified prebuilt worker for the
-host from the core release in a cache. A Rust toolchain is not required.
+The core branch 0.120 pin has no prebuilt native worker. After `dart pub get`,
+resolve `dart_monty_core` via `.dart_tool/package_config.json` (`rootUri`) and
+run `bash tool/build_worker.sh` in that checkout with Rust stable installed
+before native tests/examples. Resolve a relative `rootUri` against the
+package configuration file's URI. CI builds the worker from the same pin.
 
 Core's public pool declaration describes how to select an explicit worker
-location. `MountDir` needs the native mount library and the `dart_monty_core`
-`build_worker` hook opt-in in the root package.
+location. `MountDir` also needs the native mount library; see
+[Deployment](deployment.md).
+
+### Browser assets
+
+The browser needs no extra build or download. Core's committed `lib/assets`
+contains the Web Worker and WASM assets; serve or bundle them as below.
 
 ### Flutter Web
 

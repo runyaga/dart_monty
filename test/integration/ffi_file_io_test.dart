@@ -43,6 +43,40 @@ text
       expect(r.dartValue, 'a\nb\nc\n');
     });
 
+    test('open file iteration shares its read position', () async {
+      final runtime = await MontyRuntime.start(
+        pool: pool,
+        osHandlers: {'Path.': OSAccess().call},
+      );
+      addTearDown(runtime.dispose);
+      final result = await runtime.execute(r'''
+with open('/iteration.txt', 'w') as handle:
+    handle.write('first\nsecond\nthird\nfourth')
+with open('/iteration.txt') as handle:
+    same_iterator = iter(handle) is handle
+    first = next(handle)
+    second = handle.readline()
+    remaining = [line for line in handle]
+    end = next(handle, 'EOF')
+    try:
+        next(handle)
+        stopped = False
+    except StopIteration:
+        stopped = True
+(same_iterator, first, second, remaining, end, stopped)
+''').result;
+      // Measured on the 1.2.0 worker: (True, "first\n", "second\n",
+      // ["third\n", "fourth"], "EOF", True).
+      expect(result.dartValue, [
+        true,
+        'first\n',
+        'second\n',
+        ['third\n', 'fourth'],
+        'EOF',
+        true,
+      ]);
+    });
+
     test('binary round-trip is byte-faithful', () async {
       final rt = await MontyRuntime.start(
         pool: pool,

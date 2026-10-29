@@ -22,6 +22,7 @@
   "EventLoopExtension",
   "ExecutionHandle",
   "ExternalException",
+  "ExternalModule",
   "Frame",
   "FrameTooLargeException",
   "HostContext",

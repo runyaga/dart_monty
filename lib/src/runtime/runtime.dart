@@ -23,7 +23,10 @@ import 'package:meta/meta.dart';
 
 /// Checks out a session from a runtime's pool, with [limits] when given.
 typedef _RuntimeCheckout =
-    Future<MontySession> Function({ResourceLimits? limits});
+    Future<MontySession> Function({
+      required Map<String, Object?>? externalModules,
+      ResourceLimits? limits,
+    });
 
 /// Sizes an owned pool for root, sub-execution, and sandbox child sessions.
 @visibleForTesting
@@ -69,9 +72,14 @@ final class _ChildExecutionContext {
   final _Execution? origin;
   final CancelToken token = CancelToken();
   final Completer<void> _finished = Completer<void>();
-  Future<MontySession> checkout() async {
+  Future<MontySession> checkout({
+    required Map<String, Object?>? externalModules,
+  }) async {
     if (!isValid) throw StateError('Child origin is no longer live');
-    final session = await runtime._checkout(limits: limits);
+    final session = await runtime._checkout(
+      limits: limits,
+      externalModules: externalModules,
+    );
     if (!isValid) {
       await session.close();
       throw StateError('Child origin ended during checkout');
@@ -148,7 +156,8 @@ Future<MontyRuntime> startRuntimeWith({
 
   return MontyRuntime._start(
     MontyRuntime._(
-      checkout: checkout,
+      checkout: ({required externalModules, limits}) =>
+          checkout(limits: limits),
       closePool: closePool,
       os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
       extensions: extensions,
@@ -169,13 +178,15 @@ class MontyRuntime implements MontyRuntimeRef {
     required BridgeLogger? logger,
     required bool sandbox,
     required ResourceLimits? limits,
+    Map<String, Object?>? externalModules,
   }) : _checkout = checkout,
        _closePool = closePool,
        _os = os,
        _extensions = extensions,
        _logger = logger,
        _sandbox = sandbox,
-       _limits = limits;
+       _limits = limits,
+       _externalModules = externalModules;
 
   /// Bounds checkout from a pool created by the runtime.
   static const Duration defaultCheckoutTimeout = Duration(seconds: 30);
@@ -187,6 +198,7 @@ class MontyRuntime implements MontyRuntimeRef {
   final BridgeLogger? _logger;
   final bool _sandbox;
   final ResourceLimits? _limits;
+  final Map<String, Object?>? _externalModules;
 
   // Shared mode: the held session, its bridge and the coordinator.
   SessionBridge? _sharedBridge;
@@ -231,6 +243,14 @@ class MontyRuntime implements MontyRuntimeRef {
   /// and closes on [dispose]. An injected [pool] must use a finite
   /// `checkoutTimeout` so acquisition remains bounded. Supplied extensions
   /// attach before first [execute] or [invoke] use.
+  ///
+  /// [externalModules] maps import names to [ExternalModule] values or
+  /// zero-argument factories returning modules, optionally through futures.
+  /// Core reads the map live and caches successful factory results per session.
+  /// Root sessions receive it: shared, fresh with [sandbox], and replacement
+  /// sessions after state clearing or session loss. Sub-executions get none.
+  /// Sandbox children get only [SandboxExtension.childExternalModules] and
+  /// never inherit this map.
   // ignore: number-of-parameters, the public options of a runtime.
   static Future<MontyRuntime> start({
     Monty? pool,
@@ -240,6 +260,7 @@ class MontyRuntime implements MontyRuntimeRef {
     BridgeLogger? logger,
     bool sandbox = false,
     ResourceLimits? limits,
+    Map<String, Object?>? externalModules,
   }) async {
     assert(
       os == null || osHandlers == null,
@@ -257,6 +278,7 @@ class MontyRuntime implements MontyRuntimeRef {
       return await _start(
         MontyRuntime._(
           checkout: monty.checkout,
+          externalModules: externalModules,
           closePool: owned ? monty.close : null,
           os: os ?? (osHandlers != null ? composeOsHandlers(osHandlers) : null),
           extensions: extensions,
@@ -419,7 +441,7 @@ class MontyRuntime implements MontyRuntimeRef {
     if (_subExecutionStopReason(generation, cancelToken) case final reason?) {
       throw StateError(reason);
     }
-    final session = await _checkout(limits: limits);
+    final session = await _checkout(limits: limits, externalModules: null);
     if (_subExecutionStopReason(generation, cancelToken) case final reason?) {
       await session.close();
       throw StateError(reason);
@@ -647,7 +669,8 @@ class MontyRuntime implements MontyRuntimeRef {
   }
 
   /// A checkout of a root session, with the runtime's limits.
-  Future<MontySession> _checkoutRoot() => _checkout(limits: _limits);
+  Future<MontySession> _checkoutRoot() =>
+      _checkout(limits: _limits, externalModules: _externalModules);
 
   /// Rejects a shared checkout that completes after disposal.
   Future<MontySession> _checkoutLive() async {

@@ -6,6 +6,7 @@
   "CollectString",
   "ExternalException",
   "ExternalFuture",
+  "ExternalModule",
   "ExternalResult",
   "ExternalReturnValue",
   "ExternalSettledResult",

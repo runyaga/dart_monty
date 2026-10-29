@@ -32,6 +32,29 @@ void main() {
     if (base.existsSync()) base.deleteSync(recursive: true);
   });
 
+  test('Path.rename returns its Python value through a workspace', () async {
+    final workspace = Workspace(
+      sandboxBaseDir: base.path,
+      files: {'seed': 'contents'},
+    );
+    addTearDown(workspace.dispose);
+    final result = await workspace.driver(session)('''
+from pathlib import Path
+renamed = Path('seed').rename('moved')
+(type(renamed).__name__, str(renamed), repr(renamed),
+ Path('seed').exists(), Path('moved').read_text())
+''');
+    // Measured on the 1.2.0 worker: ("PosixPath", "moved",
+    // "PosixPath('moved')", False, "contents"); rename returns a relative Path.
+    expect(result.dartValue, [
+      'PosixPath',
+      'moved',
+      "PosixPath('moved')",
+      false,
+      'contents',
+    ]);
+  });
+
   test('N2-intercept-before-mount', () async {
     final workspace = Workspace(
       sandboxBaseDir: base.path,

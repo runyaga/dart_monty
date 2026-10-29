@@ -28,3 +28,48 @@ See [Runtime concurrency](../deep-dives/bridge-concurrency.md),
 [Extension system](../deep-dives/extension-system.md), and
 [Failure propagation](../deep-dives/error-hierarchy.md) for cross-call
 guarantees.
+
+## Host modules
+
+The facade exports `ExternalModule`, `Monty`, and `MontyRuntime`. An
+`ExternalModule` gives Python an importable module of host attributes,
+including values, callables, and nested modules. Its constructor makes a
+shallow copy of the attributes; names starting with `_` are protected.
+Optional `stubs` supplies `.pyi` source for type checking. Pass modules through
+`externalModules`, not as ordinary execution inputs.
+
+`Monty.checkout(externalModules:)` and `Monty.withSession(externalModules:)`
+accept a map from module names to `ExternalModule` values or zero-argument
+factories returning modules. A factory may return a future. Core reads the
+map live; successful factory results are cached for the session, and failed
+factories can be retried by the next request.
+
+`MontyRuntime.start(externalModules:)` supplies the map to root sessions:
+the shared session, fresh sessions with `sandbox: true`, and replacement
+sessions after state clearing or session loss. `HostContext.subExecute`
+receives no modules. Sandbox children receive only
+`SandboxExtension.childExternalModules`; they never inherit the parent
+runtime's map. The child map accepts the same module values and factories,
+and defaults to no modules.
+
+```dart
+import 'package:dart_monty/dart_monty.dart';
+
+Future<void> main() async {
+  final runtime = await MontyRuntime.start(
+    externalModules: {'settings': ExternalModule({'answer': 42})},
+  );
+  try {
+    final result = await runtime
+        .execute('import settings\nsettings.answer')
+        .result;
+    assert(result.dartValue == 42, 'The module supplies its answer');
+  } finally {
+    await runtime.dispose();
+  }
+}
+```
+
+See core's [ExternalModule API comments](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/lib/src/platform/monty_value_structured.dart#L497),
+[checkout and withSession API comments](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/lib/src/worker/monty.dart#L105),
+and [module divergence and dispatch rules](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/docs/reference/upstream-divergences.md#external-modules-the-dart-model).
