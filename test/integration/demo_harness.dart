@@ -112,9 +112,10 @@ class DemoServer {
 
   Future<void> _answer(HttpRequest request) async {
     final requestPath = request.uri.path;
-    final relative = requestPath.endsWith('/')
-        ? '${requestPath}index.html'
-        : requestPath;
+    final sitePath = requestPath.replaceFirst('/dart_monty/', '/');
+    final relative = sitePath.endsWith('/')
+        ? '${sitePath}index.html'
+        : sitePath;
     final resolved = p.canonicalize(
       p.join(_root, relative.replaceFirst(RegExp('^/+'), '')),
     );
@@ -124,6 +125,10 @@ class DemoServer {
     requests.add(ServedRequest(status, requestPath));
 
     final response = request.response..statusCode = status;
+    if (Platform.environment['DEMO_COI_HEADERS'] == '1') {
+      response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+      response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    }
     if (found) {
       response.headers.set(
         HttpHeaders.contentTypeHeader,
@@ -415,7 +420,9 @@ class Chrome {
       }),
     );
 
-    return completer.future.timeout(timeout);
+    return completer.future.timeout(timeout).onError((error, stack) {
+      Error.throwWithStackTrace(StateError('CDP $method: $error'), stack);
+    });
   }
 
   /// Loads [url] in a fresh tab and waits for its boot signal.
@@ -428,6 +435,7 @@ class Chrome {
     String page,
     String url, {
     Duration timeout = const Duration(seconds: 60),
+    bool reference = false,
   }) async {
     final stopwatch = Stopwatch()..start();
     final created = await send(
@@ -508,7 +516,19 @@ class Chrome {
       final deadline = DateTime.now().add(timeout);
       var readyState = '<unknown>';
       while (DateTime.now().isBefore(deadline)) {
-        final probe = await _probeBoot(sessionId);
+        final probe = reference
+            ? jsonDecode(
+                    (await _evaluateString(
+                      sessionId,
+                      'JSON.stringify({ready: '
+                      "document.querySelector('#site-nav nav') && "
+                      "document.querySelector('h1,h2') ? 'reference' : null, "
+                      'error:null, readyState:document.readyState, '
+                      'hasRunner:false, keys:[]})',
+                    ))!,
+                  )
+                  as Map<String, dynamic>
+            : await _probeBoot(sessionId);
         if (probe != null) {
           ready = probe['ready'] as String?;
           error = probe['error'] as String?;
@@ -536,7 +556,72 @@ class Chrome {
           examples.add(await _runExample(sessionId, key));
         }
       }
+      if (!reference && ready != null && error == null) {
+        final controls = await _evaluateString(
+          sessionId,
+          '(async () => { '
+          "if (typeof window.__montyCheckControls === 'function') { "
+          "await window.__montyCheckControls(); return 'ok'; } "
+          "return 'absent'; })()",
+          awaitPromise: true,
+          timeout: const Duration(minutes: 3),
+        );
+        if (controls != 'ok') {
+          consoleErrors.add('Required Reset/Start assertion is absent');
+        }
+      }
+      if (reference && page == 'landing.html') {
+        await _evaluateString(sessionId, """
+(async () => {
+ const input = document.querySelector('[data-md-component="search-query"]');
+ if (!input) throw Error('Search input missing');
+ const toggle = document.querySelector('[data-md-toggle="search"]');
+ if (toggle) toggle.checked = true;
+ input.focus(); input.value = 'runtime';
+ input.dispatchEvent(new Event('input', {bubbles:true}));
+ const until = Date.now() + 15000;
+ while (!document.querySelector('[data-md-component="search-result"] a') && Date.now() < until) await new Promise(r => setTimeout(r, 100));
+ if (!document.querySelector('[data-md-component="search-result"] a')) throw Error('Search returned no runtime results');
+ return 'ok';
+})()
+""", awaitPromise: true);
+      }
+    } on Object catch (e) {
+      error = 'Driver/control assertion: $e';
     } finally {
+      final evidence = Directory('build/demo-smoke-evidence')
+        ..createSync(recursive: true);
+      final label = page.replaceAll(RegExp('[^a-zA-Z0-9_.-]'), '_');
+      File('${evidence.path}/$label.json').writeAsStringSync(
+        jsonEncode({
+          'url': url,
+          'ready': ready,
+          'error': error,
+          'console': consoleErrors,
+          'exceptions': exceptions,
+          'examples': [
+            for (final run in examples)
+              {'key': run.key, 'ok': run.ok, 'detail': run.detail},
+          ],
+        }),
+      );
+      if (ready == null ||
+          error != null ||
+          consoleErrors.isNotEmpty ||
+          exceptions.isNotEmpty ||
+          examples.any((run) => !run.ok)) {
+        try {
+          final screenshot = await send(
+            'Page.captureScreenshot',
+            sessionId: sessionId,
+          );
+          File(
+            '${evidence.path}/$label.png',
+          ).writeAsBytesSync(base64Decode(screenshot['data'] as String));
+        } on Object catch (_) {
+          // A destroyed target may have no image; JSON evidence still exists.
+        }
+      }
       // Give any error the page raised in its last instant a chance to be
       // delivered before the listener is torn down.
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -692,25 +777,17 @@ class Chrome {
 /// A glob that matches nothing is a FAILURE, never an empty pass: that is how
 /// a rename turns a gate into a no-op that still reports success.
 List<String> trackedFiles(String pattern) {
-  final result = Process.runSync('git', ['ls-files', pattern]);
-  if (result.exitCode != 0) {
-    throw StateError(
-      'git ls-files $pattern failed (${result.exitCode}): ${result.stderr}',
-    );
-  }
+  final directory = Directory(p.dirname(pattern));
+  final suffix = p.basename(pattern).replaceFirst('*', '');
   final files =
-      (result.stdout as String)
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
+      directory
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith(suffix))
+          .map((f) => f.path)
           .toList()
         ..sort();
-  if (files.isEmpty) {
-    throw StateError(
-      "git ls-files '$pattern' matched nothing. A glob that stopped matching "
-      'would make this gate verify nothing at all, so it fails instead.',
-    );
-  }
+  if (files.isEmpty) throw StateError('No files match $pattern');
 
   return files;
 }

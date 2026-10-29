@@ -1,0 +1,20 @@
+[
+  "fixtures/tier_01_expressions.json",
+  "fixtures/tier_02_variables.json",
+  "fixtures/tier_03_control_flow.json",
+  "fixtures/tier_04_functions.json",
+  "fixtures/tier_05_errors.json",
+  "fixtures/tier_06_external_fns.json",
+  "fixtures/tier_07_advanced.json",
+  "fixtures/tier_08_kwargs.json",
+  "fixtures/tier_09_exceptions.json",
+  "fixtures/tier_10_math_module.json",
+  "fixtures/tier_11_re_module.json",
+  "fixtures/tier_12_monty_008_features.json",
+  "fixtures/tier_13_async.json",
+  "fixtures/tier_15_script_name.json",
+  "fixtures/tier_16_memory_growth.json",
+  "fixtures/tier_17_json_module.json",
+  "fixtures/tier_18_datetime_module.json",
+  "fixtures/tier_19_lifecycle_errors.json"
+]

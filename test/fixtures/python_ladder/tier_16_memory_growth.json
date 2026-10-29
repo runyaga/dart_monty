@@ -13,7 +13,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "20M-element list needs ~320MB, exceeds 256MB default LimitedTracker limit"
+    "xfail": null
   },
   {
     "id": 201,

@@ -51,7 +51,10 @@ plugins:
         IMPORTANT: Monty does NOT support `class`, decorators (`@foo`),
         generators (`yield`), `match`/`case`, `del`, or arbitrary
         imports. Use dicts + module-level functions in place of classes.
-        Stdlib: `math`, `re`, `json`, `datetime`, `pathlib`.
+        Stdlib includes `math`, `re`, `json`, `datetime`, `pathlib`,
+        `bisect`, `csv`, `hashlib`, `os.path`, and `tomllib`.
+        Runtime demos cover memory files and explicit child module grants;
+        see dart_monty_core for engine examples and compatibility.
 
         Use a session from `checkout(typeCheck: true)` to
         catch subset violations as typed errors before runtime — the

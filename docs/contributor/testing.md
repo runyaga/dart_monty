@@ -72,3 +72,34 @@ also runs the default suite, analysis, formatting, and focused checks.
 Test selection follows the directories and tags under `test/`. Look at
 `dart_test.yaml`, `tool/test_cell.sh`, and `tool/test_floors.tsv` for the
 current suite definitions and platform floors.
+
+
+## Runtime Pages artifact checks
+
+Run `bash tool/check_demo_pages.sh` with the Dart SDK, the locked documentation
+packages (`pip install -r requirements-docs.lock`) and Chrome available. The
+command builds MkDocs, compiles every web entry point with explicit package
+resolution, copies the resolved core worker, checks links and writes
+`build/demo-site/page-manifest.json`. Use `--build-only` to create a review
+artifact, or `--smoke-only` to test that assembled artifact without recompiling.
+
+The browser checks every runtime page and catalog example, Reset, sorting Start
+for each algorithm, reference navigation and documentation search. It serves
+under `/dart_monty/` and clears origin storage before each visit, running both
+without COI headers (the Pages service-worker path) and with COI headers.
+Evidence is saved under `build/demo-smoke-evidence/`. Missing Chrome exits 77
+(or fails with `DEMO_PAGES_STRICT=1`); a skip is not a successful smoke.
+
+`example/web/web/examples.json` owns runnable demo Python, setup keys, page
+placement and exact expected values or exception classes. `stagedFiles` names
+Dart-provided memory files; `requires` names a prior feed. VM coverage is in
+`test/integration/web_examples_test.dart`, using the same filesystem and child
+module setup as the browser. Ladder compatibility fixtures remain in
+`test/fixtures/python_ladder/`; only explicit native-only and unsupported
+`del`/`globals()` forms are skipped. Unexpected failures, value differences and
+unexpected passes fail the Pages smoke. Browser outcomes must be measured on
+the pinned worker before changing that policy.
+
+Pages builds and smokes on pushes, pull requests and dispatches. Only a
+successful main build can deploy, and deployment uses the artifact that passed
+smoke. Branch artifacts are downloadable as `pages-review`.

@@ -11,13 +11,13 @@
 ///     -o example/web/web/agent_demo.dart.js
 library;
 
-import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:dart_monty/dart_monty.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
+import 'package:web_example/runtime_showcase.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -176,6 +176,7 @@ final _demoHostFunctions = [
 ];
 
 final _kvStore = <String, Object?>{};
+int _toolCalls = 0;
 
 // ---------------------------------------------------------------------------
 // Initialization
@@ -194,7 +195,13 @@ Future<bool> _init() async {
     final session = await MontyRuntime.start(
       pool: pool,
       os: OSAccess().call,
-      extensions: [SandboxExtension(maxChildren: _maxChildren)],
+      externalModules: demoTools(onCall: () => _toolCalls++),
+      extensions: [
+        SandboxExtension(
+          maxChildren: _maxChildren,
+          childExternalModules: demoTools(),
+        ),
+      ],
     );
     _demoHostFunctions.forEach(session.register);
     _session = session;
@@ -219,6 +226,7 @@ Future<String> _execute(String code) async {
   }
 
   final events = <Map<String, dynamic>>[];
+  final toolCallsBefore = _toolCalls;
 
   try {
     final handle = _session!.execute(code);
@@ -263,6 +271,7 @@ Future<String> _execute(String code) async {
       if (resultError != null) 'error': resultError,
       if (printOutput != null) 'printOutput': printOutput,
       'events': events,
+      'toolCalls': _toolCalls - toolCallsBefore,
     });
   } on Object catch (e) {
     return jsonEncode({'ok': false, 'error': e.toString(), 'events': events});
@@ -272,10 +281,10 @@ Future<String> _execute(String code) async {
 Map<String, dynamic> _eventToMap(BridgeEvent event) {
   return switch (event) {
     BridgeRunStarted(:final threadId, :final runId) => {
-      'type': 'RunStarted',
-      'threadId': threadId,
-      'runId': runId,
-    },
+        'type': 'RunStarted',
+        'threadId': threadId,
+        'runId': runId,
+      },
     BridgeRunFinished(
       :final threadId,
       :final runId,
@@ -290,37 +299,37 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (printOutput != null) 'printOutput': printOutput,
       },
     BridgeRunError(:final message, :final printOutput) => {
-      'type': 'RunError',
-      'message': message,
-      if (printOutput != null) 'printOutput': printOutput,
-    },
+        'type': 'RunError',
+        'message': message,
+        if (printOutput != null) 'printOutput': printOutput,
+      },
     BridgeCallStarted(:final callId) => {
-      'type': 'CallStarted',
-      'callId': callId,
-    },
+        'type': 'CallStarted',
+        'callId': callId,
+      },
     BridgeCallFinished(:final callId) => {
-      'type': 'CallFinished',
-      'callId': callId,
-    },
+        'type': 'CallFinished',
+        'callId': callId,
+      },
     BridgeFunctionCallStart(:final callId, :final name) => {
-      'type': 'FunctionCallStart',
-      'callId': callId,
-      'name': name,
-    },
+        'type': 'FunctionCallStart',
+        'callId': callId,
+        'name': name,
+      },
     BridgeFunctionCallArgs(:final callId, :final delta) => {
-      'type': 'FunctionCallArgs',
-      'callId': callId,
-      'delta': delta,
-    },
+        'type': 'FunctionCallArgs',
+        'callId': callId,
+        'delta': delta,
+      },
     BridgeFunctionCallEnd(:final callId) => {
-      'type': 'FunctionCallEnd',
-      'callId': callId,
-    },
+        'type': 'FunctionCallEnd',
+        'callId': callId,
+      },
     BridgeFunctionCallResult(:final callId, :final result) => {
-      'type': 'FunctionCallResult',
-      'callId': callId,
-      'result': result,
-    },
+        'type': 'FunctionCallResult',
+        'callId': callId,
+        'result': result,
+      },
     BridgeOsCallStart(
       :final callId,
       :final operationName,
@@ -333,21 +342,21 @@ Map<String, dynamic> _eventToMap(BridgeEvent event) {
         if (argumentSummary != null) 'argumentSummary': argumentSummary,
       },
     BridgeOsCallResult(:final callId, :final result, :final durationMs) => {
-      'type': 'OsCallResult',
-      'callId': callId,
-      'result': result,
-      if (durationMs != null) 'durationMs': durationMs,
-    },
+        'type': 'OsCallResult',
+        'callId': callId,
+        'result': result,
+        if (durationMs != null) 'durationMs': durationMs,
+      },
     BridgeFunctionEmit(:final callId, :final text) => {
-      'type': 'FunctionEmit',
-      'callId': callId,
-      'text': text,
-    },
+        'type': 'FunctionEmit',
+        'callId': callId,
+        'text': text,
+      },
     BridgeChildEvent(:final childHandle, :final inner) => {
-      'type': 'ChildEvent',
-      'childHandle': childHandle,
-      'inner': _eventToMap(inner),
-    },
+        'type': 'ChildEvent',
+        'childHandle': childHandle,
+        'inner': _eventToMap(inner),
+      },
   };
 }
 
@@ -426,11 +435,32 @@ String _getSchemas() {
   return jsonEncode(schemas);
 }
 
-void _clearState() {
+Future<void> _clearState() async {
   final session = _session;
-  if (session != null) unawaited(session.clearState());
+  if (session != null) await session.clearState();
   _trackedNames.clear();
   _stateCache = '{}';
+}
+
+Future<String> _reset() async {
+  await _session?.dispose();
+  final session = await MontyRuntime.start(
+    pool: _pool,
+    os: OSAccess().call,
+    externalModules: demoTools(onCall: () => _toolCalls++),
+    extensions: [
+      SandboxExtension(
+        maxChildren: _maxChildren,
+        childExternalModules: demoTools(),
+      ),
+    ],
+  );
+  _demoHostFunctions.forEach(session.register);
+  _session = session;
+  _kvStore.clear();
+  _trackedNames.clear();
+  _stateCache = '{}';
+  return jsonEncode({'ok': true});
 }
 
 Future<void> _dispose() async {
@@ -450,11 +480,12 @@ Future<void> main() async {
   final api = <String, JSFunction>{
     'init': (() => _init().then((ok) => ok.toJS).toJS).toJS,
     'execute': ((JSString code) => _execute(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'getState': (() => _getState().toJS).toJS,
     'getSchemas': (() => _getSchemas().toJS).toJS,
-    'clearState': _clearState.toJS,
+    'clearState': (() => _clearState().then((_) => null).toJS).toJS,
+    'reset': (() => _reset().then((r) => r.toJS).toJS).toJS,
     'dispose': (() => _dispose().then((_) => null).toJS).toJS,
   }.jsify();
   // jsify() returns JSObject? but we know our non-empty map produces one.

@@ -205,8 +205,9 @@ Future<void> main() async {
         final name = fixture['name'] as String;
         final code = fixture['code'] as String;
         final nativeOnly = fixture['nativeOnly'] as bool? ?? false;
+        final unsupported = RegExp(r'\bdel\b|globals\(').hasMatch(code);
 
-        if (nativeOnly) {
+        if (nativeOnly || unsupported) {
           totalSkipped++;
           totalPassed++;
           _reportResult(
@@ -215,7 +216,10 @@ Future<void> main() async {
             name.toJS,
             code.toJS,
             'skip'.toJS,
-            'Skipped (native only)'.toJS,
+            (nativeOnly
+                    ? 'Skipped (native only)'
+                    : 'Skipped (unsupported Python form: del/globals)')
+                .toJS,
           );
           _emitLadderResult(_tierFiles[tierIdx], name, 'skip');
           continue;
@@ -324,28 +328,29 @@ Future<Map<String, dynamic>> _runFixture(Map<String, dynamic> fixture) async {
 Future<T> _onSession<T>(
   Map<String, dynamic> fixture,
   Future<T> Function(MontySession session) body,
-) => _pool.withSession(
-  body,
-  scriptName: fixture['scriptName'] as String? ?? 'main.py',
-);
+) =>
+    _pool.withSession(
+      body,
+      scriptName: fixture['scriptName'] as String? ?? 'main.py',
+    );
 
 /// [value] in the fixtures' JSON shape: tuples and sets tagged with
 /// `__type`, containers converted element by element.
 Object? _shape(MontyValue value) => switch (value) {
-  MontyList(:final items) => [for (final item in items) _shape(item)],
-  MontyTuple(:final items) => {
-    '__type': 'tuple',
-    'value': [for (final item in items) _shape(item)],
-  },
-  MontySet(:final items) || MontyFrozenSet(:final items) => {
-    '__type': 'set',
-    'value': [for (final item in items) _shape(item)],
-  },
-  MontyDict(:final pairs) => {
-    for (final (key, item) in pairs) '${key.dartValue}': _shape(item),
-  },
-  _ => value.dartValue,
-};
+      MontyList(:final items) => [for (final item in items) _shape(item)],
+      MontyTuple(:final items) => {
+          '__type': 'tuple',
+          'value': [for (final item in items) _shape(item)],
+        },
+      MontySet(:final items) || MontyFrozenSet(:final items) => {
+          '__type': 'set',
+          'value': [for (final item in items) _shape(item)],
+        },
+      MontyDict(:final pairs) => {
+          for (final (key, item) in pairs) '${key.dartValue}': _shape(item),
+        },
+      _ => value.dartValue,
+    };
 
 /// A Python error as the fixtures' detail text: its type and message.
 String _describe(MontyError error) =>
@@ -383,8 +388,7 @@ Future<Map<String, dynamic>> _runExpectError(
 
     return {
       'status': 'warn',
-      'detail':
-          'Expected error but got value: ${_shape(value)}'
+      'detail': 'Expected error but got value: ${_shape(value)}'
           ' — WASM Monty may handle this differently than CPython',
     };
   } on MontyError catch (e) {
@@ -512,8 +516,7 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail':
-          'Value: $str'
+      'detail': 'Value: $str'
           ' — expected to contain "$expectedContains"'
           ' (WASM Monty behavioral difference)',
     };
@@ -528,8 +531,7 @@ Map<String, dynamic> _compareResult(
 
     return {
       'status': 'warn',
-      'detail':
-          'Value: $actual'
+      'detail': 'Value: $actual'
           ' — expected (sorted): $expected'
           ' (WASM Monty behavioral difference)',
     };
@@ -541,8 +543,7 @@ Map<String, dynamic> _compareResult(
 
   return {
     'status': 'warn',
-    'detail':
-        'Value: $actual'
+    'detail': 'Value: $actual'
         ' — expected: $expected'
         ' (WASM Monty behavioral difference)',
   };

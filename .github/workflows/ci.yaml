@@ -164,6 +164,9 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
+      - name: Resolve nested packages
+        # check_page_versions.sh reads example/web's resolved core checkout.
+        run: bash tool/resolve_packages.sh
       - name: Checks that otherwise run nowhere
         run: |
           set -uo pipefail
@@ -571,6 +574,11 @@ jobs:
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
         with:
           sdk: 3.13.5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.x'
+      # check_demo_pages.sh builds the documentation site with mkdocs.
+      - run: pip install -r requirements-docs.lock
       - id: pubget
         run: dart pub get
       - name: Locate resolved core checkout
@@ -662,7 +670,7 @@ jobs:
           n=0
           for f in bin/*.dart; do echo "--- $f"; n=$((n+1)); done
           echo "found $n entrypoint(s)"
-          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, found $n."; \
+          [ "$n" -eq 8 ] || { echo "FAIL: expected 8 web entrypoints, found $n."; \
             echo "  Adding one is fine — raise this number in the same commit."; \
             echo "  Losing one silently is the failure this catches."; exit 1; }
 

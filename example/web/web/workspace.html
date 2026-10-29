@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Workspace ownership · dart_monty</title><link rel="stylesheet" href="site.css"><script defer src="site.js"></script></head>
+<body data-page="workspace"><div id="site-nav"></div><main><h1>Workspace ownership</h1><p>The parent retains /work across runs. Children have independent state and files; module grants are explicit. Reset replaces the parent filesystem and both child policies.</p>
+<p class="version-badge"></p><p id="status" role="status">Loading worker…</p>
+<select id="examples"><option value="csv-write">csv-write</option><option value="csv-read">csv-read</option><option value="hashlib">hashlib</option><option value="path">path</option><option value="toml">toml</option><option value="child-granted">child-granted</option><option value="child-denied">child-denied</option><option value="visibility">visibility</option><option value="isolation">isolation</option><option value="overlay">overlay</option></select><p id="expected"></p><textarea id="editor" rows="12" aria-label="Python source"></textarea>
+<button id="run" disabled>Run</button><button id="resetBtn" disabled>Reset</button>
+<h2>Observed output</h2><pre id="output"></pre><h2>Events, files and structured errors</h2><pre id="detail"></pre>
+<h2>Runtime API</h2><pre>final runtime = await MontyRuntime.start(pool: pool, os: files.call,
+  externalModules: {'tools': tools});
+final value = await runtime.execute('import tools\ntools.add(2, 3)').result;
+await runtime.dispose();
+await pool.close();</pre><p>Runtime code lives in lib/src/runtime/, bridge/, extensions/, host/ and os_call/. Core owns the engine, process pool and worker assets.</p>
+<p><a href="https://runyaga.github.io/dart_monty_core/">Engine examples and compatibility → dart_monty_core</a></p></main>
+<script src="coi-serviceworker.js"></script><script src="runtime-page.js"></script><script defer src="workspace_demo.dart.js"></script></body></html>

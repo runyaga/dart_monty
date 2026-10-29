@@ -3,247 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>dart_monty — Algorithm Visualizer</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: #1a1b26;
-      color: #c0caf5;
-      padding: 2rem;
-      max-width: 960px;
-      margin: 0 auto;
-    }
-    a { color: #7aa2f7; }
-    h1 {
-      color: #7aa2f7;
-      margin-bottom: 0.5rem;
-      font-size: 1.4rem;
-    }
-    .subtitle {
-      color: #565f89;
-      margin-bottom: 1.5rem;
-      font-size: 0.9rem;
-    }
-    .nav { margin-bottom: 1.5rem; }
-    .nav a { margin-right: 1rem; font-size: 0.85rem; }
 
-    /* Status bar */
-    #status {
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 4px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.5rem;
-      font-size: 0.9rem;
-    }
-    #status.init { border-left: 3px solid #7aa2f7; }
-    #status.ready { border-left: 3px solid #9ece6a; }
-    #status.sorting { border-left: 3px solid #e0af68; }
-    #status.complete { border-left: 3px solid #9ece6a; }
-    #status.error { border-left: 3px solid #f7768e; }
-
-    /* Controls panel */
-    .controls {
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 6px;
-      padding: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-    .control-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-    .control-row:last-child { margin-bottom: 0; }
-    .control-label {
-      color: #565f89;
-      font-size: 0.8rem;
-      min-width: 80px;
-    }
-
-    /* Algorithm toggle buttons */
-    .algo-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .algo-btn {
-      background: #1a1b26;
-      border: 1px solid #3b4261;
-      color: #c0caf5;
-      padding: 0.4rem 0.8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.8rem;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .algo-btn:hover { border-color: #7aa2f7; }
-    .algo-btn.active {
-      background: #7aa2f7;
-      color: #1a1b26;
-      border-color: #7aa2f7;
-    }
-    .algo-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* Sliders */
-    .slider-group {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex: 1;
-    }
-    .slider-group input[type="range"] {
-      flex: 1;
-      accent-color: #7aa2f7;
-    }
-    .slider-value {
-      color: #e0af68;
-      font-size: 0.85rem;
-      min-width: 40px;
-      text-align: right;
-    }
-
-    /* Start button */
-    #start-btn {
-      background: #9ece6a;
-      border: none;
-      color: #1a1b26;
-      padding: 0.5rem 1.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-    #start-btn:hover { background: #7ec068; }
-    #start-btn:disabled {
-      background: #3b4261;
-      color: #565f89;
-      cursor: not-allowed;
-    }
-    #stop-btn {
-      background: #f7768e;
-      border: none;
-      color: #1a1b26;
-      padding: 0.5rem 1.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-    #stop-btn:hover { background: #d73a3a; }
-
-    /* Bar chart */
-    .chart-container {
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 6px;
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-      min-height: 280px;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 1px;
-    }
-    .bar {
-      background: #7aa2f7;
-      border-radius: 2px 2px 0 0;
-      transition: height 0.08s ease-out, background-color 0.15s;
-      min-width: 2px;
-      flex: 1;
-      max-width: 20px;
-    }
-    .bar.comparing { background: #e0af68; }
-    .bar.swapped { background: #f7768e; }
-    .bar.done { background: #9ece6a; }
-
-    /* Stats row */
-    .stats {
-      display: flex;
-      gap: 2rem;
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 4px;
-      padding: 0.75rem 1rem;
-      font-size: 0.85rem;
-    }
-    .stat-label { color: #565f89; }
-    .stat-value { color: #e0af68; margin-left: 0.5rem; }
-
-    /* Legend */
-    .legend {
-      display: flex;
-      gap: 1.5rem;
-      margin-top: 1rem;
-      font-size: 0.75rem;
-      color: #565f89;
-      flex-wrap: wrap;
-    }
-    .legend-item { display: flex; align-items: center; gap: 0.3rem; }
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-    }
-    .legend-dot.blue { background: #7aa2f7; }
-    .legend-dot.yellow { background: #e0af68; }
-    .legend-dot.red { background: #f7768e; }
-    .legend-dot.green { background: #9ece6a; }
-
-    /* Code editor */
-    .code-panel {
-      margin-bottom: 1.5rem;
-    }
-    .code-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .code-header-label {
-      color: #565f89;
-      font-size: 0.8rem;
-    }
-    .code-hint {
-      color: #7aa2f7;
-      font-size: 0.75rem;
-    }
-    #code-editor {
-      width: 100%;
-      min-height: 200px;
-      background: #1a1b26;
-      color: #c0caf5;
-      border: 1px solid #3b4261;
-      border-radius: 4px;
-      padding: 0.75rem;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 0.8rem;
-      line-height: 1.5;
-      resize: vertical;
-      tab-size: 4;
-    }
-    #code-editor:focus {
-      outline: none;
-      border-color: #7aa2f7;
-    }
-    #code-editor:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  </style>
-</head>
-<body>
+<link rel="stylesheet" href="site.css"><script defer src="site.js"></script></head>
+<body data-page="visualizer"><div id="site-nav"></div>
   <div style="padding:12px 20px;background:#24283b;border-bottom:1px solid #3b4261;display:flex;align-items:center;gap:16px;">
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
     <span style="font-size:16px;font-weight:600;color:#7aa2f7;">Sorting Visualizer</span>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:auto;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:auto;white-space:nowrap;"></span>
     <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#2d3a5e;color:#7dcfff;">WASM</span>
   </div>
 
@@ -266,7 +32,7 @@
     <div class="control-row">
       <span class="control-label">Array Size</span>
       <div class="slider-group">
-        <input type="range" id="size-slider" min="10" max="100" value="25" step="5">
+        <input type="range" id="size-slider" min="8" max="100" value="25" step="5">
         <span class="slider-value" id="size-value">25</span>
       </div>
     </div>
@@ -279,7 +45,7 @@
     </div>
     <div class="control-row">
       <span class="control-label"></span>
-      <button id="start-btn" disabled>Start</button>
+      <label><input type="checkbox" id="descending"> Descending input (otherwise random)</label><button id="start-btn" disabled>Start</button>
       <button id="stop-btn" style="display:none">Stop</button>
     </div>
   </div>
@@ -309,22 +75,20 @@
 
   <script>
     // ── Algorithm templates ──────────────────────────────────────────────
-    const algoTemplates = {
-      bubble: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    j = 0\n    while j < n - i - 1:\n        yield_state(arr, j, j + 1, "compare")\n        if arr[j] > arr[j + 1]:\n            tmp = arr[j]\n            arr[j] = arr[j + 1]\n            arr[j + 1] = tmp\n            yield_state(arr, j, j + 1, "swap")\n        j = j + 1\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
-      selection: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    min_idx = i\n    j = i + 1\n    while j < n:\n        yield_state(arr, min_idx, j, "compare")\n        if arr[j] < arr[min_idx]:\n            min_idx = j\n        j = j + 1\n    if min_idx != i:\n        tmp = arr[i]\n        arr[i] = arr[min_idx]\n        arr[min_idx] = tmp\n        yield_state(arr, i, min_idx, "swap")\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
-      insertion: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 1\nwhile i < n:\n    key = arr[i]\n    j = i - 1\n    while j >= 0:\n        yield_state(arr, j, i, "compare")\n        if arr[j] > key:\n            arr[j + 1] = arr[j]\n            yield_state(arr, j, j + 1, "swap")\n            j = j - 1\n        else:\n            break\n        if j < 0:\n            break\n    arr[j + 1] = key\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
-      quick: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nstack = [[0, n - 1]]\nwhile len(stack) > 0:\n    pair = stack[len(stack) - 1]\n    stack = stack[:len(stack) - 1]\n    low = pair[0]\n    high = pair[1]\n    if low < high:\n        pivot = arr[high]\n        i = low - 1\n        j = low\n        while j < high:\n            yield_state(arr, j, high, "compare")\n            if arr[j] <= pivot:\n                i = i + 1\n                if i != j:\n                    tmp = arr[i]\n                    arr[i] = arr[j]\n                    arr[j] = tmp\n                    yield_state(arr, i, j, "swap")\n            j = j + 1\n        tmp = arr[i + 1]\n        arr[i + 1] = arr[high]\n        arr[high] = tmp\n        yield_state(arr, i + 1, high, "swap")\n        p = i + 1\n        stack.append([low, p - 1])\n        stack.append([p + 1, high])\nyield_state(arr, -1, -1, "done")\narr',
-      tim: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nRUN = 8\nstart = 0\nwhile start < n:\n    end = start + RUN\n    if end > n:\n        end = n\n    i = start + 1\n    while i < end:\n        key = arr[i]\n        j = i - 1\n        while j >= start:\n            yield_state(arr, j, i, "compare")\n            if arr[j] > key:\n                arr[j + 1] = arr[j]\n                yield_state(arr, j, j + 1, "swap")\n                j = j - 1\n            else:\n                break\n            if j < start:\n                break\n        arr[j + 1] = key\n        i = i + 1\n    start = start + RUN\nsize = RUN\nwhile size < n:\n    left = 0\n    while left < n:\n        mid = left + size\n        right = left + 2 * size\n        if mid > n:\n            mid = n\n        if right > n:\n            right = n\n        if mid < right:\n            left_half = arr[left:mid]\n            right_half = arr[mid:right]\n            i = 0\n            j = 0\n            k = left\n            while i < len(left_half) and j < len(right_half):\n                yield_state(arr, k, k + 1, "compare")\n                if left_half[i] <= right_half[j]:\n                    arr[k] = left_half[i]\n                    yield_state(arr, k, k, "swap")\n                    i = i + 1\n                else:\n                    arr[k] = right_half[j]\n                    yield_state(arr, k, k, "swap")\n                    j = j + 1\n                k = k + 1\n            while i < len(left_half):\n                arr[k] = left_half[i]\n                yield_state(arr, k, k, "swap")\n                i = i + 1\n                k = k + 1\n            while j < len(right_half):\n                arr[k] = right_half[j]\n                yield_state(arr, k, k, "swap")\n                j = j + 1\n                k = k + 1\n        left = left + 2 * size\n    size = size * 2\nyield_state(arr, -1, -1, "done")\narr',
-      shell: 'arr = INPUT_ARRAY[:]\nn = len(arr)\ngap = n // 2\nwhile gap > 0:\n    i = gap\n    while i < n:\n        temp = arr[i]\n        j = i\n        while j >= gap:\n            yield_state(arr, j, j - gap, "compare")\n            if arr[j - gap] > temp:\n                arr[j] = arr[j - gap]\n                yield_state(arr, j, j - gap, "swap")\n                j = j - gap\n            else:\n                break\n            if j < gap:\n                break\n        arr[j] = temp\n        i = i + 1\n    gap = gap // 2\nyield_state(arr, -1, -1, "done")\narr',
-      cocktail: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nswapped = True\nstart = 0\nend = n - 1\nwhile swapped:\n    swapped = False\n    i = start\n    while i < end:\n        yield_state(arr, i, i + 1, "compare")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, "swap")\n            swapped = True\n        i = i + 1\n    if not swapped:\n        break\n    swapped = False\n    end = end - 1\n    i = end - 1\n    while i >= start:\n        yield_state(arr, i, i + 1, "compare")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, "swap")\n            swapped = True\n        i = i - 1\n    start = start + 1\nyield_state(arr, -1, -1, "done")\narr',
-      sleep: 'arr = INPUT_ARRAY[:]\nn = len(arr)\nresult = []\nmax_val = arr[0]\ni = 1\nwhile i < n:\n    if arr[i] > max_val:\n        max_val = arr[i]\n    i = i + 1\nt = 1\nwhile t <= max_val:\n    i = 0\n    while i < n:\n        yield_state(arr, i, len(result), "compare")\n        if arr[i] == t:\n            result.append(arr[i])\n            yield_state(arr, i, len(result) - 1, "swap")\n        i = i + 1\n    t = t + 1\ni = 0\nwhile i < n:\n    arr[i] = result[i]\n    i = i + 1\nyield_state(arr, -1, -1, "done")\narr',
-    };
+    const algoTemplates = {};
+    const templatesReady = fetch('examples.json').then(r => r.json()).then(all => {
+      for (const e of all.filter(e => e.setup === 'visualizer')) algoTemplates[e.id] = e.code;
+      codeEditor.value = algoTemplates[selectedAlgo];
+    });
 
     // ── State ──────────────────────────────────────────────────────────────
     let selectedAlgo = 'bubble';
     let sorting = false;
     let stopRequested = false;
     let startResolve = null;
+    let pendingStart = null;
+    let activeRun = null;
+    let nextRunId = 0;
     let comparisons = 0;
     let swaps = 0;
     let steps = 0;
@@ -370,16 +134,29 @@
     });
 
     startBtn.addEventListener('click', () => {
-      if (startResolve && !sorting) {
+      if (!sorting) {
+        // Invalidate callbacks from any earlier run immediately.
+        activeRun = {id: ++nextRunId, frames: 0, final: null, completed: false};
+        window.__sortRun = activeRun;
+        window.__sortFinal = null;
+        window.__sortFrames = 0;
         stopRequested = false;
         const config = JSON.stringify({
+          runId: activeRun.id,
+          descending: document.getElementById('descending').checked,
           algorithm: selectedAlgo,
           code: codeEditor.value,
           size: parseInt(sizeSlider.value),
           speed: speedMap[speedSlider.value],
         });
-        startResolve(config);
-        startResolve = null;
+        if (startResolve) {
+          const resolve = startResolve;
+          startResolve = null;
+          resolve(config);
+        } else {
+          // Done can enable Start before Dart has finished session cleanup.
+          pendingStart = config;
+        }
       }
     });
 
@@ -424,13 +201,15 @@
     }
 
     // ── Callbacks for Dart ────────────────────────────────────────────────
-    function onVisualizerReady() {
+    async function onVisualizerReady() {
+      await templatesReady;
       statusEl.className = 'ready';
       statusEl.textContent = 'Ready — choose an algorithm and press Start';
       startBtn.disabled = false;
     }
 
-    function onVisualizerSortStarted(name, size) {
+    function onVisualizerSortStarted(name, size, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
       sorting = true;
       setControlsEnabled(false);
       startBtn.style.display = 'none';
@@ -446,7 +225,9 @@
       chartEl.innerHTML = '';
     }
 
-    function onVisualizerStep(arr, i, j, action) {
+    function onVisualizerStep(arr, i, j, action, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      window.__sortFrames = ++activeRun.frames;
       steps++;
       statSteps.textContent = steps;
       if (action === 'compare') {
@@ -461,8 +242,12 @@
       codeEditor.value = template.replace('INPUT_ARRAY', '[' + Array.from(arr).join(', ') + ']');
     }
 
-    function onVisualizerDone(arr) {
+    function onVisualizerDone(arr, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      activeRun.final = Array.from(arr);
+      window.__sortFinal = activeRun.final;
       renderBars(Array.from(arr), -1, -1, 'done');
+      activeRun.completed = true;
       statusEl.className = 'complete';
       statusEl.textContent = 'Complete — ' + comparisons + ' comparisons, ' + swaps + ' swaps, ' + steps + ' steps';
       sorting = false;
@@ -471,7 +256,9 @@
       setControlsEnabled(true);
     }
 
-    function onVisualizerStopped() {
+    function onVisualizerStopped(runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      activeRun.completed = true;
       statusEl.className = 'ready';
       statusEl.textContent = 'Stopped after ' + steps + ' steps';
       sorting = false;
@@ -480,7 +267,9 @@
       setControlsEnabled(true);
     }
 
-    function onVisualizerError(msg) {
+    function onVisualizerError(msg, runId) {
+      if (runId !== undefined && (!activeRun || runId !== activeRun.id || activeRun.completed)) return;
+      if (activeRun) activeRun.completed = true;
       statusEl.className = 'error';
       statusEl.textContent = 'Error: ' + msg;
       sorting = false;
@@ -491,6 +280,12 @@
 
     function waitForStart() {
       return new Promise((resolve) => {
+        if (pendingStart !== null) {
+          const config = pendingStart;
+          pendingStart = null;
+          resolve(config);
+          return;
+        }
         startResolve = resolve;
       });
     }
@@ -499,11 +294,29 @@
       return speedMap[speedSlider.value];
     }
 
-    function isStopped() {
-      return stopRequested;
+    function isStopped(runId) {
+      return stopRequested || !activeRun || runId !== activeRun.id;
     }
   </script>
   <script src="coi-serviceworker.js"></script>
   <script src="visualizer.dart.js"></script>
-</body>
+<p>Input is random by default; select Descending input for the sequence from size to 1. Exact expected output is [1, 2, …, size]. The smoke input has size 8 and expected value [1,2,3,4,5,6,7,8].</p>
+<script>
+window.__montyCheckControls = async () => {
+ await templatesReady;
+ sizeSlider.value = '8'; speedSlider.value = '4'; document.getElementById('descending').checked = true;
+ const expected = [1,2,3,4,5,6,7,8];
+ for (const key of Object.keys(algoTemplates)) {
+  document.querySelector(`[data-algo="${key}"]`).click();
+  const previousRun = activeRun;
+  startBtn.click();
+  const run = activeRun;
+  if (!run || run === previousRun) throw Error('Visualizer Start was not accepted: ' + key);
+  const until = Date.now() + 120000;
+  while (!run.completed && Date.now() < until && statusEl.className !== 'error') await new Promise(r => setTimeout(r, 20));
+  if (!run.completed || JSON.stringify(run.final) !== JSON.stringify(expected) || run.frames < 2) throw Error('Visualizer Start failed: ' + key + ': ' + statusEl.textContent);
+ }
+ return true;
+};
+</script></body>
 </html>

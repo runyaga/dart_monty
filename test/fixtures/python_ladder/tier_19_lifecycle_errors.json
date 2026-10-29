@@ -45,7 +45,7 @@
     "asyncResumeMap": {},
     "asyncErrorMap": {"0": "service unavailable"},
     "nativeOnly": false,
-    "xfail": "async error from resolveFutures propagates as MontyException before Python try-except runs"
+    "xfail": null
   },
   {
     "id": 313,
@@ -63,7 +63,7 @@
     "asyncResumeMap": {"0": 42},
     "asyncErrorMap": {"1": "crash"},
     "nativeOnly": false,
-    "xfail": "async error from resolveFutures propagates as MontyException before Python try-except runs"
+    "xfail": null
   },
   {
     "id": 314,

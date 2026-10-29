@@ -4,28 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>dart_monty — Async/Sync Matrix Demo</title>
-  <style>
-    :root {
-      --bg: #1a1b26; --surface: #24283b; --border: #3b4261;
-      --text: #c0caf5; --text-dim: #565f89; --accent: #7aa2f7;
-      --green: #9ece6a; --cyan: #7dcfff;
-      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
-    header { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
-    header a { color: var(--text-dim); text-decoration: none; font-size: 13px; }
-    header a:hover { color: var(--text); }
-    header h1 { font-size: 16px; font-weight: 600; color: var(--accent); }
-    .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #2d3a5e; color: var(--cyan); }
-    main { flex: 1; overflow-y: auto; padding: 20px; font-family: var(--mono); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
-  </style>
-</head>
-<body>
+
+<link rel="stylesheet" href="site.css"><script defer src="site.js"></script></head>
+<body data-page="async_matrix"><div id="site-nav"></div>
   <header>
     <a href="index.html">&larr; Home</a>
     <h1>Async/Sync Matrix Demo</h1>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;"></span>
     <span class="tag">WASM</span>
     <span class="tag">useFutures</span>
   </header>
@@ -41,5 +26,13 @@
   </script>
   <script src="coi-serviceworker.js"></script>
   <script src="async_matrix_demo.dart.js"></script>
-</body>
+<section><h2>Exact expected values</h2><pre id="expected-values"></pre></section><script>
+fetch('examples.json').then(r => r.json()).then(all => {
+ document.getElementById('expected-values').textContent = all.filter(e => e.pages.includes('async_matrix')).map(e => e.id + ': ' + (e.error || JSON.stringify(e.expected))).join('\n');
+});
+window.__montyCheckControls = async () => {
+ if (!document.getElementById('output').textContent.includes('EXAMPLE_DONE')) throw Error('Matrix incomplete');
+ return true;
+};
+</script></body>
 </html>

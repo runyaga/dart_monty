@@ -4,299 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>dart_monty VFS Playground</title>
-  <style>
-    :root {
-      --bg: #1a1b26;
-      --surface: #24283b;
-      --surface2: #2f3447;
-      --border: #3b4261;
-      --text: #c0caf5;
-      --text-dim: #565f89;
-      --accent: #7aa2f7;
-      --green: #9ece6a;
-      --yellow: #e0af68;
-      --red: #f7768e;
-      --orange: #ff9e64;
-      --cyan: #7dcfff;
-      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    header {
-      padding: 12px 20px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    header h1 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    header .tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-weight: 500;
-    }
-
-    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
-    .tag-vfs { background: #2d3e2d; color: var(--green); }
-
-    #status {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--text-dim);
-    }
-
-    #status.ready { color: var(--green); }
-    #status.running { color: var(--yellow); }
-    #status.error { color: var(--red); }
-
-    .main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 1px;
-      background: var(--border);
-      overflow: hidden;
-    }
-
-    .panel {
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .panel-header {
-      padding: 8px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .panel-header .count {
-      background: var(--surface2);
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-    }
-
-    .panel-body {
-      flex: 1;
-      overflow: auto;
-      padding: 0;
-    }
-
-    /* Code editor */
-    #editor {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      color: var(--text);
-      border: none;
-      resize: none;
-      padding: 12px;
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.6;
-      outline: none;
-      tab-size: 4;
-    }
-
-    .editor-panel .panel-header {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .btn-group { display: flex; gap: 6px; }
-
-    .btn {
-      padding: 4px 12px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--surface2);
-      color: var(--text);
-      font-size: 11px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .btn:hover { border-color: var(--accent); }
-
-    .btn-run {
-      background: #1a3a1a;
-      border-color: var(--green);
-      color: var(--green);
-      font-weight: 600;
-    }
-
-    .btn-run:hover { background: #2a4a2a; }
-    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* File tree */
-    .file-entry {
-      padding: 6px 12px;
-      font-family: var(--mono);
-      font-size: 12px;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-    }
-
-    .file-entry:hover { background: var(--surface2); }
-    .file-entry.selected { background: var(--surface2); border-left: 2px solid var(--accent); }
-
-    .file-icon { margin-right: 6px; }
-    .file-size { float: right; color: var(--text-dim); font-size: 11px; }
-
-    .file-preview {
-      padding: 12px;
-      font-family: var(--mono);
-      font-size: 12px;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: var(--text-dim);
-    }
-
-    .empty-state {
-      padding: 24px;
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 13px;
-    }
-
-    /* OS Call log */
-    .oscall-entry {
-      padding: 6px 12px;
-      font-family: var(--mono);
-      font-size: 11px;
-      border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 8px;
-      align-items: baseline;
-    }
-
-    .oscall-op {
-      color: var(--cyan);
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .oscall-args {
-      color: var(--text-dim);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .oscall-time {
-      color: var(--text-dim);
-      font-size: 10px;
-      white-space: nowrap;
-    }
-
-    /* Output */
-    #output {
-      padding: 12px;
-      font-family: var(--mono);
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-
-    .output-value { color: var(--green); }
-    .output-error { color: var(--red); }
-    .output-info { color: var(--text-dim); font-size: 12px; }
-
-    /* Mount panel */
-    .mount-bar {
-      padding: 6px 12px;
-      display: flex;
-      gap: 6px;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .mount-bar input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 4px 8px;
-      font-family: var(--mono);
-      font-size: 11px;
-      outline: none;
-    }
-
-    .mount-bar input:focus { border-color: var(--accent); }
-
-    /* Examples dropdown */
-    select {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 4px 8px;
-      font-size: 11px;
-      cursor: pointer;
-      outline: none;
-    }
-  </style>
+<link rel="stylesheet" href="site.css"><script defer src="site.js"></script>
 </head>
-<body>
+<body data-page="vfs"><div id="site-nav"></div>
   <header>
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
     <h1>VFS Playground</h1>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;"></span>
     <span class="tag tag-wasm">WASM</span>
     <span class="tag tag-vfs">VFS</span>
-    <select id="examples">
-      <option value="">Load example...</option>
-      <option value="hello">Hello VFS</option>
-      <option value="config">Config File Injection</option>
-      <option value="pipeline">Data Pipeline</option>
-      <option value="datetime">Date &amp; Time</option>
-      <option value="explorer">File Explorer</option>
-      <option value="open">open() &amp; with (since 0.18)</option>
-      <option value="binary">Binary I/O (since 0.18)</option>
-      <option value="errors">Typed Errors (since 0.18)</option>
-    </select>
+    <select id="examples"><option value="">Load example...</option><option value="vfs-read">vfs-read</option><option value="walk">walk</option><option value="glob">glob</option><option value="vfs-csv">vfs-csv</option><option value="vfs-hello">Hello VFS</option><option value="vfs-config">Config File Injection</option><option value="vfs-pipeline">Data Pipeline</option><option value="vfs-datetime">Date &amp; Time</option><option value="vfs-explorer">File Explorer</option><option value="vfs-open">open() &amp; with (current runtime)</option><option value="vfs-binary">Binary I/O (current runtime)</option><option value="vfs-errors">Typed Errors (current runtime)</option></select>
     <span id="status">Initializing WASM...</span>
   </header>
 
+<p>Each Run uses a fresh writable memory filesystem. Staged files persist across runs until Reset staging.</p>
   <div class="main">
     <!-- Top-left: Python editor -->
     <div class="panel editor-panel">
       <div class="panel-header">
         <span>Python Code</span>
         <div class="btn-group">
-          <button class="btn btn-run" id="runBtn" disabled>Run</button>
+          <button class="btn btn-run" id="runBtn" disabled>Run</button><button id="resetBtn">Reset staging</button>
         </div>
       </div>
       <div class="panel-body">
@@ -379,7 +107,8 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       el.scrollTop = el.scrollHeight;
     };
 
-    window._onReady = function() {
+    window._onReady = async function() {
+      await catalogReady;
       _ready = true;
       console.log('[VFS] WASM ready — Run button enabled');
       const s = document.getElementById('status');
@@ -395,7 +124,8 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
   </script>
 
   <!-- Load WASM bridge, then compiled Dart VFS demo -->
-  <script src="vfs_demo.dart.js"></script>
+
+  <script defer src="vfs_demo.dart.js"></script>
 
   <!-- UI wiring (DOM is ready at this point) -->
   <script>
@@ -423,6 +153,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         const resultPromise = window.VfsDemo.run(editor.value);
         const resultJson = await resultPromise;
         const result = JSON.parse(resultJson);
+        window.__lastResult = result;
         console.log('[VFS] Result:', result);
 
         if (result.ok) {
@@ -472,26 +203,24 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
 
     function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-    $('mountBtn').onclick = function() {
+    $('mountBtn').onclick = async function() {
       const path = $('mountPath').value.trim();
       const content = $('mountContent').value;
       if (!path || !window.VfsDemo) return;
       console.log(`[VFS] Mounting ${path} (${content.length} bytes)`);
-      window.VfsDemo.mountFile(path, content);
+      await window.VfsDemo.mountFile(path, content);
       $('mountPath').value = '';
       $('mountContent').value = '';
     };
 
-    const examples = {
-      hello: `from pathlib import Path\n\n# Each run starts with an empty /sandbox plus any mounted files.\n# Write a file to the virtual filesystem\nPath('/sandbox/hello.txt').write_text('Hello from Python in WASM!')\n\n# Read it back\ncontent = Path('/sandbox/hello.txt').read_text()\n\n# Create a directory and list it\nPath('/sandbox/data').mkdir(parents=True)\nPath('/sandbox/data/a.txt').write_text('alpha')\nPath('/sandbox/data/b.txt').write_text('beta')\nfiles = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)\n\n{'content': content, 'files': files}`,
-      config: `import json\nfrom pathlib import Path\n\n# Read a config file injected from Dart/JS\n# (click Mount below to add /sandbox/config.json first)\nconfig = json.loads(Path('/sandbox/config.json').read_text())\n\n# Process it\nresult = {\n    'api_key': config.get('api_key', 'missing'),\n    'retries': config.get('retries', 0),\n    'debug': config.get('debug', False),\n}\nresult`,
-      pipeline: `from pathlib import Path\n\n# Read CSV input (mount /sandbox/input.csv first, or use default)\ntry:\n    raw = Path('/sandbox/input.csv').read_text()\nexcept:\n    # Default data if not mounted\n    raw = 'name,score\\nalice,95\\nbob,87\\ncarol,92\\ndave,78'\n    Path('/sandbox/input.csv').write_text(raw)\n\n# Parse\nlines = raw.strip().split('\\n')\nheader = lines[0].split(',')\nrows = [l.split(',') for l in lines[1:]]\n\n# Compute\nscores = [int(r[1]) for r in rows]\navg = sum(scores) / len(scores)\ntop = max(rows, key=lambda r: int(r[1]))\n\n# Write summary\nsummary = f"Students: {len(rows)}\\nAverage: {avg:.1f}\\nTop: {top[0]} ({top[1]})"\nPath('/sandbox/summary.txt').write_text(summary)\n\n# Write sorted leaderboard\nranked = sorted(rows, key=lambda r: int(r[1]), reverse=True)\nboard = '\\n'.join(f"{i+1}. {r[0]}: {r[1]}" for i, r in enumerate(ranked))\nPath('/sandbox/leaderboard.txt').write_text(board)\n\n{'average': avg, 'top': top[0], 'files_written': 2}`,
-      datetime: `from datetime import date, datetime\n\n# Get today's date (yields OsCall to host)\nd = date.today()\nprint(f"Today: {d.year}-{d.month:02d}-{d.day:02d}")\n\n# Get current datetime\ndt = datetime.now()\nprint(f"Now: {dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}")\n\n{'date': str(d), 'datetime': str(dt)}`,
-      explorer: `from pathlib import Path\n\n# Build a directory structure\nbase = Path('/sandbox/project')\nbase.mkdir(parents=True)\n\n# Source files\n(base / 'src').mkdir()\n(base / 'src' / 'main.py').write_text('print("hello world")')\n(base / 'src' / 'utils.py').write_text('def add(a, b): return a + b')\n\n# Config\n(base / 'config.json').write_text('{"debug": true, "port": 8080}')\n\n# Docs\n(base / 'docs').mkdir()\n(base / 'docs' / 'README.md').write_text('# My Project\\nA demo of the VFS.')\n\n# Count everything\nall_files = []\ndef walk(d):\n    for p in sorted(d.iterdir(), key=str):\n        if p.is_file():\n            all_files.append(str(p))\n        elif p.is_dir():\n            walk(p)\n\nwalk(base)\n{'files': all_files, 'count': len(all_files)}`,
-      open: `# open() with buffered read/write + context managers (monty 0.0.18)\n\n# Write via a 'with' block — the file closes automatically at block exit\nwith open('/sandbox/notes.txt', 'w') as f:\n    n1 = f.write('line 1\\n')\n    n2 = f.write('line 2\\n')\n    inside = f.closed\nafter = f.closed\n\n# Append mode preserves existing content\nwith open('/sandbox/notes.txt', 'a') as f:\n    f.write('appended\\n')\n\n# Read it back\ntext = open('/sandbox/notes.txt').read()\n\n{'chars_written': [n1, n2], 'closed_inside': inside, 'closed_after': after, 'text': text}`,
-      binary: `# Binary mode (wb / rb) round-trips raw bytes — including 0xff\nwith open('/sandbox/blob.bin', 'wb') as f:\n    f.write(b'\\x00\\x01\\x02\\xff')\n\nwith open('/sandbox/blob.bin', 'rb') as f:\n    data = f.read()\n\n{'bytes': list(data), 'len': len(data), 'type': str(type(data))}`,
-      errors: `from pathlib import Path\n\n# monty 0.0.18 delivers OS errors as their real Python class, so you can\n# 'except' them by type instead of catching a generic RuntimeError.\nresults = {}\n\n# Missing file -> FileNotFoundError\ntry:\n    open('/sandbox/nope.txt')\nexcept FileNotFoundError as e:\n    results['missing'] = type(e).__name__\n\n# Opening a directory as a file -> IsADirectoryError\nPath('/sandbox/adir').mkdir(parents=True)\nPath('/sandbox/adir/x.txt').write_text('x')\ntry:\n    open('/sandbox/adir')\nexcept IsADirectoryError as e:\n    results['is_a_dir'] = type(e).__name__\n\nresults`,
-    };
+    const examples = {};
+    const exampleData = {};
+    const catalogReady = fetch('examples.json').then(r => r.json()).then(all => {
+      for (const e of all.filter(e => e.pages.includes(document.body.dataset.page))) {
+        examples[e.id] = e.code;
+        exampleData[e.id] = e;
+      }
+    });
 
 
     // ---------------------------------------------------------------------
@@ -512,6 +241,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
     // adding an example covers it automatically; this function only has to
     // know how to run one and how to read the verdict.
     window.__montyRunExample = async function (key) {
+      await catalogReady;
       const sel = $('examples');
       // CLEARED FIRST, or an unknown key silently re-runs whatever the last
       // example left behind. Observed while falsifying this gate: a new
@@ -525,7 +255,19 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
         return JSON.stringify({ ok: false, status: 'no-code',
           detail: 'selecting "' + key + '" loaded no code into the editor' });
       }
-      await run();
+      const e = exampleData[key];
+      if (window.VfsDemo) {
+        window.VfsDemo.clearMounts();
+        for (const [path, content] of Object.entries(e.stagedFiles || {})) await window.VfsDemo.mountFile(path, content);
+      }
+      runBtn.click(); await window.__lastRun;
+      if (['walk','glob'].includes(key) && !window.__lastResult.osCallLog.some(e => /scan/i.test(e.op))) throw Error('Missing scan call');
+      const files = (window.__lastResult.files || []).filter(f => f.type === 'file');
+      const entries = [...fileTree.querySelectorAll('.file-entry')];
+      if (entries.length !== files.length || entries.some((entry, i) => !entry.textContent.includes(files[i].path)) || $('fileCount').textContent !== String(files.length)) throw Error('File inspector did not update');
+      if (!e.legacy && (!window.__lastResult?.ok || JSON.stringify(window.__lastResult.value) !== JSON.stringify(e.expected))) {
+        return JSON.stringify({ok:false,status:'Output mismatch',detail:JSON.stringify(window.__lastResult)});
+      }
       const errEl = output.querySelector('.output-error');
       return JSON.stringify({
         ok: status.textContent === 'Done' && !errEl,
@@ -538,7 +280,7 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       const key = this.value;
       if (key && examples[key]) {
         editor.value = examples[key];
-        if (key === 'config' && window.VfsDemo) {
+        if (key === 'vfs-config' && window.VfsDemo) {
           window.VfsDemo.clearMounts();
           window.VfsDemo.mountFile('/sandbox/config.json', '{"api_key": "sk-abc123", "retries": 3, "debug": true}');
         }
@@ -556,7 +298,28 @@ files = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)
       }
     });
 
-    runBtn.onclick = run;
+    runBtn.onclick = () => { window.__lastRun = run(); };
+
+    async function resetStaging() {
+      if (runBtn.disabled) return;
+      window.VfsDemo.clearMounts();
+      renderFiles([]); output.textContent = ''; callLog.textContent = '';
+      status.textContent = 'Staging cleared; each Run creates a fresh filesystem';
+    }
+    $('resetBtn').onclick = resetStaging;
+    window.__montyCheckControls = async () => {
+      $('mountPath').value='/sandbox/manual.txt'; $('mountContent').value='manual';
+      await $('mountBtn').onclick();
+      editor.value='open("/sandbox/manual.txt").read()';
+      runBtn.click(); await window.__lastRun;
+      if (window.__lastResult.value !== 'manual') throw Error('Manual staging failed');
+      await resetStaging();
+      editor.value='from pathlib import Path\nPath("/sandbox/manual.txt").exists()';
+      runBtn.click(); await window.__lastRun;
+      if (window.__lastResult.value !== false) throw Error('Reset retained staging');
+      return true;
+    };
+
   </script>
 </body>
 </html>

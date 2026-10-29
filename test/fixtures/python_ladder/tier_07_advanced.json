@@ -109,7 +109,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "no class support"
+    "xfail": null
   },
   {
     "id": 62,
@@ -157,7 +157,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "no context manager support"
+    "xfail": null
   },
   {
     "id": 65,

@@ -10,3 +10,6 @@ web/web/*.wasm
 web/web/*.map
 web/web/*.deps
 web/web/fixtures/
+
+!web/web/site.js
+!web/web/runtime-page.js

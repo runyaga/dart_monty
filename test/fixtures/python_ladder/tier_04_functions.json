@@ -133,7 +133,7 @@
     "resumeValues": null,
     "resumeErrors": null,
     "nativeOnly": false,
-    "xfail": "decorator @ syntax not fully supported"
+    "xfail": null
   },
   {
     "id": 53,
