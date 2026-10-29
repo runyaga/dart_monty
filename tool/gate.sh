@@ -150,15 +150,8 @@ run_check "dart analyze" dart analyze --fatal-infos
 # 3. Dart Doc Validate Links
 # -------------------------------------------------------
 run_check "dart doc --validate-links" dart doc --validate-links .
-# FOUR files declare the dart_monty_core ref and nothing compared them:
-# example/pubspec.yaml sat 197 commits behind while the root was on 0.23, so the
-# examples compiled this package against a core with no `asStringMap`, and
-# pages.yaml sat 315 behind. The local gate cannot see either — it never
-# resolves example/ or example/web — which is why the guard checks the
-# DECLARATIONS rather than waiting for a build. It discovers the files rather
-# than listing them, because its predecessor listed two and passed green on a
-# tree with a 197-commit disagreement.
-run_check "core ref agreement" bash tool/check_core_ref.sh
+# Reject core git dependencies in every tracked YAML; releases use pub.dev.
+run_check "hosted core dependency" bash tool/check_core_ref.sh
 # actionlint over every workflow. Ported from dart_monty_core, where it exists
 # because a malformed workflow does not fail — it silently stops running, and a
 # job that never starts reports nothing at all.

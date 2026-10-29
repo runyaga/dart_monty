@@ -26,7 +26,7 @@ jobs:
       - run: dart pub get
       - run: dart pub get
         working-directory: example/web
-      # Worker assets come from pub's resolved checkout, verified by metadata.
+      # Worker assets come from pub's resolved hosted package, verified by metadata.
       - run: bash tool/check_demo_pages.sh --build-only
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

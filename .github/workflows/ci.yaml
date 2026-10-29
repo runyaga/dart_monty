@@ -141,7 +141,7 @@ jobs:
   # gate — run the checks this repo WRITES but did not run
   # ---------------------------------------------------------------------------
   # Measured 2026-09-16: FOUR of the eleven checks in tool/gate.sh ran in a CI
-  # job; SEVEN ran only on a developer's laptop — including the core-ref drift
+  # job; SEVEN ran only on a developer's laptop — including the hosted-core
   # guard written the same day for the bug that broke the Pages build. A check
   # that runs nowhere is a check that is one forgotten `bash tool/gate.sh` away
   # from being decorative.
@@ -165,7 +165,7 @@ jobs:
           sdk: 3.13.5
       - run: dart pub get
       - name: Resolve nested packages
-        # check_page_versions.sh reads example/web's resolved core checkout.
+        # check_page_versions.sh reads example/web's resolved core package.
         run: bash tool/resolve_packages.sh
       - name: Checks that otherwise run nowhere
         run: |
@@ -285,40 +285,7 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
-      - name: Locate resolved core checkout
-        id: core
-        run: |
-          python3 - <<'PYCORE'
-          import json
-          import os
-          import pathlib
-          import subprocess
-          import urllib.parse
-
-          config = pathlib.Path('.dart_tool/package_config.json').resolve()
-          packages = json.loads(config.read_text())['packages']
-          core = next(p for p in packages if p['name'] == 'dart_monty_core')
-          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
-          assert urllib.parse.urlparse(uri).scheme == 'file', uri
-          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
-          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              print(f'path={path}', file=output)
-              print(f'commit={commit}', file=output)
-          PYCORE
-      # Match core's worker-rust toolchain and action pins.
-      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          targets: wasm32-wasip1
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          workspaces: ${{ steps.core.outputs.path }}/native/worker
-          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
-      - name: Build pinned core worker and mount library
-        working-directory: ${{ steps.core.outputs.path }}
-        run: bash tool/build_worker.sh
+      # Core's hosted package build hook installs its prebuilt native worker.
       - name: Resolve nested packages
         # `dart pub get` above resolves the root and example/, but NOT
         # example/web/ — and `dart analyze` at the root analyses it anyway,
@@ -403,40 +370,7 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
-      - name: Locate resolved core checkout
-        id: core
-        run: |
-          python3 - <<'PYCORE'
-          import json
-          import os
-          import pathlib
-          import subprocess
-          import urllib.parse
-
-          config = pathlib.Path('.dart_tool/package_config.json').resolve()
-          packages = json.loads(config.read_text())['packages']
-          core = next(p for p in packages if p['name'] == 'dart_monty_core')
-          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
-          assert urllib.parse.urlparse(uri).scheme == 'file', uri
-          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
-          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              print(f'path={path}', file=output)
-              print(f'commit={commit}', file=output)
-          PYCORE
-      # Match core's worker-rust toolchain and action pins.
-      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          targets: wasm32-wasip1
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          workspaces: ${{ steps.core.outputs.path }}/native/worker
-          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
-      - name: Build pinned core worker and mount library
-        working-directory: ${{ steps.core.outputs.path }}
-        run: bash tool/build_worker.sh
+      # Core's hosted package build hook installs its prebuilt native worker.
       - name: Native workspace gates (root hook, real worker)
         run: |
           set -euo pipefail
@@ -581,89 +515,19 @@ jobs:
       - run: pip install -r requirements-docs.lock
       - id: pubget
         run: dart pub get
-      - name: Locate resolved core checkout
-        id: core
-        run: |
-          python3 - <<'PYCORE'
-          import json
-          import os
-          import pathlib
-          import subprocess
-          import urllib.parse
-
-          config = pathlib.Path('.dart_tool/package_config.json').resolve()
-          packages = json.loads(config.read_text())['packages']
-          core = next(p for p in packages if p['name'] == 'dart_monty_core')
-          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
-          assert urllib.parse.urlparse(uri).scheme == 'file', uri
-          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
-          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              print(f'path={path}', file=output)
-              print(f'commit={commit}', file=output)
-          PYCORE
-      # Match core's worker-rust toolchain and action pins.
-      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          targets: wasm32-wasip1
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          workspaces: ${{ steps.core.outputs.path }}/native/worker
-          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
-      - name: Build pinned core worker and mount library
-        working-directory: ${{ steps.core.outputs.path }}
-        run: bash tool/build_worker.sh
-      # MOVED HERE FROM THE DELETED `test-examples` JOB, minus its compile loop.
-      #
-      # That loop ran `dart compile js bin/<x>.dart --no-source-maps` for each
-      # entrypoint and threw the output away; tool/check_demo_pages.sh, the
-      # next step IN THIS JOB and under the same `code` filter, compiles the
-      # same discovered entrypoints with the same flags, fails on any compile
-      # error and asserts built == discovered, then RUNS them. What the loop
-      # carried that the script does not is kept below verbatim: the
-      # resolved-core-ref assertion (against example/web/pubspec.yaml's own
-      # ref) and the hard-coded entrypoint count of 7.
-      #
-      # example/web declares its own dart_monty_core override because
-      # `dependency_overrides` do NOT propagate through a path dependency —
-      # without it the demos compile against pub.dev's published core and
-      # prove nothing about the 0.23 migration.
-      - name: Web demos resolve the intended core, and there are 7 entrypoints
+      # Core's hosted package build hook installs its prebuilt native worker.
+      - name: Web demos resolve hosted core, and there are 8 entrypoints
         working-directory: example/web
         run: |
           set -euo pipefail
           dart pub get
-          # Confirm we are compiling against the intended core, not pub.dev. A
-          # green compile against the wrong core is the failure this step exists
-          # to prevent, so it is asserted rather than assumed.
-          #
-          # THE EXPECTED REF IS READ FROM pubspec.yaml, NOT WRITTEN HERE. It was
-          # hardcoded as `integration/0.23`, which made this a FIFTH copy of the
-          # core ref -- and one tool/check_core_ref.sh structurally cannot see,
-          # because that script matches lines that BEGIN with `ref:` and this was
-          # a grep pattern inside a shell block. Measured 2026-09-17: the pin
-          # moved to the v0.23.0 tag, all four copies that script checks moved
-          # with it, this one did not, and `Example smoke tests` failed with
-          # "resolved dart_monty_core from somewhere else" while the resolution
-          # was in fact correct. Deriving it removes the copy rather than
-          # updating it.
-          EXPECTED_REF="$(awk '
-            /dart_monty_core/ {c=40; next}
-            c && /^[[:space:]]*(#|$)/ {next}
-            c && /^[[:space:]]*ref:[[:space:]]*/ {
-              sub(/^[[:space:]]*ref:[[:space:]]*/,""); sub(/[[:space:]]*$/,""); print; exit
-            }
-            c {c--}' pubspec.yaml)"
-          [ -n "$EXPECTED_REF" ] \
-            || { echo "FAIL: no dart_monty_core ref found in example/web/pubspec.yaml"; \
-                 echo "  A gate that cannot find what it compares is broken, not passing."; exit 1; }
-          echo "expecting dart_monty_core ref: $EXPECTED_REF"
-          grep -Eq "ref: \"?$EXPECTED_REF\"?\$" pubspec.lock \
-            || { echo "FAIL: example/web resolved dart_monty_core from somewhere else"; \
-                 echo "  expected ref: $EXPECTED_REF"; \
-                 sed -n '/dart_monty_core:/,/^  [a-z]/p' pubspec.lock; exit 1; }
+          python3 - <<'PYCORE'
+          import pathlib, yaml
+          lock = yaml.safe_load(pathlib.Path('pubspec.lock').read_text())
+          core = lock['packages']['dart_monty_core']
+          assert core['source'] == 'hosted', core
+          assert core['version'].startswith('0.120.'), core
+          PYCORE
           # COUNT, don't glob-and-trust. Deleting an entrypoint would otherwise
           # leave the site check green having compiled one fewer. A count in a
           # name asserts nothing; this does.

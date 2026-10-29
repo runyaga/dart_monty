@@ -70,6 +70,6 @@ Future<void> main() async {
 }
 ```
 
-See core's [ExternalModule API comments](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/lib/src/platform/monty_value_structured.dart#L497),
-[checkout and withSession API comments](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/lib/src/worker/monty.dart#L105),
-and [module divergence and dispatch rules](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/docs/reference/upstream-divergences.md#external-modules-the-dart-model).
+See core's [ExternalModule API comments](https://github.com/runyaga/dart_monty_core/blob/v0.120.0/lib/src/platform/monty_value_structured.dart#L497),
+[checkout and withSession API comments](https://github.com/runyaga/dart_monty_core/blob/v0.120.0/lib/src/worker/monty.dart#L105),
+and [module divergence and dispatch rules](https://github.com/runyaga/dart_monty_core/blob/v0.120.0/docs/reference/upstream-divergences.md#external-modules-the-dart-model).

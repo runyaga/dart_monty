@@ -32,8 +32,8 @@ worker-location option.
 ## Native (FFI)
 
 For desktop / server / Flutter desktop / Flutter mobile targets,
-`dart_monty_core/hook/build.dart` installs the verified host worker from the
-core release during `dart run`, `dart test`, or `dart build`. Dart's
+`dart_monty_core/hook/build.dart` downloads and installs the verified prebuilt host worker from the
+core GitHub release during `dart run`, `dart test`, or `dart build`. Dart's
 native-assets toolchain bundles the mount library into compiled output when the
 root package opts in for `MountDir`.
 

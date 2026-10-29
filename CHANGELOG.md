@@ -1,13 +1,15 @@
 ## Unreleased
 
+## 0.120.0 - 2026-10-29
+
 - Overhaul the runtime Pages site with shared navigation/theme, resolved build
   metadata and an exact-output example catalog. Add workspace ownership,
   explicit child module grants, tools, stdlib, VFS scans and structured errors.
   Build and smoke branch artifacts; publish only tested main artifacts.
 
-- The port uses dart_monty_core branch 0.120 at commit `29d1f4a` (not a
-  release), with upstream pydantic/monty 1.2.0. Native use and CI build the
-  worker from that pin; browsers use core's committed assets. The facade
+- Depend on dart_monty_core 0.120.0 from pub.dev (upstream monty 1.2.0).
+  Native targets use core's prebuilt worker downloaded from its GitHub release;
+  browsers use core's committed assets. The facade
   exports `ExternalModule`, runtime root sessions accept `externalModules`,
   and sandbox children use only `childExternalModules`. Integration tests
   pin rename's target-path result, shared file iteration position, and cwd

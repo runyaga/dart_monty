@@ -8,11 +8,8 @@
 `dart_monty_core` with stateful runtimes, Dart host functions, extensions,
 execution events, and OS-call policy.
 
-This documentation covers `dart_monty 0.110.0-dev.4` on branch `port-0.120`
-with
-`dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc`.
-The core commit is on branch 0.120, not a release, and uses upstream
-pydantic/monty 1.2.0.
+This documentation covers `dart_monty 0.120.0` with `dart_monty_core 0.120.0`
+from pub.dev and upstream pydantic/monty 1.2.0.
 
 Use `MontyRuntime` when Python needs application capabilities or state that
 persists between calls. Use core's `Monty` and `MontySession` directly for a
