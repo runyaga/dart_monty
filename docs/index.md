@@ -9,7 +9,7 @@
 execution events, and OS-call policy.
 
 This documentation covers `dart_monty 0.110.0-dev.4` with
-`dart_monty_core e962659e47d41e7b6bce3f15408f521940a3fcc7`.
+`dart_monty_core bcfbc232ece6436c3e68ec7edfca7c1cad6a32be`.
 
 Use `MontyRuntime` when Python needs application capabilities or state that
 persists between calls. Use core's `Monty` and `MontySession` directly for a

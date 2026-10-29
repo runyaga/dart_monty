@@ -15,6 +15,9 @@ dart analyze --fatal-infos
 dart test
 ```
 
+The core branch 0.120 pin has no prebuilt native worker. After `dart pub get`, resolve
+`dart_monty_core` via `.dart_tool/package_config.json` (`rootUri`) and run `bash tool/build_worker.sh` in that checkout with Rust stable installed before native tests/examples.
+
 ## Working Against a Local `dart_monty_core` Checkout
 
 When iterating on `dart_monty` and `dart_monty_core` together
@@ -191,8 +194,8 @@ All code jobs run in parallel except where noted:
 
 - **Changes**: detects code vs docs-only changes (always runs)
 - **Gate**: pins, workflow checks, format and analyze
-- **Dart test**: unit tests with a coverage gate and core's prebuilt worker
-- **Integration tests**: the VM cell with core's prebuilt worker
+- **Dart test**: unit tests with a coverage gate and core's source-built worker
+- **Integration tests**: the VM cell with core's source-built worker
 - **Demo pages**: the published pages in headless Chrome, plus the
   workspace caps tests
 - **Browser cell** (matrix): the integration and acceptance suites in

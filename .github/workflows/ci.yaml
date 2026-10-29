@@ -271,7 +271,7 @@ jobs:
   test:
     name: Dart test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     steps:
@@ -282,6 +282,40 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
+      - name: Locate resolved core checkout
+        id: core
+        run: |
+          python3 - <<'PYCORE'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import urllib.parse
+
+          config = pathlib.Path('.dart_tool/package_config.json').resolve()
+          packages = json.loads(config.read_text())['packages']
+          core = next(p for p in packages if p['name'] == 'dart_monty_core')
+          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
+          assert urllib.parse.urlparse(uri).scheme == 'file', uri
+          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print(f'path={path}', file=output)
+              print(f'commit={commit}', file=output)
+          PYCORE
+      # Match core's worker-rust toolchain and action pins.
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ${{ steps.core.outputs.path }}/native/worker
+          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
+      - name: Build pinned core worker and mount library
+        working-directory: ${{ steps.core.outputs.path }}
+        run: bash tool/build_worker.sh
       - name: Resolve nested packages
         # `dart pub get` above resolves the root and example/, but NOT
         # example/web/ — and `dart analyze` at the root analyses it anyway,
@@ -357,7 +391,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -366,10 +400,44 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
+      - name: Locate resolved core checkout
+        id: core
+        run: |
+          python3 - <<'PYCORE'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import urllib.parse
+
+          config = pathlib.Path('.dart_tool/package_config.json').resolve()
+          packages = json.loads(config.read_text())['packages']
+          core = next(p for p in packages if p['name'] == 'dart_monty_core')
+          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
+          assert urllib.parse.urlparse(uri).scheme == 'file', uri
+          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print(f'path={path}', file=output)
+              print(f'commit={commit}', file=output)
+          PYCORE
+      # Match core's worker-rust toolchain and action pins.
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ${{ steps.core.outputs.path }}/native/worker
+          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
+      - name: Build pinned core worker and mount library
+        working-directory: ${{ steps.core.outputs.path }}
+        run: bash tool/build_worker.sh
       - name: Native workspace gates (root hook, real worker)
         run: |
           set -euo pipefail
-          # The opt-in downloads the prebuilt mount library for MountDir only.
+          # The opt-in bundles the source-built mount library, including for AOT.
           mkdir -p build
           grep -q '^hooks:' pubspec.yaml && { echo 'pubspec already has hooks:' >&2; exit 1; }
           printf '\nhooks:\n  user_defines:\n    dart_monty_core:\n      build_worker: true\n' >> pubspec.yaml
@@ -495,7 +563,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -505,6 +573,40 @@ jobs:
           sdk: 3.13.5
       - id: pubget
         run: dart pub get
+      - name: Locate resolved core checkout
+        id: core
+        run: |
+          python3 - <<'PYCORE'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import urllib.parse
+
+          config = pathlib.Path('.dart_tool/package_config.json').resolve()
+          packages = json.loads(config.read_text())['packages']
+          core = next(p for p in packages if p['name'] == 'dart_monty_core')
+          uri = urllib.parse.urljoin(config.as_uri(), core['rootUri'])
+          assert urllib.parse.urlparse(uri).scheme == 'file', uri
+          path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+          commit = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print(f'path={path}', file=output)
+              print(f'commit={commit}', file=output)
+          PYCORE
+      # Match core's worker-rust toolchain and action pins.
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ${{ steps.core.outputs.path }}/native/worker
+          key: core-worker-${{ runner.os }}-${{ runner.arch }}-${{ steps.core.outputs.commit }}
+      - name: Build pinned core worker and mount library
+        working-directory: ${{ steps.core.outputs.path }}
+        run: bash tool/build_worker.sh
       # MOVED HERE FROM THE DELETED `test-examples` JOB, minus its compile loop.
       #
       # That loop ran `dart compile js bin/<x>.dart --no-source-maps` for each

@@ -19,4 +19,5 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: e962659e47d41e7b6bce3f15408f521940a3fcc7
+      # Core branch 0.120 pin (not a release).
+      ref: bcfbc232ece6436c3e68ec7edfca7c1cad6a32be
