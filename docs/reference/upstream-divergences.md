@@ -4,8 +4,8 @@ pydantic-monty 1.2.0 specifies Python-visible behavior. This page lists each
 known dart_monty difference and its reason. An unlisted difference is a bug.
 
 dart_monty runs Python through dart_monty_core and inherits every row in the
-[dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/bcfbc232ece6436c3e68ec7edfca7c1cad6a32be/docs/reference/upstream-divergences.md)
-including its module rules. Core is pinned to commit `bcfbc23` on branch
+[dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/docs/reference/upstream-divergences.md)
+including its module rules. Core is pinned to commit `29d1f4a` on branch
 0.120, not a release. The rows below describe dart_monty additions.
 
 The Class column distinguishes cases excluded by Dart static types, a released

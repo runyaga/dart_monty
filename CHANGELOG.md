@@ -1,6 +1,6 @@
 ## Unreleased
 
-- The port uses dart_monty_core branch 0.120 at commit `bcfbc23` (not a
+- The port uses dart_monty_core branch 0.120 at commit `29d1f4a` (not a
   release), with upstream pydantic/monty 1.2.0. Native use and CI build the
   worker from that pin; browsers use core's committed assets. The facade
   exports `ExternalModule`, runtime root sessions accept `externalModules`,

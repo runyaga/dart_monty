@@ -10,7 +10,7 @@ execution events, and OS-call policy.
 
 This documentation covers `dart_monty 0.110.0-dev.4` on branch `port-0.120`
 with
-`dart_monty_core bcfbc232ece6436c3e68ec7edfca7c1cad6a32be`.
+`dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc`.
 The core commit is on branch 0.120, not a release, and uses upstream
 pydantic/monty 1.2.0.
 

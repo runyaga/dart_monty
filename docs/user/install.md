@@ -1,7 +1,7 @@
 # Installation
 
 `dart_monty` uses branch `port-0.120`. Its core dependency is pinned to
-commit `bcfbc23` on branch 0.120, with upstream pydantic/monty 1.2.0.
+commit `29d1f4a` on branch 0.120, with upstream pydantic/monty 1.2.0.
 The core pin is not a release.
 `dart_monty_core` is not available from pub.dev, and
 `dependency_overrides` in a dependency's pubspec do not apply to your package,
@@ -18,7 +18,7 @@ dependency_overrides:
   dart_monty_core:
     git:
       url: https://github.com/runyaga/dart_monty_core.git
-      ref: bcfbc232ece6436c3e68ec7edfca7c1cad6a32be
+      ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc
 ```
 
 A package that imports core names directly also lists
