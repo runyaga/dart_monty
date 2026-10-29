@@ -86,6 +86,9 @@
     let sorting = false;
     let stopRequested = false;
     let startResolve = null;
+    let pendingStart = null;
+    let activeRun = null;
+    let nextRunId = 0;
     let comparisons = 0;
     let swaps = 0;
     let steps = 0;
@@ -131,17 +134,29 @@
     });
 
     startBtn.addEventListener('click', () => {
-      if (startResolve && !sorting) {
+      if (!sorting) {
+        // Invalidate callbacks from any earlier run immediately.
+        activeRun = {id: ++nextRunId, frames: 0, final: null, completed: false};
+        window.__sortRun = activeRun;
+        window.__sortFinal = null;
+        window.__sortFrames = 0;
         stopRequested = false;
         const config = JSON.stringify({
+          runId: activeRun.id,
           descending: document.getElementById('descending').checked,
           algorithm: selectedAlgo,
           code: codeEditor.value,
           size: parseInt(sizeSlider.value),
           speed: speedMap[speedSlider.value],
         });
-        startResolve(config);
-        startResolve = null;
+        if (startResolve) {
+          const resolve = startResolve;
+          startResolve = null;
+          resolve(config);
+        } else {
+          // Done can enable Start before Dart has finished session cleanup.
+          pendingStart = config;
+        }
       }
     });
 
@@ -193,7 +208,8 @@
       startBtn.disabled = false;
     }
 
-    function onVisualizerSortStarted(name, size) {
+    function onVisualizerSortStarted(name, size, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
       sorting = true;
       setControlsEnabled(false);
       startBtn.style.display = 'none';
@@ -209,8 +225,9 @@
       chartEl.innerHTML = '';
     }
 
-    function onVisualizerStep(arr, i, j, action) {
-      window.__sortFrames = (window.__sortFrames || 0) + 1;
+    function onVisualizerStep(arr, i, j, action, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      window.__sortFrames = ++activeRun.frames;
       steps++;
       statSteps.textContent = steps;
       if (action === 'compare') {
@@ -225,9 +242,12 @@
       codeEditor.value = template.replace('INPUT_ARRAY', '[' + Array.from(arr).join(', ') + ']');
     }
 
-    function onVisualizerDone(arr) {
-      window.__sortFinal = Array.from(arr);
+    function onVisualizerDone(arr, runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      activeRun.final = Array.from(arr);
+      window.__sortFinal = activeRun.final;
       renderBars(Array.from(arr), -1, -1, 'done');
+      activeRun.completed = true;
       statusEl.className = 'complete';
       statusEl.textContent = 'Complete — ' + comparisons + ' comparisons, ' + swaps + ' swaps, ' + steps + ' steps';
       sorting = false;
@@ -236,7 +256,9 @@
       setControlsEnabled(true);
     }
 
-    function onVisualizerStopped() {
+    function onVisualizerStopped(runId) {
+      if (!activeRun || runId !== activeRun.id || activeRun.completed) return;
+      activeRun.completed = true;
       statusEl.className = 'ready';
       statusEl.textContent = 'Stopped after ' + steps + ' steps';
       sorting = false;
@@ -245,7 +267,9 @@
       setControlsEnabled(true);
     }
 
-    function onVisualizerError(msg) {
+    function onVisualizerError(msg, runId) {
+      if (runId !== undefined && (!activeRun || runId !== activeRun.id || activeRun.completed)) return;
+      if (activeRun) activeRun.completed = true;
       statusEl.className = 'error';
       statusEl.textContent = 'Error: ' + msg;
       sorting = false;
@@ -256,6 +280,12 @@
 
     function waitForStart() {
       return new Promise((resolve) => {
+        if (pendingStart !== null) {
+          const config = pendingStart;
+          pendingStart = null;
+          resolve(config);
+          return;
+        }
         startResolve = resolve;
       });
     }
@@ -264,8 +294,8 @@
       return speedMap[speedSlider.value];
     }
 
-    function isStopped() {
-      return stopRequested;
+    function isStopped(runId) {
+      return stopRequested || !activeRun || runId !== activeRun.id;
     }
   </script>
   <script src="coi-serviceworker.js"></script>
@@ -278,11 +308,13 @@ window.__montyCheckControls = async () => {
  const expected = [1,2,3,4,5,6,7,8];
  for (const key of Object.keys(algoTemplates)) {
   document.querySelector(`[data-algo="${key}"]`).click();
-  window.__sortFinal = null; window.__sortFrames = 0;
+  const previousRun = activeRun;
   startBtn.click();
+  const run = activeRun;
+  if (!run || run === previousRun) throw Error('Visualizer Start was not accepted: ' + key);
   const until = Date.now() + 120000;
-  while (!window.__sortFinal && Date.now() < until && statusEl.className !== 'error') await new Promise(r => setTimeout(r, 20));
-  if (JSON.stringify(window.__sortFinal) !== JSON.stringify(expected) || window.__sortFrames < 2) throw Error('Visualizer Start failed: ' + key + ': ' + statusEl.textContent);
+  while (!run.completed && Date.now() < until && statusEl.className !== 'error') await new Promise(r => setTimeout(r, 20));
+  if (!run.completed || JSON.stringify(run.final) !== JSON.stringify(expected) || run.frames < 2) throw Error('Visualizer Start failed: ' + key + ': ' + statusEl.textContent);
  }
  return true;
 };

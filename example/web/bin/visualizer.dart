@@ -37,16 +37,17 @@ external void _onStep(
   JSNumber i,
   JSNumber j,
   JSString action,
+  JSNumber runId,
 );
 
 @JS('onVisualizerDone')
-external void _onDone(JSArray<JSNumber> arr);
+external void _onDone(JSArray<JSNumber> arr, JSNumber runId);
 
 @JS('onVisualizerError')
-external void _onError(JSString message);
+external void _onError(JSString message, [JSNumber? runId]);
 
 @JS('onVisualizerSortStarted')
-external void _onSortStarted(JSString name, JSNumber size);
+external void _onSortStarted(JSString name, JSNumber size, JSNumber runId);
 
 @JS('waitForStart')
 external JSPromise<JSString> _waitForStart();
@@ -55,10 +56,10 @@ external JSPromise<JSString> _waitForStart();
 external JSNumber _getSpeed();
 
 @JS('isStopped')
-external JSBoolean _isStopped();
+external JSBoolean _isStopped(JSNumber runId);
 
 @JS('onVisualizerStopped')
-external void _onStopped();
+external void _onStopped(JSNumber runId);
 
 // ---------------------------------------------------------------------------
 // Algorithm display names
@@ -107,13 +108,14 @@ Future<void> _runSort(
   Monty pool,
   String algorithm,
   String template,
-  int size, {
+  int size,
+  int runId, {
   bool descending = false,
 }) async {
   final arr = _generateArray(size, descending: descending);
   final code = template.replaceAll('INPUT_ARRAY', arr.toString());
   final name = _algorithmNames[algorithm] ?? algorithm;
-  _onSortStarted(name.toJS, size.toJS);
+  _onSortStarted(name.toJS, size.toJS, runId.toJS);
 
   try {
     // The session closes when the sort ends, a suspended one included. Each
@@ -122,6 +124,10 @@ Future<void> _runSort(
     await pool.withSession(limits: _sortLimits, (session) async {
       var snapshot = await session.feedStart(code);
       while (snapshot is! MontyComplete) {
+        if (_isStopped(runId.toJS).toDart) {
+          _onStopped(runId.toJS);
+          return;
+        }
         if (snapshot is! FunctionSnapshot ||
             snapshot.functionName != 'yield_state') {
           // Anything else (a sleep, a pending future): the session's own
@@ -140,10 +146,10 @@ Future<void> _runSort(
         final j = args[2].dartValue! as int;
         final action = args[3].dartValue! as String;
 
-        _onStep(_toJsArray(stepArr), i.toJS, j.toJS, action.toJS);
+        _onStep(_toJsArray(stepArr), i.toJS, j.toJS, action.toJS, runId.toJS);
 
         if (action == 'done') {
-          _onDone(_toJsArray(stepArr));
+          _onDone(_toJsArray(stepArr), runId.toJS);
 
           return;
         }
@@ -151,8 +157,8 @@ Future<void> _runSort(
         final currentSpeed = _getSpeed().toDartInt;
         await Future<void>.delayed(Duration(milliseconds: currentSpeed));
 
-        if (_isStopped().toDart) {
-          _onStopped();
+        if (_isStopped(runId.toJS).toDart) {
+          _onStopped(runId.toJS);
 
           return;
         }
@@ -163,12 +169,12 @@ Future<void> _runSort(
       }
 
       final value = snapshot.output.dartValue;
-      _onDone(_toJsArray(value is List ? value : const []));
+      _onDone(_toJsArray(value is List ? value : const []), runId.toJS);
     });
   } on MontyError catch (e) {
-    _onError('${e.exception.excType}: ${e.exception.message}'.toJS);
+    _onError('${e.exception.excType}: ${e.exception.message}'.toJS, runId.toJS);
   } on Object catch (e) {
-    _onError('Exception: $e'.toJS);
+    _onError('Exception: $e'.toJS, runId.toJS);
   }
 }
 
@@ -204,6 +210,7 @@ Future<void> main() async {
       algorithm,
       code,
       size,
+      (config['runId'] as num).toInt(),
       descending: config['descending'] == true,
     );
   }
