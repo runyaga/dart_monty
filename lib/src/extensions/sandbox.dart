@@ -316,6 +316,7 @@ class SandboxExtension extends MontyExtension {
     this.maxDepth = 3,
     this.currentDepth = 0,
     this.childLimits,
+    this.childExternalModules,
     this.sandboxBaseDir,
     this.writeBytesLimit = 8388608,
     this.memoryUsageLimit = 8388608,
@@ -347,6 +348,10 @@ class SandboxExtension extends MontyExtension {
   /// Overrides inherited child limits. Without one, children use runtime
   /// limits. Guest timeout and memory requests may only reduce those limits.
   final ResourceLimits? childLimits;
+
+  /// Grants external modules to children. Without one, children get no external
+  /// modules. Parent runtime modules are never inherited.
+  final Map<String, Object?>? childExternalModules;
 
   /// Selects owned native backing on the VM that remains available until free
   /// or disposal. Web builds reject this setting with [UnsupportedError].
@@ -481,7 +486,9 @@ class SandboxExtension extends MontyExtension {
         throw StateError('Child origin is disposed');
       }
       try {
-        session = await execution.checkout();
+        session = await execution.checkout(
+          externalModules: childExternalModules,
+        );
       } on Object catch (error, stack) {
         logger.error(
           'Child session checkout failed',

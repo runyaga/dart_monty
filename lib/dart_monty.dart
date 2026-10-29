@@ -6,7 +6,7 @@ library;
 
 /// Re-exports core primitives.
 export 'package:dart_monty_core/dart_monty_core.dart'
-        // Keep the order of the approved 25-name facade.
+        // Keep the order of the approved 26-name facade.
         // ignore: combinators_ordering
         show
         Monty,
@@ -18,6 +18,7 @@ export 'package:dart_monty_core/dart_monty_core.dart'
         OsHandler,
         OsCallNotHandledException,
         ExternalException,
+        ExternalModule,
         OSAccess,
         MontyBool,
         MontyInt,

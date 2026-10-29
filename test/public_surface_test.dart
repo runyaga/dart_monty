@@ -26,7 +26,7 @@ void main() {
       final names = inventory.exported(facade, web: web).keys.toSet();
       final golden = {...expected};
       expect(names, golden);
-      expect(names, hasLength(62));
+      expect(names, hasLength(63));
     });
   }
 
@@ -43,6 +43,7 @@ void main() {
       'OsHandler',
       'OsCallNotHandledException',
       'ExternalException',
+      'ExternalModule',
       'OSAccess',
       'MontyBool',
       'MontyInt',
@@ -66,7 +67,7 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(memberSignatures(declarations), golden);
-    expect(golden, hasLength(172));
+    expect(golden, hasLength(173));
     final headers =
         jsonDecode(
               File('test/surface/declarations.json').readAsStringSync(),

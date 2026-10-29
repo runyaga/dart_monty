@@ -8,6 +8,7 @@
 library;
 
 import 'package:dart_monty/dart_monty.dart';
+import 'package:dart_monty/src/workspace/workspace.dart';
 import 'package:test/test.dart';
 
 import '_worker.dart';
@@ -44,6 +45,30 @@ void main() {
   );
 
   group('type checking', () {
+    test('rejected feed establishes cwd for the next workspace feed', () async {
+      final session = await pool.checkout(typeCheck: true);
+      addTearDown(session.close);
+      final workspace = Workspace(directories: {'nested'});
+      addTearDown(workspace.dispose);
+      await expectLater(
+        workspace.driver(session)(
+          'value: int = "wrong type"',
+          cwd: '/work/nested',
+        ),
+        throwsA(isA<MontyTypingError>()),
+      );
+      final result = await workspace.driver(session)(
+        'import os\nos.getcwd()',
+        cwd: null,
+      );
+      // Measured on the 1.2.0 worker after typing rejection: "/work/nested".
+      expect(result, const MontyString('/work/nested'));
+      expect(
+        await workspace.driver(session)('os.getcwd()'),
+        const MontyString('/work'),
+      );
+    });
+
     test('passes clean code', () async {
       expect(await typeCheck('x: int = 1\ny: str = "hello"'), isNull);
     });
