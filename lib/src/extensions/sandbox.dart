@@ -349,8 +349,11 @@ class SandboxExtension extends MontyExtension {
   /// limits. Guest timeout and memory requests may only reduce those limits.
   final ResourceLimits? childLimits;
 
-  /// Grants external modules to children. Without one, children get no external
-  /// modules. Parent runtime modules are never inherited.
+  /// Maps child import names to [ExternalModule] values or zero-argument
+  /// factories returning modules, optionally through futures. Core reads the
+  /// map live and caches successful factory results per session.
+  /// Children get only this map, never the parent runtime's external modules.
+  /// Without it, children get no modules. Sub-executions get no modules.
   final Map<String, Object?>? childExternalModules;
 
   /// Selects owned native backing on the VM that remains available until free

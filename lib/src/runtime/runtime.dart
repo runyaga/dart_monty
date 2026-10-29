@@ -243,8 +243,14 @@ class MontyRuntime implements MontyRuntimeRef {
   /// and closes on [dispose]. An injected [pool] must use a finite
   /// `checkoutTimeout` so acquisition remains bounded. Supplied extensions
   /// attach before first [execute] or [invoke] use.
-  /// Root sessions get [externalModules]; sub-executions get none.
-  /// Sandbox children get only [SandboxExtension.childExternalModules].
+  ///
+  /// [externalModules] maps import names to [ExternalModule] values or
+  /// zero-argument factories returning modules, optionally through futures.
+  /// Core reads the map live and caches successful factory results per session.
+  /// Root sessions receive it: shared, fresh with [sandbox], and replacement
+  /// sessions after state clearing or session loss. Sub-executions get none.
+  /// Sandbox children get only [SandboxExtension.childExternalModules] and
+  /// never inherit this map.
   // ignore: number-of-parameters, the public options of a runtime.
   static Future<MontyRuntime> start({
     Monty? pool,

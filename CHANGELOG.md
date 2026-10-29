@@ -1,5 +1,13 @@
 ## Unreleased
 
+- The port uses dart_monty_core branch 0.120 at commit `bcfbc23` (not a
+  release), with upstream pydantic/monty 1.2.0. Native use and CI build the
+  worker from that pin; browsers use core's committed assets. The facade
+  exports `ExternalModule`, runtime root sessions accept `externalModules`,
+  and sandbox children use only `childExternalModules`. Integration tests
+  pin rename's target-path result, shared file iteration position, and cwd
+  retention after type-check rejection.
+
 ## 0.110.0-dev.4 - 2026-10-20
 
 ### Added
