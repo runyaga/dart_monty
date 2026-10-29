@@ -15,8 +15,8 @@ dart analyze --fatal-infos
 dart test
 ```
 
-The core branch 0.120 pin has no prebuilt native worker. After `dart pub get`, resolve
-`dart_monty_core` via `.dart_tool/package_config.json` (`rootUri`) and run `bash tool/build_worker.sh` in that checkout with Rust stable installed before native tests/examples.
+Core's build hook downloads the prebuilt native worker from its GitHub release
+when running native tests or examples. Run `dart pub get` first.
 
 ## Working Against a Local `dart_monty_core` Checkout
 

@@ -15,26 +15,16 @@ streams, and OS-call policy to the pool and session primitives supplied by
 
 ## Installation
 
-The `port-0.120` branch uses dart_monty_core branch 0.120 at commit
-`29d1f4a`, with upstream pydantic/monty 1.2.0. The core pin is not a release.
-Add the package and override core in the application `pubspec.yaml`:
+```bash
+dart pub add dart_monty
+```
+
+Or add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: port-0.120
-
-dependency_overrides:
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc
+  dart_monty: ^0.120.0
 ```
-
-See [Installation](docs/user/install.md) for direct core imports and local
-worktree dependencies.
 
 ## Quick start
 
@@ -58,11 +48,11 @@ session tradeoffs.
 
 ## Platform support
 
-The Dart VM and Flutter native targets use core's native worker. Browser
-targets use its Web Worker and WASM assets. Web deployments require the
-worker assets and cross-origin isolation headers. Native use requires a worker built from the pinned core checkout; see
-[Installation](docs/user/install.md).
-See [Deployment and Bundling](docs/user/deployment.md) for those constraints.
+The Dart VM and Flutter native targets use the prebuilt native worker that
+`dart_monty_core` downloads from its GitHub release at build time. Browser
+targets need core's Web Worker and WASM assets plus cross-origin isolation
+headers. See [Installation](docs/user/install.md) and
+[Deployment and Bundling](docs/user/deployment.md) for setup.
 
 ## Documentation
 

@@ -4,9 +4,8 @@ pydantic-monty 1.2.0 specifies Python-visible behavior. This page lists each
 known dart_monty difference and its reason. An unlisted difference is a bug.
 
 dart_monty runs Python through dart_monty_core and inherits every row in the
-[dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc/docs/reference/upstream-divergences.md)
-including its module rules. Core is pinned to commit `29d1f4a` on branch
-0.120, not a release. The rows below describe dart_monty additions.
+[dart_monty_core divergence register](https://github.com/runyaga/dart_monty_core/blob/v0.120.0/docs/reference/upstream-divergences.md)
+including its module rules. Core 0.120.0 is released on pub.dev. The rows below describe dart_monty additions.
 
 The Class column distinguishes cases excluded by Dart static types, a released
 API behavior paired with an additive parity API, and package checks beyond
@@ -26,6 +25,6 @@ These outcomes match upstream 1.2.0; they are not additional divergences.
 
 | Operation | Observed behavior | Pinned by |
 |---|---|---|
-| `Path.rename('moved')` | Returns the target path, a relative `PosixPath('moved')`; the source disappears and the target keeps its contents. | [native_workspace_driver_test.dart:35-56](https://github.com/runyaga/dart_monty/blob/port-0.120/test/integration/native_workspace_driver_test.dart#L35-L56) |
-| Open-file iteration | `iter(handle) is handle`; `next`, `readline`, and iteration share the read position. At EOF, `next(handle, default)` returns the default and `next(handle)` raises `StopIteration`. | [ffi_file_io_test.dart:46-77](https://github.com/runyaga/dart_monty/blob/port-0.120/test/integration/ffi_file_io_test.dart#L46-L77) |
-| Type-check rejection | A feed rejected with `MontyTypingError` keeps its requested cwd. The next workspace feed with `cwd: null` observes `/work/nested`; omitting `cwd` selects the workspace default `/work`. | [monty_type_check_test.dart:48-70](https://github.com/runyaga/dart_monty/blob/port-0.120/test/integration/monty_type_check_test.dart#L48-L70) |
+| `Path.rename('moved')` | Returns the target path, a relative `PosixPath('moved')`; the source disappears and the target keeps its contents. | [native_workspace_driver_test.dart:35-56](https://github.com/runyaga/dart_monty/blob/v0.120.0/test/integration/native_workspace_driver_test.dart#L35-L56) |
+| Open-file iteration | `iter(handle) is handle`; `next`, `readline`, and iteration share the read position. At EOF, `next(handle, default)` returns the default and `next(handle)` raises `StopIteration`. | [ffi_file_io_test.dart:46-77](https://github.com/runyaga/dart_monty/blob/v0.120.0/test/integration/ffi_file_io_test.dart#L46-L77) |
+| Type-check rejection | A feed rejected with `MontyTypingError` keeps its requested cwd. The next workspace feed with `cwd: null` observes `/work/nested`; omitting `cwd` selects the workspace default `/work`. | [monty_type_check_test.dart:48-70](https://github.com/runyaga/dart_monty/blob/v0.120.0/test/integration/monty_type_check_test.dart#L48-L70) |

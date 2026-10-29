@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Derive Pages identity from the package and the resolved core checkout."""
+"""Derive Pages identity from the package and the resolved core package."""
 import argparse
 import json
 from pathlib import Path
 import re
-import subprocess
 from urllib.parse import urljoin, urlparse
 
 
@@ -14,14 +13,17 @@ def metadata():
     packages = json.loads(config.read_text())['packages']
     core = next(p for p in packages if p['name'] == 'dart_monty_core')
     directory = Path(urlparse(urljoin(config.as_uri(), core['rootUri'])).path)
-    pin = json.loads((directory / 'tool/upstream/upstream-pin.json').read_text())
-    ref = re.search(r'\bref:\s*(\S+)', Path('pubspec.yaml').read_text())[1]
-    head = subprocess.check_output(['git', '-C', str(directory), 'rev-parse', 'HEAD'], text=True).strip()
-    assert head == ref, f'Resolved checkout {head} differs from pin {ref}'
-    lock = Path('example/web/pubspec.lock').read_text()
-    assert re.search(r'resolved-ref:\s*["\']?' + re.escape(ref), lock), 'Resolved core differs from declared pin'
     core_version = re.search(r'^version:\s*(\S+)', (directory / 'pubspec.yaml').read_text(), re.M)[1]
-    return dict(runtime=version, coreVersion=core_version, coreRef=ref, upstream=pin['version'], upstreamCommit=pin['commit'])
+    # Release provenance is recorded here because hosted core omits tool/.
+    assert core_version == '0.120.0', f'Update release provenance for core {core_version}'
+    import yaml
+    lock = yaml.safe_load(Path('example/web/pubspec.lock').read_text())
+    resolved = lock['packages']['dart_monty_core']
+    assert resolved['source'] in ('hosted', 'path'), resolved
+    assert resolved['version'] == core_version, resolved
+    return dict(runtime=version, coreVersion=core_version, coreRef='hosted',
+                upstream='1.2.0', upstreamCommit='e8db9aef41aa73f4f709c15a4bc8a2d198be5ead')
+
 
 
 def main():
@@ -41,7 +43,7 @@ def main():
     else:
         target.write_text(json.dumps(expected, indent=2) + '\n')
     docs = Path('docs/index.md').read_text().replace('`', '')
-    assert expected['runtime'] in docs and 'dart_monty_core ' + expected['coreRef'] in docs
+    assert expected['runtime'] in docs and 'dart_monty_core ' + expected['coreVersion'] in docs
     examples = json.loads(Path('example/web/web/examples.json').read_text())
     ids = [e['id'] for e in examples]
     assert len(ids) == len(set(ids)) and ids

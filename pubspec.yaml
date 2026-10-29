@@ -1,6 +1,6 @@
 name: dart_monty
 description: Script your Dart/Flutter app with sandboxed Python — runtime extensions, Flutter glue, and FFI/WASM asset loading on top of dart_monty_core.
-version: 0.110.0-dev.4
+version: 0.120.0
 homepage: https://github.com/runyaga/dart_monty
 repository: https://github.com/runyaga/dart_monty
 issue_tracker: https://github.com/runyaga/dart_monty/issues
@@ -14,7 +14,7 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  dart_monty_core: ^0.110.0-dev.4
+  dart_monty_core: ^0.120.0
   meta: ^1.11.0
   path: ^1.8.0
   signals_core: ^6.2.0
@@ -38,20 +38,3 @@ dev_dependencies:
   coverage: ^1.15.0
   test: ^1.25.0
   very_good_analysis: ^10.0.0
-
-# Pinned to dart_monty_core branch 0.120 (not a release). A commit
-# cannot move, so a rebuild months from now resolves the same core this line was
-# tested against. CI requires a full SHA here, so the tag name is not used.
-#
-# dart_monty_core is released as git tags only, never on pub.dev, so the
-# `dart_monty_core` constraint above cannot resolve without this override.
-#
-# The pin is an override and not a `dependencies` entry because
-# `dart analyze --fatal-infos` rejects a git dependency in a publishable
-# package (`invalid_dependency`).
-dependency_overrides:
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      # Core branch 0.120 pin (not a release).
-      ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc

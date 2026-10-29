@@ -1,29 +1,21 @@
 # Installation
 
-`dart_monty` uses branch `port-0.120`. Its core dependency is pinned to
-commit `29d1f4a` on branch 0.120, with upstream pydantic/monty 1.2.0.
-The core pin is not a release.
-`dart_monty_core` is not available from pub.dev, and
-`dependency_overrides` in a dependency's pubspec do not apply to your package,
-so the root pubspec overrides the core source:
+Install from pub.dev:
+
+```bash
+dart pub add dart_monty
+```
+
+Or add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_monty:
-    git:
-      url: https://github.com/runyaga/dart_monty.git
-      ref: port-0.120
-
-dependency_overrides:
-  dart_monty_core:
-    git:
-      url: https://github.com/runyaga/dart_monty_core.git
-      ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc
+  dart_monty: ^0.120.0
 ```
 
-A package that imports core names directly also lists
-`dart_monty_core: any` under `dependencies`; the root Git override above
-selects the exact core commit.
+`dart_monty` depends on `dart_monty_core 0.120.0` from pub.dev, wrapping
+upstream pydantic/monty 1.2.0. If you import core directly, also declare
+`dart_monty_core: ^0.120.0` under `dependencies`.
 
 Run `dart pub get` after editing `pubspec.yaml`.
 
@@ -38,11 +30,8 @@ For local worktree development, use `path:` dependencies for both packages.
 
 ### Native (Desktop, Server, and Flutter)
 
-The core branch 0.120 pin has no prebuilt native worker. After `dart pub get`,
-resolve `dart_monty_core` via `.dart_tool/package_config.json` (`rootUri`) and
-run `bash tool/build_worker.sh` in that checkout with Rust stable installed
-before native tests/examples. Resolve a relative `rootUri` against the
-package configuration file's URI. CI builds the worker from the same pin.
+Core's build hook downloads the prebuilt native worker from its GitHub
+release during `dart run`, `dart test`, or `dart build`.
 
 Core's public pool declaration describes how to select an explicit worker
 location. `MountDir` also needs the native mount library; see
