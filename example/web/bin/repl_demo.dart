@@ -22,6 +22,7 @@ import 'dart:js_interop';
 import 'package:dart_monty/dart_monty.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
+import 'package:web_example/repl_session.dart';
 
 // ---------------------------------------------------------------------------
 // JS interop — expose API to HTML
@@ -40,10 +41,9 @@ external void _jsOnToolCall(JSString jsonPayload);
 // State
 // ---------------------------------------------------------------------------
 
-late final MontyRuntime _session;
+late final ReplDemoSession _repl;
 
-Future<MontyRuntime> _newSession() async =>
-    MontyRuntime.start(pool: await startDemoPool());
+MontyRuntime get _session => _repl.runtime;
 
 // ---------------------------------------------------------------------------
 // API
@@ -132,11 +132,10 @@ Future<String> _apiExecute(String code) async {
   }
 }
 
-/// Reset the session: clears every Python global and re-attaches the
-/// extensions on the next run.
+/// Reset Python globals and replace the in-memory filesystem.
 Future<String> _apiReset() async {
   try {
-    await _session.clearState();
+    await _repl.reset();
 
     return jsonEncode({'ok': true});
   } catch (e) {
@@ -190,7 +189,7 @@ Future<void> main() async {
   print('[ReplSessionDemo] Starting...');
 
   try {
-    _session = await _newSession();
+    _repl = await ReplDemoSession.start(await startDemoPool());
   } on Object catch (e) {
     montyDemoFailed('repl_demo', 'could not start the runtime: $e');
 
