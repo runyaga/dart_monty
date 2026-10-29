@@ -76,7 +76,7 @@ void main() {
     expect(headers, hasLength(37));
   });
 
-  test('core public surface has 70 names on both platforms', () {
+  test('core public surface has 71 names on both platforms', () {
     final core = inventory.resolve(
       facade,
       'package:dart_monty_core/dart_monty_core.dart',
@@ -86,7 +86,7 @@ void main() {
                 as List<dynamic>)
             .cast<String>()
             .toSet();
-    expect(golden, hasLength(70));
+    expect(golden, hasLength(71));
     for (final web in [false, true]) {
       expect(inventory.exported(core, web: web).keys.toSet(), golden);
     }
