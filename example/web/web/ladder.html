@@ -3,181 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>dart_monty — Python Ladder Showcase</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: #1a1b26;
-      color: #c0caf5;
-      padding: 2rem;
-      max-width: 960px;
-      margin: 0 auto;
-    }
-    a { color: #7aa2f7; }
-    h1 {
-      color: #7aa2f7;
-      margin-bottom: 0.5rem;
-      font-size: 1.4rem;
-    }
-    .subtitle {
-      color: #565f89;
-      margin-bottom: 1.5rem;
-      font-size: 0.9rem;
-    }
-    .nav { margin-bottom: 1.5rem; }
-    .nav a { margin-right: 1rem; font-size: 0.85rem; }
 
-    /* Status bar */
-    #status {
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 4px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.5rem;
-      font-size: 0.9rem;
-    }
-    #status.init { border-left: 3px solid #7aa2f7; }
-    #status.running { border-left: 3px solid #e0af68; }
-    #status.done { border-left: 3px solid #9ece6a; }
-    #status.error { border-left: 3px solid #f7768e; }
-
-    /* Totals */
-    #totals {
-      display: none;
-      background: #24283b;
-      border: 1px solid #3b4261;
-      border-radius: 4px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.5rem;
-    }
-    .progress-bar {
-      background: #3b4261;
-      border-radius: 3px;
-      height: 8px;
-      margin-top: 0.5rem;
-      overflow: hidden;
-    }
-    .progress-fill {
-      background: #9ece6a;
-      height: 100%;
-      transition: width 0.3s;
-    }
-
-    /* Legend */
-    .legend {
-      display: none;
-      background: #24283b;
-      border: 1px solid #333;
-      border-radius: 4px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.5rem;
-      font-size: 0.8rem;
-      line-height: 1.6;
-    }
-    .legend-item { display: inline-block; margin-right: 1.5rem; }
-    .legend-dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      margin-right: 0.3rem;
-      vertical-align: middle;
-    }
-    .legend-dot.pass { background: #9ece6a; }
-    .legend-dot.warn { background: #e0af68; }
-    .legend-dot.fail { background: #f7768e; }
-    .legend-dot.skip { background: #565f89; }
-    .legend-dot.xfail { background: #9b59b6; }
-    .legend-dot.xpass { background: #8e44ad; }
-
-    /* Tier sections */
-    .tier { margin-bottom: 1.5rem; }
-    .tier-header {
-      color: #e0af68;
-      font-size: 1rem;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #3b4261;
-      margin-bottom: 0.5rem;
-      cursor: pointer;
-      user-select: none;
-    }
-    .tier-header:hover { color: #e5c07b; }
-    .tier-header::before { content: '\25BC '; font-size: 0.7rem; }
-    .tier-header.collapsed::before { content: '\25B6 '; }
-    .tier-body.hidden { display: none; }
-
-    /* Test cards */
-    .test-card {
-      background: #24283b;
-      border: 1px solid #333;
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-      overflow: hidden;
-    }
-    .test-card.pass { border-left: 3px solid #9ece6a; }
-    .test-card.warn { border-left: 3px solid #e0af68; }
-    .test-card.fail { border-left: 3px solid #f7768e; }
-    .test-card.skip { border-left: 3px solid #565f89; }
-    .test-card.xfail { border-left: 3px solid #9b59b6; }
-    .test-card.xpass { border-left: 3px solid #8e44ad; }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.4rem 0.75rem;
-      cursor: pointer;
-      user-select: none;
-    }
-    .card-header:hover { background: #2a2d2e; }
-    .test-name { font-size: 0.85rem; }
-    .badge {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: 3px;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-    .badge.pass { background: #9ece6a; color: #1a1b26; }
-    .badge.warn { background: #e0af68; color: #1a1b26; }
-    .badge.fail { background: #f7768e; color: #1a1b26; }
-    .badge.skip { background: #565f89; color: #1a1b26; }
-    .badge.xfail { background: #9b59b6; color: #1a1b26; }
-    .badge.xpass { background: #8e44ad; color: #1a1b26; }
-
-    .card-body {
-      display: none;
-      padding: 0.5rem 0.75rem;
-      border-top: 1px solid #333;
-    }
-    .card-body.open { display: block; }
-
-    .card-body label {
-      display: block;
-      color: #565f89;
-      font-size: 0.75rem;
-      margin-top: 0.4rem;
-      margin-bottom: 0.2rem;
-    }
-    .card-body pre {
-      background: #1a1b26;
-      padding: 0.5rem;
-      border-radius: 3px;
-      font-size: 0.8rem;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      line-height: 1.4;
-    }
-    .code-block { color: #ce9178; }
-    .result-block { color: #b5cea8; }
-    .warn-block { color: #e0af68; }
-    .error-block { color: #f7768e; }
-  </style>
-</head>
-<body>
+<link rel="stylesheet" href="site.css"><script defer src="site.js"></script></head>
+<body data-page="ladder"><div id="site-nav"></div>
   <div style="padding:12px 20px;background:#24283b;border-bottom:1px solid #3b4261;display:flex;align-items:center;gap:16px;">
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
     <span style="font-size:16px;font-weight:600;color:#7aa2f7;">Python Ladder</span>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:auto;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:auto;white-space:nowrap;"></span>
     <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#2d3a5e;color:#7dcfff;">WASM</span>
   </div>
 
@@ -286,6 +118,7 @@
     }
 
     function reportDone(passed, warned, failed, total, skipped, xfailed, xpassed) {
+      window.__ladderSummary = {passed, warned, failed, total, skipped, xfailed, xpassed};
       const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
 
       statusEl.className = failed > 0 ? 'error' : 'done';
@@ -320,5 +153,14 @@
   </script>
   <script src="coi-serviceworker.js"></script>
   <script src="ladder_showcase.dart.js"></script>
-</body>
+<script>
+window.__montyCheckControls = async () => {
+ const manifest = await (await fetch('ladder-manifest.json')).json();
+ const fixtures = (await Promise.all(manifest.map(async path => (await (await fetch(path)).json())))).flat();
+ const skipped = fixtures.filter(f => f.nativeOnly || /\bdel\b|globals\(/.test(f.code)).length;
+ const s = window.__ladderSummary;
+ if (!s || s.total !== fixtures.length || s.skipped !== skipped || s.failed || s.warned || s.xpassed || s.passed !== s.total) throw Error('Unapproved ladder outcomes: ' + JSON.stringify(s));
+ return true;
+};
+</script></body>
 </html>

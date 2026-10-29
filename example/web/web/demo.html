@@ -1,44 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dart_monty — Basic Demo</title>
-  <style>
-    :root {
-      --bg: #1a1b26; --surface: #24283b; --border: #3b4261;
-      --text: #c0caf5; --text-dim: #565f89; --accent: #7aa2f7;
-      --green: #9ece6a; --cyan: #7dcfff;
-      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
-    header { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
-    header a { color: var(--text-dim); text-decoration: none; font-size: 13px; }
-    header a:hover { color: var(--text); }
-    header h1 { font-size: 16px; font-weight: 600; color: var(--accent); }
-    .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #2d3a5e; color: var(--cyan); }
-    main { flex: 1; overflow-y: auto; padding: 20px; font-family: var(--mono); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
-  </style>
-</head>
-<body>
-  <header>
-    <a href="index.html">&larr; Home</a>
-    <h1>Basic Demo</h1>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
-    <span class="tag">WASM</span>
-  </header>
-  <main id="output">Loading WASM...</main>
-  <script>
-    const out = document.getElementById('output');
-    out.textContent = '';
-    const origLog = console.log.bind(console);
-    console.log = (...args) => {
-      origLog(...args);
-      out.textContent += args.join(' ') + '\n';
-    };
-  </script>
-  <script src="coi-serviceworker.js"></script>
-  <script src="main.dart.js"></script>
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bridge and structured errors · dart_monty</title><link rel="stylesheet" href="site.css"><script defer src="site.js"></script></head>
+<body data-page="demo"><div id="site-nav"></div><main><h1>Bridge and structured errors</h1><p>Python suspends for Dart callbacks. Errors retain their Python class and structured payload.</p>
+<p class="version-badge"></p><p id="status" role="status">Loading worker…</p>
+<select id="examples"><option value="tools">tools</option><option value="missing">missing</option><option value="recover">recover</option></select><p id="expected"></p><textarea id="editor" rows="12" aria-label="Python source"></textarea>
+<button id="run" disabled>Run</button><button id="resetBtn" disabled>Reset</button>
+<h2>Observed output</h2><pre id="output"></pre><h2>Events, files and structured errors</h2><pre id="detail"></pre>
+<h2>Runtime API</h2><pre>final runtime = await MontyRuntime.start(pool: pool, os: files.call,
+  externalModules: {'tools': tools});
+final value = await runtime.execute('import tools\ntools.add(2, 3)').result;
+await runtime.dispose();
+await pool.close();</pre><p>Runtime code lives in lib/src/runtime/, bridge/, extensions/, host/ and os_call/. Core owns the engine, process pool and worker assets.</p>
+<p><a href="https://runyaga.github.io/dart_monty_core/">Engine examples and compatibility → dart_monty_core</a></p><h2>Bridge suspension and resume walkthrough</h2><pre id="walkthrough"></pre></main>
+<script>
+const originalLog = console.log.bind(console);
+console.log = (...args) => { originalLog(...args); document.getElementById('walkthrough').textContent += args.join(' ') + '\n'; };
+</script><script src="coi-serviceworker.js"></script><script src="runtime-page.js"></script><script defer src="main.dart.js"></script><script>
+const checkRuntimeControls = window.__montyCheckControls;
+window.__montyCheckControls = async () => {
+ const text = document.getElementById('walkthrough').textContent;
+ for (const expected of ['2 + 2 = 4', 'fib(10) = 55', 'ZeroDivisionError', 'suspended on fetch', '<html>Hello from Dart!</html>', 'network timeout']) {
+  if (!text.includes(expected)) throw Error('Missing bridge walkthrough result: ' + expected);
+ }
+ return checkRuntimeControls();
+};
+</script></body></html>

@@ -82,7 +82,8 @@ const _algorithmNames = {
 Map<String, dynamic> _parse(String json) =>
     jsonDecode(json) as Map<String, dynamic>;
 
-List<int> _generateArray(int size) {
+List<int> _generateArray(int size, {bool descending = false}) {
+  if (descending) return List.generate(size, (i) => size - i);
   final rng = Random();
   return List.generate(size, (_) => rng.nextInt(100) + 1);
 }
@@ -106,9 +107,10 @@ Future<void> _runSort(
   Monty pool,
   String algorithm,
   String template,
-  int size,
-) async {
-  final arr = _generateArray(size);
+  int size, {
+  bool descending = false,
+}) async {
+  final arr = _generateArray(size, descending: descending);
   final code = template.replaceAll('INPUT_ARRAY', arr.toString());
   final name = _algorithmNames[algorithm] ?? algorithm;
   _onSortStarted(name.toJS, size.toJS);
@@ -197,6 +199,12 @@ Future<void> main() async {
     final code = config['code'] as String;
     final size = (config['size'] as num).toInt();
 
-    await _runSort(pool, algorithm, code, size);
+    await _runSort(
+      pool,
+      algorithm,
+      code,
+      size,
+      descending: config['descending'] == true,
+    );
   }
 }

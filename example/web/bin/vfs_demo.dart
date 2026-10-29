@@ -14,7 +14,6 @@
 ///     -o example/web/web/vfs_demo.dart.js
 library;
 
-import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:js_interop';
 
@@ -234,10 +233,10 @@ Future<void> main() async {
   // Expose API to HTML.
   final api = <String, JSFunction>{
     'run': ((JSString code) => _apiRun(
-      code.toDart,
-    ).then((r) => r.toJS).toJS).toJS,
+          code.toDart,
+        ).then((r) => r.toJS).toJS).toJS,
     'mountFile': ((JSString path, JSString content) {
-      unawaited(_mountFile(path.toDart, content.toDart));
+      return _mountFile(path.toDart, content.toDart).toJS;
     }).toJS,
     'clearMounts': _clearMounts.toJS,
   }.jsify();

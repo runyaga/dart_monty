@@ -16,87 +16,91 @@
 ///   dart_monty_core/docs/deep-dives/async-matrix.md
 library;
 
+import 'dart:convert';
+
 import 'package:dart_monty/dart_monty.dart';
 
+import 'package:web_example/demo_examples.dart';
 import 'package:web_example/demo_pool.dart';
 import 'package:web_example/demo_ready.dart';
 
 /// A sync host fn — returns its result without ever yielding the event loop.
 HostFunction syncFetch(void Function() onCall) => HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'fetch',
-    description: 'Sync fetch — adds 1 to its argument.',
-    params: [HostParam(name: 'value', type: HostParamType.integer)],
-  ),
-  handler: (args, _) async {
-    onCall();
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        description: 'Sync fetch — adds 1 to its argument.',
+        params: [HostParam(name: 'value', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        onCall();
 
-    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-  },
-);
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+      },
+    );
 
 /// An async host fn — actually awaits a Future before returning.
 HostFunction asyncFetch(void Function() onCall) => HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'fetch',
-    description: 'Async fetch — awaits Future.delayed, then adds 1.',
-    params: [HostParam(name: 'value', type: HostParamType.integer)],
-  ),
-  handler: (args, _) async {
-    await Future<void>.delayed(Duration.zero);
-    onCall();
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        description: 'Async fetch — awaits Future.delayed, then adds 1.',
+        params: [HostParam(name: 'value', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        await Future<void>.delayed(Duration.zero);
+        onCall();
 
-    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-  },
-);
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+      },
+    );
 
 /// A slow async host fn — sleeps `delay` before returning, so we can see
 /// `asyncio.gather` flatten wall-clock time.
 HostFunction slowFetch(Duration delay) => HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'slow',
-    description: 'Sleeps then returns its argument times 10.',
-    params: [HostParam(name: 'n', type: HostParamType.integer)],
-  ),
-  handler: (args, _) async {
-    await Future<void>.delayed(delay);
+      schema: const HostFunctionSchema(
+        name: 'slow',
+        description: 'Sleeps then returns its argument times 10.',
+        params: [HostParam(name: 'n', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        await Future<void>.delayed(delay);
 
-    return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
-  },
-);
+        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
+      },
+    );
 
 /// Like [asyncFetch] but declared [DispatchMode.future] so Python can
 /// directly `await` it.
 HostFunction asyncFetchFuture(void Function() onCall) => HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'fetch',
-    description: 'Async fetch (future-mode) — awaits Future.delayed, adds 1.',
-    params: [HostParam(name: 'value', type: HostParamType.integer)],
-  ),
-  handler: (args, _) async {
-    await Future<void>.delayed(Duration.zero);
-    onCall();
+      schema: const HostFunctionSchema(
+        name: 'fetch',
+        description:
+            'Async fetch (future-mode) — awaits Future.delayed, adds 1.',
+        params: [HostParam(name: 'value', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        await Future<void>.delayed(Duration.zero);
+        onCall();
 
-    return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
-  },
-  dispatch: DispatchMode.future,
-);
+        return MontyValue.fromDart(((args['value']! as MontyInt).value) + 1);
+      },
+      dispatch: DispatchMode.future,
+    );
 
 /// Like [slowFetch] but declared [DispatchMode.future] so `asyncio.gather`
 /// can run multiple calls concurrently.
 HostFunction slowFetchFuture(Duration delay) => HostFunction(
-  schema: const HostFunctionSchema(
-    name: 'slow',
-    description: 'Sleeps then returns its argument times 10 (future-mode).',
-    params: [HostParam(name: 'n', type: HostParamType.integer)],
-  ),
-  handler: (args, _) async {
-    await Future<void>.delayed(delay);
+      schema: const HostFunctionSchema(
+        name: 'slow',
+        description: 'Sleeps then returns its argument times 10 (future-mode).',
+        params: [HostParam(name: 'n', type: HostParamType.integer)],
+      ),
+      handler: (args, _) async {
+        await Future<void>.delayed(delay);
 
-    return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
-  },
-  dispatch: DispatchMode.future,
-);
+        return MontyValue.fromDart(((args['n']! as MontyInt).value) * 10);
+      },
+      dispatch: DispatchMode.future,
+    );
 
 /// The pool every cell's runtime runs on: core's worker in a Web Worker.
 late final Monty _pool;
@@ -126,7 +130,10 @@ Future<void> main() async {
   }
 }
 
+late Map<String, Map<String, dynamic>> _examples;
+
 Future<void> _cells() async {
+  _examples = await loadDemoExamples();
   print('=== dart_monty async/sync matrix — Web (WASM) demo ===');
   print('');
   print('Each cell exercises one (Dart handler shape) × (Python call shape)');
@@ -140,7 +147,12 @@ Future<void> _cells() async {
   {
     var calls = 0;
     final runtime = await _runtime(syncFetch(() => calls++));
-    final r = await runtime.execute('fetch(7)').result;
+    final r =
+        await runtime.execute(_examples['matrix-1']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-1']!['expected'])) {
+      throw StateError('Output mismatch: matrix-1');
+    }
     print('  Python: fetch(7)');
     print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
@@ -155,7 +167,12 @@ Future<void> _cells() async {
   {
     var calls = 0;
     final runtime = await _runtime(asyncFetch(() => calls++));
-    final r = await runtime.execute('fetch(7)').result;
+    final r =
+        await runtime.execute(_examples['matrix-2']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-2']!['expected'])) {
+      throw StateError('Output mismatch: matrix-2');
+    }
     print('  Python: fetch(7)   (handler awaits Future.delayed first)');
     print('  → value = ${r.dartValue}, callback fired $calls time(s).');
     await runtime.dispose();
@@ -171,11 +188,12 @@ Future<void> _cells() async {
   {
     var calls = 0;
     final runtime = await _runtime(syncFetch(() => calls++));
-    final r = await runtime.execute('''
-async def doubled(n):
-    return fetch(n) * 2
-await doubled(3)
-''').result;
+    final r =
+        await runtime.execute(_examples['matrix-3']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-3']!['expected'])) {
+      throw StateError('Output mismatch: matrix-3');
+    }
     print('  Python: async def doubled(n): return fetch(n) * 2');
     print('          await doubled(3)');
     print('  → value = ${r.dartValue}, callback fired $calls time(s).');
@@ -191,11 +209,12 @@ await doubled(3)
   {
     var calls = 0;
     final runtime = await _runtime(asyncFetch(() => calls++));
-    final r = await runtime.execute('''
-async def doubled(n):
-    return fetch(n) * 2
-await doubled(3)
-''').result;
+    final r =
+        await runtime.execute(_examples['matrix-4']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-4']!['expected'])) {
+      throw StateError('Output mismatch: matrix-4');
+    }
     print('  Python: async def doubled(n): return fetch(n) * 2');
     print('          await doubled(3)   (handler is async Dart)');
     print('  → value = ${r.dartValue}, callback fired $calls time(s).');
@@ -219,10 +238,17 @@ await doubled(3)
   {
     final runtime = await _runtime(asyncFetch(() {}));
     try {
-      final r = await runtime.execute('await fetch(7)').result;
-      print('    unexpectedly succeeded: ${r.dartValue}');
+      final r = await runtime
+          .execute(_examples['matrix-5']!['code'] as String)
+          .result;
+      if (jsonEncode(r.dartValue) !=
+          jsonEncode(_examples['matrix-5']!['expected'])) {
+        throw StateError('Output mismatch: matrix-5');
+      }
+      throw StateError('Expected TypeError, got ${r.dartValue}');
     } on MontyError catch (e) {
       final exc = e.exception;
+      if (exc.excType != 'TypeError') rethrow;
       print('    Python raised ${exc.excType}: ${exc.message}');
       print('    (Expected — int is not awaitable.)');
     }
@@ -232,7 +258,12 @@ await doubled(3)
   {
     var calls = 0;
     final runtime = await _runtime(asyncFetchFuture(() => calls++));
-    final r = await runtime.execute('await fetch(7)').result;
+    final r =
+        await runtime.execute(_examples['matrix-6']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-6']!['expected'])) {
+      throw StateError('Output mismatch: matrix-6');
+    }
     print('    Python: await fetch(7)');
     print(
       '    → value = ${r.dartValue}, '
@@ -251,11 +282,12 @@ await doubled(3)
     const delay = Duration(milliseconds: 200);
     final runtime = await _runtime(slowFetchFuture(delay));
     final sw = Stopwatch()..start();
-    final r = await runtime.execute('''
-import asyncio
-results = await asyncio.gather(slow(1), slow(2), slow(3))
-results
-''').result;
+    final r =
+        await runtime.execute(_examples['matrix-7']!['code'] as String).result;
+    if (jsonEncode(r.dartValue) !=
+        jsonEncode(_examples['matrix-7']!['expected'])) {
+      throw StateError('Output mismatch: matrix-7');
+    }
     sw.stop();
     print('  Python: await asyncio.gather(slow(1), slow(2), slow(3))');
     print('          (each handler sleeps ${delay.inMilliseconds}ms)');

@@ -1,0 +1,715 @@
+[
+  {
+    "id": "tools",
+    "code": "import tools\ntools.add(2, 3)",
+    "expected": 5,
+    "pages": [
+      "index",
+      "agent",
+      "demo"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "bisect",
+    "code": "import bisect\nbisect.bisect_left([1, 3, 5], 4)",
+    "expected": 2,
+    "pages": [
+      "repl"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "csv-write",
+    "code": "import csv\nwith open(\"output.csv\", \"w\", newline=\"\", encoding=\"utf-8\") as f:\n    csv.writer(f).writerows([[\"Name\", \"Age\"], [\"Alice\", 30]])\n\"written\"",
+    "expected": "written",
+    "pages": [
+      "repl",
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "csv-read",
+    "code": "import csv\nwith open(\"output.csv\", newline=\"\", encoding=\"utf-8\") as f:\n    rows = list(csv.reader(f))\nrows",
+    "expected": [
+      [
+        "Name",
+        "Age"
+      ],
+      [
+        "Alice",
+        "30"
+      ]
+    ],
+    "pages": [
+      "repl",
+      "workspace"
+    ],
+    "setup": "session",
+    "requires": "csv-write"
+  },
+  {
+    "id": "hashlib",
+    "code": "import hashlib\nhashlib.sha256(b\"abc\").hexdigest()",
+    "expected": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "pages": [
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "path",
+    "code": "import os.path\nos.path.join(\"/work\", \"report.csv\")",
+    "expected": "/work/report.csv",
+    "pages": [
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "toml",
+    "code": "import tomllib\ntomllib.loads(\"answer = 42\")[\"answer\"]",
+    "expected": 42,
+    "pages": [
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "newlines",
+    "code": "with open(\"lines.txt\", \"w\", newline=\"\\r\\n\") as f:\n    f.write(\"a\\n\")\nopen(\"lines.txt\").read()",
+    "expected": "a\n",
+    "pages": [
+      "repl"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "missing",
+    "code": "open(\"/work/missing.txt\")",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "session",
+    "error": "FileNotFoundError"
+  },
+  {
+    "id": "recover",
+    "code": "40 + 2",
+    "expected": 42,
+    "pages": [
+      "demo"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "child-granted",
+    "code": "h = sandbox_spawn(code=\"import tools\\ntools.add(2, 3)\")\nr = sandbox_await(handle=h)\nsandbox_free(handle=h)\nr",
+    "expected": 5,
+    "pages": [
+      "agent",
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "child-denied",
+    "code": "h = sandbox_spawn(code=\"import tools\\ntools.add(2, 3)\")\nr = sandbox_await(handle=h)\nsandbox_free(handle=h)\nr",
+    "expected": null,
+    "pages": [
+      "workspace"
+    ],
+    "setup": "denied",
+    "error": "ModuleNotFoundError"
+  },
+  {
+    "id": "visibility",
+    "code": "from pathlib import Path\nPath(\"/work/parent.txt\").write_text(\"parent\")\nh = sandbox_spawn(code='from pathlib import Path\\nPath(\"/work/parent.txt\").exists()')\nr = sandbox_await(handle=h)\nsandbox_free(handle=h)\n[r, Path(\"/work/parent.txt\").read_text()]",
+    "expected": [
+      false,
+      "parent"
+    ],
+    "pages": [
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "isolation",
+    "code": "secret = 42\nh = sandbox_spawn(code=\"try:\\n    secret\\n    seen = True\\nexcept NameError:\\n    seen = False\\nseen\")\nr = sandbox_await(handle=h)\nsandbox_free(handle=h)\nr",
+    "expected": false,
+    "pages": [
+      "agent",
+      "workspace"
+    ],
+    "setup": "session"
+  },
+  {
+    "id": "vfs-read",
+    "code": "from pathlib import Path\nPath(\"/sandbox/a.csv\").read_text()",
+    "expected": "a,b\n1,2\n",
+    "pages": [
+      "vfs"
+    ],
+    "setup": "vfs",
+    "stagedFiles": {
+      "/sandbox/a.csv": "a,b\n1,2\n"
+    }
+  },
+  {
+    "id": "walk",
+    "code": "from pathlib import Path\nPath(\"/sandbox/a.csv\").write_text(\"a,b\\n1,2\\n\")\nimport os\nlist(os.walk(\"/sandbox\"))",
+    "expected": [
+      [
+        "/sandbox",
+        [],
+        [
+          "a.csv"
+        ]
+      ]
+    ],
+    "pages": [
+      "vfs"
+    ],
+    "setup": "vfs"
+  },
+  {
+    "id": "glob",
+    "code": "from pathlib import Path\nPath(\"/sandbox/a.csv\").write_text(\"a,b\\n1,2\\n\")\nsorted([str(p) for p in Path(\"/sandbox\").glob(\"*.csv\")])",
+    "expected": [
+      "/sandbox/a.csv"
+    ],
+    "pages": [
+      "vfs"
+    ],
+    "setup": "vfs"
+  },
+  {
+    "id": "vfs-csv",
+    "code": "from pathlib import Path\nPath(\"/sandbox/a.csv\").write_text(\"a,b\\n1,2\\n\")\nimport csv\nwith open(\"/sandbox/a.csv\", newline=\"\") as f:\n    rows = list(csv.reader(f))\nrows",
+    "expected": [
+      [
+        "a",
+        "b"
+      ],
+      [
+        "1",
+        "2"
+      ]
+    ],
+    "pages": [
+      "vfs"
+    ],
+    "setup": "vfs"
+  },
+  {
+    "id": "bubble",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    j = 0\n    while j < n - i - 1:\n        yield_state(arr, j, j + 1, \"compare\")\n        if arr[j] > arr[j + 1]:\n            tmp = arr[j]\n            arr[j] = arr[j + 1]\n            arr[j + 1] = tmp\n            yield_state(arr, j, j + 1, \"swap\")\n        j = j + 1\n    i = i + 1\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "selection",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 0\nwhile i < n:\n    min_idx = i\n    j = i + 1\n    while j < n:\n        yield_state(arr, min_idx, j, \"compare\")\n        if arr[j] < arr[min_idx]:\n            min_idx = j\n        j = j + 1\n    if min_idx != i:\n        tmp = arr[i]\n        arr[i] = arr[min_idx]\n        arr[min_idx] = tmp\n        yield_state(arr, i, min_idx, \"swap\")\n    i = i + 1\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "insertion",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\ni = 1\nwhile i < n:\n    key = arr[i]\n    j = i - 1\n    while j >= 0:\n        yield_state(arr, j, i, \"compare\")\n        if arr[j] > key:\n            arr[j + 1] = arr[j]\n            yield_state(arr, j, j + 1, \"swap\")\n            j = j - 1\n        else:\n            break\n        if j < 0:\n            break\n    arr[j + 1] = key\n    i = i + 1\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "quick",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\nstack = [[0, n - 1]]\nwhile len(stack) > 0:\n    pair = stack[len(stack) - 1]\n    stack = stack[:len(stack) - 1]\n    low = pair[0]\n    high = pair[1]\n    if low < high:\n        pivot = arr[high]\n        i = low - 1\n        j = low\n        while j < high:\n            yield_state(arr, j, high, \"compare\")\n            if arr[j] <= pivot:\n                i = i + 1\n                if i != j:\n                    tmp = arr[i]\n                    arr[i] = arr[j]\n                    arr[j] = tmp\n                    yield_state(arr, i, j, \"swap\")\n            j = j + 1\n        tmp = arr[i + 1]\n        arr[i + 1] = arr[high]\n        arr[high] = tmp\n        yield_state(arr, i + 1, high, \"swap\")\n        p = i + 1\n        stack.append([low, p - 1])\n        stack.append([p + 1, high])\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "tim",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\nRUN = 8\nstart = 0\nwhile start < n:\n    end = start + RUN\n    if end > n:\n        end = n\n    i = start + 1\n    while i < end:\n        key = arr[i]\n        j = i - 1\n        while j >= start:\n            yield_state(arr, j, i, \"compare\")\n            if arr[j] > key:\n                arr[j + 1] = arr[j]\n                yield_state(arr, j, j + 1, \"swap\")\n                j = j - 1\n            else:\n                break\n            if j < start:\n                break\n        arr[j + 1] = key\n        i = i + 1\n    start = start + RUN\nsize = RUN\nwhile size < n:\n    left = 0\n    while left < n:\n        mid = left + size\n        right = left + 2 * size\n        if mid > n:\n            mid = n\n        if right > n:\n            right = n\n        if mid < right:\n            left_half = arr[left:mid]\n            right_half = arr[mid:right]\n            i = 0\n            j = 0\n            k = left\n            while i < len(left_half) and j < len(right_half):\n                yield_state(arr, k, k + 1, \"compare\")\n                if left_half[i] <= right_half[j]:\n                    arr[k] = left_half[i]\n                    yield_state(arr, k, k, \"swap\")\n                    i = i + 1\n                else:\n                    arr[k] = right_half[j]\n                    yield_state(arr, k, k, \"swap\")\n                    j = j + 1\n                k = k + 1\n            while i < len(left_half):\n                arr[k] = left_half[i]\n                yield_state(arr, k, k, \"swap\")\n                i = i + 1\n                k = k + 1\n            while j < len(right_half):\n                arr[k] = right_half[j]\n                yield_state(arr, k, k, \"swap\")\n                j = j + 1\n                k = k + 1\n        left = left + 2 * size\n    size = size * 2\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "shell",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\ngap = n // 2\nwhile gap > 0:\n    i = gap\n    while i < n:\n        temp = arr[i]\n        j = i\n        while j >= gap:\n            yield_state(arr, j, j - gap, \"compare\")\n            if arr[j - gap] > temp:\n                arr[j] = arr[j - gap]\n                yield_state(arr, j, j - gap, \"swap\")\n                j = j - gap\n            else:\n                break\n            if j < gap:\n                break\n        arr[j] = temp\n        i = i + 1\n    gap = gap // 2\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "cocktail",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\nswapped = True\nstart = 0\nend = n - 1\nwhile swapped:\n    swapped = False\n    i = start\n    while i < end:\n        yield_state(arr, i, i + 1, \"compare\")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, \"swap\")\n            swapped = True\n        i = i + 1\n    if not swapped:\n        break\n    swapped = False\n    end = end - 1\n    i = end - 1\n    while i >= start:\n        yield_state(arr, i, i + 1, \"compare\")\n        if arr[i] > arr[i + 1]:\n            tmp = arr[i]\n            arr[i] = arr[i + 1]\n            arr[i + 1] = tmp\n            yield_state(arr, i, i + 1, \"swap\")\n            swapped = True\n        i = i - 1\n    start = start + 1\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "sleep",
+    "code": "arr = INPUT_ARRAY[:]\nn = len(arr)\nresult = []\nmax_val = arr[0]\ni = 1\nwhile i < n:\n    if arr[i] > max_val:\n        max_val = arr[i]\n    i = i + 1\nt = 1\nwhile t <= max_val:\n    i = 0\n    while i < n:\n        yield_state(arr, i, len(result), \"compare\")\n        if arr[i] == t:\n            result.append(arr[i])\n            yield_state(arr, i, len(result) - 1, \"swap\")\n        i = i + 1\n    t = t + 1\ni = 0\nwhile i < n:\n    arr[i] = result[i]\n    i = i + 1\nyield_state(arr, -1, -1, \"done\")\narr",
+    "setup": "visualizer",
+    "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "pages": [
+      "visualizer"
+    ]
+  },
+  {
+    "id": "matrix-7",
+    "code": "\nimport asyncio\nresults = await asyncio.gather(slow(1), slow(2), slow(3))\nresults\n",
+    "setup": "matrix-gather",
+    "expected": [
+      10,
+      20,
+      30
+    ],
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "matrix-6",
+    "code": "await fetch(7)",
+    "setup": "matrix-future",
+    "expected": 8,
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "matrix-5",
+    "code": "await fetch(7)",
+    "setup": "matrix-reject",
+    "expected": null,
+    "pages": [
+      "async_matrix"
+    ],
+    "error": "TypeError"
+  },
+  {
+    "id": "matrix-4",
+    "code": "\nasync def doubled(n):\n    return fetch(n) * 2\nawait doubled(3)\n",
+    "setup": "matrix-fetch",
+    "expected": 8,
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "matrix-3",
+    "code": "\nasync def doubled(n):\n    return fetch(n) * 2\nawait doubled(3)\n",
+    "setup": "matrix-fetch",
+    "expected": 8,
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "matrix-2",
+    "code": "fetch(7)",
+    "setup": "matrix-fetch",
+    "expected": 8,
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "matrix-1",
+    "code": "fetch(7)",
+    "setup": "matrix-fetch",
+    "expected": 8,
+    "pages": [
+      "async_matrix"
+    ]
+  },
+  {
+    "id": "overlay",
+    "code": "from pathlib import Path\nPath(\"/work/source.txt\").write_text(\"parent\")\nh = sandbox_spawn(code='from pathlib import Path\\nPath(\"/work/copied.txt\").write_text(\"child\")\\nPath(\"/work/copied.txt\").read_text()', files={\"copied.txt\": \"/work/source.txt\"})\nr = sandbox_await(handle=h)\nsandbox_free(handle=h)\n[r, Path(\"/work/source.txt\").read_text(), Path(\"/work/copied.txt\").exists()]",
+    "setup": "session",
+    "expected": [
+      "child",
+      "parent",
+      false
+    ],
+    "pages": [
+      "workspace"
+    ]
+  },
+  {
+    "id": "agent-stateful",
+    "code": "# STATE PERSISTENCE\n# Variables survive across Execute clicks. Run this,\n# then switch to another example and type: x + 1\n# The result will be 43 \u2014 x persisted from this run.\n\nx = 42\ngreeting = 'hello'\ndata = [1, 2, 3]\n\n# Try clicking Execute again with just: greeting.upper()\nx",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Variables defined here persist across executions. Run this first, then try other examples that reference x and greeting.",
+    "legacy": true
+  },
+  {
+    "id": "agent-tools",
+    "code": "# HOST FUNCTIONS \u2014 defined in Dart, called from Python\n# Execution pauses, Dart runs the handler, Python resumes.\n\nmsg = echo('hello from python')     # Dart uppercases it\nresult = add_numbers(17, 25)        # Dart does the math\ntimestamp = get_time()              # Dart reads system clock\n\n# Prove these came from Dart: echo always uppercases,\n# add_numbers returns exact int, time is ISO format\n{\n    'echo_uppercased': msg,\n    'sum_is_exact': result,\n    'time_from_host': timestamp\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Call Dart host functions from Python. echo() uppercases, add_numbers() sums, get_time() returns ISO timestamp.",
+    "legacy": true
+  },
+  {
+    "id": "agent-kvstore",
+    "code": "# KEY-VALUE STORE (demo host functions, not a plugin)\n# kv_set/kv_get are defined in agent_demo.dart, backed\n# by a Dart Map. NOT inherited by child sandboxes.\n\n# Store values of different types\nkv_set('user', 'Alice')\nkv_set('score', 95)\nkv_set('tags', ['python', 'dart'])\n\n# Read them back \u2014 values round-trip through Dart\nuser = kv_get('user')\nscore = kv_get('score')\nkeys = kv_list()\n\n# Prove round-trip: types and values preserved\n{\n    'keys': keys,\n    'user': user,\n    'score': score,\n    'types_preserved': type(user).__name__ + ', ' + type(score).__name__\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Persistent key-value store backed by Dart. Data survives across execute() calls.",
+    "legacy": true
+  },
+  {
+    "id": "agent-fetch",
+    "code": "# SIMULATED HTTP FETCH\n# fetch_json() is a Dart host function. In a real app,\n# Dart would make the HTTP request. Here it returns\n# canned data to show the pattern.\n\nusers = fetch_json('https://api.example.com/users')\nweather = fetch_json('https://api.example.com/weather')\n\n# Python works with the result as native dicts/lists\n{\n    'user_count': len(users),\n    'first_user': users[0],\n    'weather': weather,\n    'is_native_list': type(users).__name__\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Simulated HTTP fetch \u2014 demonstrates host functions returning complex JSON structures.",
+    "legacy": true
+  },
+  {
+    "id": "agent-filesystem",
+    "code": "# IN-MEMORY VIRTUAL FILESYSTEM\n# pathlib works normally but all I/O goes to memory.\n# No real disk access. Files persist within the session.\nfrom pathlib import Path\n\n# Write two files\nPath('/data').mkdir(parents=True, exist_ok=True)\nPath('/data/hello.txt').write_text('hello world')\nPath('/data/nums.csv').write_text('a,b\\n1,2\\n3,4')\n\n# Prove they exist and contain what we wrote\n{\n    'hello': Path('/data/hello.txt').read_text(),\n    'csv': Path('/data/nums.csv').read_text(),\n    'files_exist': [p.name for p in Path('/data').iterdir()]\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Python pathlib backed by an in-memory VFS. Write and read files without touching the host disk.",
+    "legacy": true
+  },
+  {
+    "id": "agent-sandbox",
+    "code": "# CHILD SANDBOXES \u2014 isolated interpreters\n# Each child runs in its own WASM Worker with separate\n# memory and state. Prove it: parent's variable is\n# invisible to children.\n\nsecret = 'parent_only'\n\n# Child tries to access parent's variable\nh1 = sandbox_spawn(code='''\ntry:\n    x = secret\n    saw_parent = True\nexcept NameError:\n    saw_parent = False\n{\"saw_parent_var\": saw_parent, \"computed\": 2 + 3}\n''')\n\n# Second child does independent work\nh2 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\nsandbox_free(handle=h1)\nsandbox_free(handle=h2)\n\n{\n    'child_1': r1,\n    'child_2_factorial': r2,\n    'parent_secret_intact': secret\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Spawn 3 isolated child interpreters, each in its own WASM Worker. Await their results independently.",
+    "legacy": true
+  },
+  {
+    "id": "agent-gather",
+    "code": "# PARALLEL SANDBOX GATHER\n# 3 children run in parallel WASM Workers.\n# gather() collects all results in one call.\n\nh1 = sandbox_spawn(code='sum(range(1000))')\nh2 = sandbox_spawn(code='sum(range(2000))')\nh3 = sandbox_spawn(code='sum(range(3000))')\n\n# All 3 execute concurrently \u2014 gather waits for all\nresults = sandbox_gather(handles=[h1, h2, h3])\n\n# Each result dict has: handle, value, output\nsums = [r['value'] for r in results]\nfor h in (h1, h2, h3):\n    sandbox_free(handle=h)\n\n{\n    'sums': sums,\n    'expected': [499500, 1999000, 4498500],\n    'all_correct': sums == [499500, 1999000, 4498500]\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Spawn 3 children in parallel WASM Workers. sandbox_gather waits for all at once and returns attributed results with handle, value, and output.",
+    "legacy": true
+  },
+  {
+    "id": "agent-asyncgather",
+    "code": "# ASYNCIO.GATHER \u2014 concurrent host calls in ONE interpreter\n# Python's asyncio.gather dispatches multiple host function\n# calls as futures. The bridge resolves them in parallel,\n# not one at a time.\nimport asyncio\n\nasync def fetch_users():\n    return fetch_json('https://api.example.com/users')\n\nasync def fetch_weather():\n    return fetch_json('https://api.example.com/weather')\n\nasync def get_timestamp():\n    return get_time()\n\nasync def main():\n    # All 3 host functions dispatched concurrently\n    users, weather, ts = await asyncio.gather(\n        fetch_users(),\n        fetch_weather(),\n        get_timestamp(),\n    )\n    return {\n        'user_count': len(users),\n        'temp': weather['temp'],\n        'time': ts,\n        'all_resolved': True\n    }\n\nasyncio.run(main())",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Python asyncio.gather within a single interpreter. Multiple host function calls dispatched as futures and resolved concurrently by the bridge.",
+    "legacy": true
+  },
+  {
+    "id": "agent-output",
+    "code": "# PRINT() CAPTURE\n# Return value and print output are separate streams.\n\nh = sandbox_spawn(code='print(\"debug: starting\")\\nprint(\"debug: done\")\\n99')\n\n# sandbox_await -> return value only\nvalue = sandbox_await(handle=h)\n\n# sandbox_get_output -> captured print() text\nprinted = sandbox_get_output(handle=h)\nsandbox_free(handle=h)\n\n{\n    'return_value': value,\n    'print_output': printed,\n    'they_are_different': value != printed\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Children capture print() output separately. sandbox_get_output retrieves it after the child completes.",
+    "legacy": true
+  },
+  {
+    "id": "agent-lifecycle",
+    "code": "# HANDLE LIFECYCLE: spawn -> alive? -> await -> free\n\n# 1. Spawn returns a handle (int)\nh = sandbox_spawn(code='42')\nhandle_type = type(h).__name__\n\n# 2. Check if still running\nalive_before = sandbox_is_alive(handle=h)\n\n# 3. Await blocks until done, returns the value\nresult = sandbox_await(handle=h)\n\n# 4. Now it's finished\nalive_after = sandbox_is_alive(handle=h)\n\n# 5. Free releases resources\nsandbox_free(handle=h)\n\n{\n    'handle_type': handle_type,\n    'result': result,\n    'alive_before_await': alive_before,\n    'alive_after_await': alive_after\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Full handle lifecycle: spawn, check if alive, await result, then free the handle to release resources.",
+    "legacy": true
+  },
+  {
+    "id": "agent-error",
+    "code": "# ERROR PROPAGATION \u2014 parent survives child crash\n\nparent_state = 'running'\n\n# Child crashes with ZeroDivisionError\nh = sandbox_spawn(code='1 / 0')\ntry:\n    r = sandbox_await(handle=h)\n    crashed = False\nexcept Exception as e:\n    r = str(e)\n    crashed = True\n\n# Prove: parent is still alive and can do math\nproof = 40 + 2\nsandbox_free(handle=h)\n\n{\n    'child_crashed': crashed,\n    'error': r,\n    'parent_still_works': proof,\n    'parent_state': parent_state\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Child errors propagate cleanly as ChildSandboxException. Parent catches it without crashing.",
+    "legacy": true
+  },
+  {
+    "id": "agent-childfs",
+    "code": "# FILESYSTEM ISOLATION\n# Prove: parent, child A, child B each have their own VFS.\n# None can see the others' files.\nfrom pathlib import Path\n\nPath('/data').mkdir(exist_ok=True)\nPath('/data/parent.txt').write_text('parent data')\n\n# Child A checks for parent's file, writes its own\na = sandbox_spawn(code='''\nfrom pathlib import Path\ntry:\n    can_see_parent = Path(\"/data/parent.txt\").exists()\nexcept PermissionError:\n    can_see_parent = False\nPath(\"/work/child_a.txt\").write_text(\"from child A\")\n{\"parent_visible\": can_see_parent, \"wrote\": Path(\"/work/child_a.txt\").read_text()}\n''')\n\n# Child B checks for child A's file, writes its own\nb = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_sibling = Path(\"/work/child_a.txt\").exists()\nPath(\"/work/child_b.txt\").write_text(\"from child B\")\n{\"sibling_visible\": can_see_sibling, \"wrote\": Path(\"/work/child_b.txt\").read_text()}\n''')\n\na_r = sandbox_await(handle=a)\nb_r = sandbox_await(handle=b)\nsandbox_free(handle=a)\nsandbox_free(handle=b)\n\n# Parent checks for children's files\n{\n    'child_a': a_r,\n    'child_b': b_r,\n    'parent_sees_child_a': Path('/work/child_a.txt').exists(),\n    'parent_sees_child_b': Path('/work/child_b.txt').exists(),\n    'parent_file_intact': Path('/data/parent.txt').read_text()\n}",
+    "expected": null,
+    "pages": [
+      "agent"
+    ],
+    "setup": "legacy-agent",
+    "description": "Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.",
+    "legacy": true
+  },
+  {
+    "id": "vfs-hello",
+    "code": "from pathlib import Path\n\n# Each run starts with an empty /sandbox plus any mounted files.\n# Write a file to the virtual filesystem\nPath('/sandbox/hello.txt').write_text('Hello from Python in WASM!')\n\n# Read it back\ncontent = Path('/sandbox/hello.txt').read_text()\n\n# Create a directory and list it\nPath('/sandbox/data').mkdir(parents=True)\nPath('/sandbox/data/a.txt').write_text('alpha')\nPath('/sandbox/data/b.txt').write_text('beta')\nfiles = sorted([p.name for p in Path('/sandbox/data').iterdir()], key=str)\n\n{'content': content, 'files': files}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-config",
+    "code": "import json\nfrom pathlib import Path\n\n# Read a config file injected from Dart/JS\n# (click Mount below to add /sandbox/config.json first)\nconfig = json.loads(Path('/sandbox/config.json').read_text())\n\n# Process it\nresult = {\n    'api_key': config.get('api_key', 'missing'),\n    'retries': config.get('retries', 0),\n    'debug': config.get('debug', False),\n}\nresult",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true,
+    "stagedFiles": {
+      "/sandbox/config.json": "{\"api_key\": \"sk-abc123\", \"retries\": 3, \"debug\": true}"
+    }
+  },
+  {
+    "id": "vfs-pipeline",
+    "code": "from pathlib import Path\n\n# Read CSV input (mount /sandbox/input.csv first, or use default)\ntry:\n    raw = Path('/sandbox/input.csv').read_text()\nexcept:\n    # Default data if not mounted\n    raw = 'name,score\\nalice,95\\nbob,87\\ncarol,92\\ndave,78'\n    Path('/sandbox/input.csv').write_text(raw)\n\n# Parse\nlines = raw.strip().split('\\n')\nheader = lines[0].split(',')\nrows = [l.split(',') for l in lines[1:]]\n\n# Compute\nscores = [int(r[1]) for r in rows]\navg = sum(scores) / len(scores)\ntop = max(rows, key=lambda r: int(r[1]))\n\n# Write summary\nsummary = f\"Students: {len(rows)}\\nAverage: {avg:.1f}\\nTop: {top[0]} ({top[1]})\"\nPath('/sandbox/summary.txt').write_text(summary)\n\n# Write sorted leaderboard\nranked = sorted(rows, key=lambda r: int(r[1]), reverse=True)\nboard = '\\n'.join(f\"{i+1}. {r[0]}: {r[1]}\" for i, r in enumerate(ranked))\nPath('/sandbox/leaderboard.txt').write_text(board)\n\n{'average': avg, 'top': top[0], 'files_written': 2}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-datetime",
+    "code": "from datetime import date, datetime\n\n# Get today's date (yields OsCall to host)\nd = date.today()\nprint(f\"Today: {d.year}-{d.month:02d}-{d.day:02d}\")\n\n# Get current datetime\ndt = datetime.now()\nprint(f\"Now: {dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour:02d}:{dt.minute:02d}:{dt.second:02d}\")\n\n{'date': str(d), 'datetime': str(dt)}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-explorer",
+    "code": "from pathlib import Path\n\n# Build a directory structure\nbase = Path('/sandbox/project')\nbase.mkdir(parents=True)\n\n# Source files\n(base / 'src').mkdir()\n(base / 'src' / 'main.py').write_text('print(\"hello world\")')\n(base / 'src' / 'utils.py').write_text('def add(a, b): return a + b')\n\n# Config\n(base / 'config.json').write_text('{\"debug\": true, \"port\": 8080}')\n\n# Docs\n(base / 'docs').mkdir()\n(base / 'docs' / 'README.md').write_text('# My Project\\nA demo of the VFS.')\n\n# Count everything\nall_files = []\ndef walk(d):\n    for p in sorted(d.iterdir(), key=str):\n        if p.is_file():\n            all_files.append(str(p))\n        elif p.is_dir():\n            walk(p)\n\nwalk(base)\n{'files': all_files, 'count': len(all_files)}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-open",
+    "code": "# open() with buffered read/write + context managers (monty 0.0.18)\n\n# Write via a 'with' block \u2014 the file closes automatically at block exit\nwith open('/sandbox/notes.txt', 'w') as f:\n    n1 = f.write('line 1\\n')\n    n2 = f.write('line 2\\n')\n    inside = f.closed\nafter = f.closed\n\n# Append mode preserves existing content\nwith open('/sandbox/notes.txt', 'a') as f:\n    f.write('appended\\n')\n\n# Read it back\ntext = open('/sandbox/notes.txt').read()\n\n{'chars_written': [n1, n2], 'closed_inside': inside, 'closed_after': after, 'text': text}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-binary",
+    "code": "# Binary mode (wb / rb) round-trips raw bytes \u2014 including 0xff\nwith open('/sandbox/blob.bin', 'wb') as f:\n    f.write(b'\\x00\\x01\\x02\\xff')\n\nwith open('/sandbox/blob.bin', 'rb') as f:\n    data = f.read()\n\n{'bytes': list(data), 'len': len(data), 'type': str(type(data))}",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "vfs-errors",
+    "code": "from pathlib import Path\n\n# monty 0.0.18 delivers OS errors as their real Python class, so you can\n# 'except' them by type instead of catching a generic RuntimeError.\nresults = {}\n\n# Missing file -> FileNotFoundError\ntry:\n    open('/sandbox/nope.txt')\nexcept FileNotFoundError as e:\n    results['missing'] = type(e).__name__\n\n# Opening a directory as a file -> IsADirectoryError\nPath('/sandbox/adir').mkdir(parents=True)\nPath('/sandbox/adir/x.txt').write_text('x')\ntry:\n    open('/sandbox/adir')\nexcept IsADirectoryError as e:\n    results['is_a_dir'] = type(e).__name__\n\nresults",
+    "expected": null,
+    "pages": [
+      "vfs"
+    ],
+    "setup": "legacy-vfs",
+    "description": "",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-0",
+    "code": "\ntry:\n    data = fetch(\"https://fail.example.com\")\nexcept Exception as e:\n    result = f\"caught: {e}\"\nresult\n",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-1",
+    "code": "fetch(\"https://example.com\")",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-2",
+    "code": "1 / 0",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-3",
+    "code": "\"hello \" * 3",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-4",
+    "code": "\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\nfib(10)\n",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  },
+  {
+    "id": "bridge-walkthrough-5",
+    "code": "2 + 2",
+    "expected": null,
+    "pages": [
+      "demo"
+    ],
+    "setup": "bridge-walkthrough",
+    "legacy": true
+  }
+]

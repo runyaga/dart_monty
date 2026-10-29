@@ -2,33 +2,73 @@ name: GitHub Pages
 
 on:
   push:
-    # Same reasoning as ci.yaml: an integration line must publish its own docs,
-    # or the only way to see them is to merge to main first. The live site was
-    # last built 2026-06-02 for exactly this reason.
-    #
-    # CONSEQUENCE, STATED PLAINLY: a push to integration/** now DEPLOYS to the
-    # live GitHub Pages site. There is one Pages environment per repository, so
-    # whichever branch pushes last is what visitors see. That is the intended
-    # trade while 0.23 is the line being prepared; it is not a per-branch
-    # preview, and it will need revisiting if two integration lines ever run
-    # concurrently. The `concurrency` group below is keyed on github.ref, so
-    # two branches will not race a single deploy -- they will alternate.
-    branches: [main, 'integration/**']
+  pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # deploy-pages publishes with an OIDC token: pages + id-token.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
+        with:
+          sdk: 3.13.5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.x'
+      - run: pip install -r requirements-docs.lock
+      - run: dart pub get
+      - run: dart pub get
+        working-directory: example/web
+      # Worker assets come from pub's resolved checkout, verified by metadata.
+      - run: bash tool/check_demo_pages.sh --build-only
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: pages-review
+          path: build/demo-site
+          if-no-files-found: error
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
+        with:
+          sdk: 3.13.5
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: pages-review
+          path: build/demo-site
+      - run: dart pub get
+      - run: bash tool/check_demo_pages.sh --smoke-only
+        env:
+          DEMO_PAGES_STRICT: '1'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: pages-smoke-evidence
+          path: build/demo-smoke-evidence
+          if-no-files-found: warn
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build/demo-site
+  deploy:
+    needs: smoke
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
     permissions:
       contents: read
       pages: write
@@ -37,122 +77,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      # ── Checkout dart_monty_core for its committed assets ─────────────
-      # Assets live in dart_monty_core/lib/assets/ (under lib/ so Flutter
-      # can resolve them via packages/dart_monty_core/...). Committed to
-      # git (Mode A). No cargo/node build step is required — just check
-      # out the repo and copy the files.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: runyaga/dart_monty_core
-          # MUST MATCH pubspec.yaml, example/pubspec.yaml and
-          # example/web/pubspec.yaml; tool/check_core_ref.sh fails the gate if
-          # the four disagree.
-          #
-          # This said `main`, which was then 315 commits behind the 0.23 line
-          # and had ZERO occurrences of `asStringMap` — so the Pages build
-          # compiled the demos against a core that cannot satisfy this package.
-          # Pages serves the LAST GOOD BUILD when a build fails, so that
-          # presented as a stale site rather than a red build. It now names the
-          # pinned core commit (a SHA, which cannot drift the way a branch does).
-          # Core branch 0.120 pin (not a release).
-          ref: 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc
-          path: dart_monty_core
-          persist-credentials: false
-
-      # ── Compile Dart to JS ───────────────────────────────────────────
-      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
-        with:
-          sdk: 3.13.5
-      - name: Cache Pub packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-      - name: Install Dart dependencies
-        working-directory: example/web
-        run: dart pub get
-      - name: Compile main.dart
-        working-directory: example/web
-        run: dart compile js bin/main.dart -o web/main.dart.js
-      - name: Compile ladder_showcase.dart
-        working-directory: example/web
-        run: dart compile js bin/ladder_showcase.dart -o web/ladder_showcase.dart.js
-      - name: Compile visualizer.dart
-        working-directory: example/web
-        run: dart compile js bin/visualizer.dart -o web/visualizer.dart.js
-      - name: Compile vfs_demo.dart
-        working-directory: example/web
-        run: dart compile js bin/vfs_demo.dart -o web/vfs_demo.dart.js
-      - name: Compile agent_demo.dart
-        working-directory: example/web
-        run: dart compile js bin/agent_demo.dart -o web/agent_demo.dart.js
-      - name: Compile repl_demo.dart
-        working-directory: example/web
-        run: dart compile js bin/repl_demo.dart -o web/repl_demo.dart.js
-      # MISSING UNTIL NOW, and the site has been serving a 404 for it.
-      # async_matrix.html and index.html both <script src="async_matrix_demo.dart.js">,
-      # this workflow compiled six of the seven entrypoints, and every .dart.js is
-      # gitignored — so nothing filled the gap on a fresh checkout. Verified live:
-      #   main.dart.js 200, repl_demo.dart.js 200, visualizer.dart.js 200,
-      #   async_matrix_demo.dart.js 404, while async_matrix.html itself was 200.
-      - name: Compile async_matrix_demo.dart
-        working-directory: example/web
-        run: dart compile js bin/async_matrix_demo.dart -o web/async_matrix_demo.dart.js
-
-      # ── Build MkDocs ────────────────────────────────────────────────
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: '3.x'
-      - name: Install MkDocs dependencies
-        # The LOCK, not requirements-docs.txt. That file carries only lower
-        # bounds (`mkdocs>=1.6`), so installing it makes every deploy a fresh
-        # resolution — and makes rollback a fresh resolution too, rather than a
-        # return to a known state. requirements-docs.txt stays as the
-        # human-edited source of bounds; requirements-docs.lock is what runs.
-        # Verified 2026-09-16 on python 3.12: a clean install of the lock
-        # reproduces `pip freeze` identically and builds 29 html + 27 .md +
-        # llms.txt (3189 B) + llms-full.txt (187567 B). See issue #451 step 1.
-        run: pip install -r requirements-docs.lock
-      - name: Build documentation
-        run: mkdocs build
-      # ── Assemble site ────────────────────────────────────────────────
-      - name: Copy live demo assets to site root
-        run: |
-          cp -r example/web/web/* site/
-          cp dart_monty_core/lib/assets/* site/
-          mkdir -p site/fixtures
-          cp test/fixtures/python_ladder/tier_*.json site/fixtures/
-          mkdir -p site/assets
-          cp -r docs/assets/* site/assets/
-
-      # A "Stamp build date into HTML" step lived here and did NOTHING.
-      #
-      #     sed -i "s/__BUILD_DATE__/$stamp/g" site/index.html
-      #
-      # `__BUILD_DATE__` appeared in this workflow and NOWHERE ELSE in the
-      # repository — not in docs/, not in any template. Confirmed against the
-      # live site: neither a literal placeholder nor a rendered date appears in
-      # the 16,298 bytes it serves. The sed matched nothing, exited 0, and
-      # reported success on every deploy.
-      #
-      # Removed rather than repaired. Deleting a step that has never had an
-      # observable effect changes nothing; ADDING the placeholder would put a
-      # new user-visible element on the site, which is a product decision and
-      # not one to smuggle in as a bug fix. If a build date is wanted, add it
-      # deliberately — tool/check_pages_inputs.sh will then hold the placeholder
-      # and the sed together.
-
-      # ── Deploy ───────────────────────────────────────────────────────
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: site
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

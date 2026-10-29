@@ -2,6 +2,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_monty_core/dart_monty_core.dart';
@@ -20,31 +21,26 @@ void main() {
   });
   tearDownAll(() => pool.close());
 
-  test(
-    'the VFS page initial hello example runs without mounted files',
-    () async {
-      final html = File('example/web/web/vfs.html').readAsStringSync();
-      final code = RegExp(
-        '<textarea id="editor"[^>]*>(.*?)</textarea>',
-        dotAll: true,
-      ).firstMatch(html)!.group(1)!;
-      final vfs = await createDemoVfs({});
-      final result = await pool.withSession(
-        (session) => session.feedRun(code, os: vfs.call),
-      );
-
-      expect(result.dartValue, {
-        'content': 'Hello from Python in WASM!',
-        'files': ['a.txt', 'b.txt'],
-      });
-      expect(
-        (await vfs.call('Path.read_text', [
-          MontyPath('/sandbox/hello.txt'),
-        ], {})).dartValue,
-        'Hello from Python in WASM!',
-      );
-    },
-  );
+  test('VFS catalog walk runs without staged files', () async {
+    final examples =
+        (jsonDecode(
+                  File('example/web/web/examples.json').readAsStringSync(),
+                )
+                as List)
+            .cast<Map<String, dynamic>>();
+    final example = examples.firstWhere((e) => e['id'] == 'walk');
+    final vfs = await createDemoVfs({});
+    final result = await pool.withSession(
+      (session) => session.feedRun(example['code'] as String, os: vfs.call),
+    );
+    expect(result.dartValue, example['expected']);
+    expect(
+      (await vfs.call('Path.read_text', [
+        MontyPath('/sandbox/a.csv'),
+      ], {})).dartValue,
+      'a,b\n1,2\n',
+    );
+  });
 
   test('staged files survive resets, while Python writes are fresh', () async {
     final staged = {'/sandbox/config.json': '{"retries":3}'};

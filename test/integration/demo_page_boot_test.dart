@@ -37,6 +37,7 @@
 @Timeout(Duration(minutes: 20))
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
@@ -57,6 +58,14 @@ void main() {
   // than producing a suite of zero tests that reports success.
   final pages = trackedFiles('example/web/web/*.html');
   final entrypoints = trackedFiles('example/web/bin/*.dart');
+  final manifest = File('$_siteDir/page-manifest.json');
+  final references = manifest.existsSync()
+      ? (jsonDecode(manifest.readAsStringSync()) as List)
+            .cast<Map<String, dynamic>>()
+            .where((e) => e['kind'] != 'executable')
+            .map((e) => e['path'] as String)
+            .toList()
+      : <String>[];
 
   // page path -> the example `<option value>` keys it declares.
   final exampleKeysByPage = <String, List<String>>{
@@ -121,19 +130,26 @@ void main() {
     }
 
     server = await DemoServer.bind(site.absolute.path);
+    addTearDown(server.close);
     chrome = await Chrome.launch(executable);
+    addTearDown(() => chrome.close());
 
     for (final page in pages) {
+      // Each interactive page starts with a pristine temporary user-data-dir.
+      // Reuse main's supported launch/target commands, without browser-level
+      // Storage.clearDataForOrigin (Chrome 156 rejects it on this connection).
+      if (loads.isNotEmpty) {
+        await chrome.close();
+        chrome = await Chrome.launch(executable);
+      }
       final name = p.basename(page);
       final before = server.requests.length;
-      loads[page] = await chrome.load(name, '${server.origin}/$name');
+      loads[page] = await chrome.load(
+        name,
+        '${server.origin}/dart_monty/$name',
+      );
       requestsByPage[page] = server.requests.sublist(before);
     }
-  });
-
-  tearDownAll(() async {
-    await chrome.close();
-    await server.close();
   });
 
   group('published page boots in headless Chrome', () {
@@ -229,6 +245,24 @@ void main() {
               '${problems.map((e) => '    - $e').join('\n')}\n'
               '${load.describe()}',
         );
+      });
+    }
+  });
+
+  group('assembled documentation and utility pages', () {
+    test('manifest covers documentation', () {
+      expect(references, isNotEmpty);
+    });
+    for (final page in references) {
+      test(page, () async {
+        final load = await chrome.load(
+          page,
+          '${server.origin}/dart_monty/$page',
+          reference: true,
+        );
+        expect(load.ready, 'reference', reason: load.describe());
+        expect(load.exceptions, isEmpty, reason: load.describe());
+        expect(load.consoleErrors, isEmpty, reason: load.describe());
       });
     }
   });

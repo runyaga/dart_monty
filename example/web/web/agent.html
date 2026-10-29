@@ -3,385 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dart_monty AgentSession Demo</title>
-  <style>
-    :root {
-      --bg: #1a1b26;
-      --surface: #24283b;
-      --surface2: #2f3447;
-      --border: #4e5579;
-      --text: #c0caf5;
-      --text-dim: #7982a9;
-      --accent: #7aa2f7;
-      --green: #9ece6a;
-      --yellow: #e0af68;
-      --red: #f7768e;
-      --orange: #ff9e64;
-      --cyan: #7dcfff;
-      --purple: #bb9af7;
-      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    header {
-      padding: 12px 20px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    header h1 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    header .tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-weight: 500;
-    }
-
-    .tag-agent { background: #3d2d5e; color: var(--purple); }
-    .tag-wasm { background: #2d3a5e; color: var(--cyan); }
-    .tag-stateful { background: #2d3e2d; color: var(--green); }
-
-    #status {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--text-dim);
-    }
-
-    #status.ready { color: var(--green); }
-    #status.running { color: var(--yellow); }
-    #status.error { color: var(--red); }
-
-    .main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 1px;
-      background: var(--border);
-      overflow: hidden;
-    }
-
-    .panel {
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .panel-header {
-      padding: 8px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .panel-header .count {
-      background: var(--surface2);
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-    }
-
-    .panel-body {
-      flex: 1;
-      overflow: auto;
-      padding: 0;
-    }
-
-    /* Code editor */
-    #editor {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      color: var(--text);
-      border: none;
-      resize: none;
-      padding: 12px;
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.6;
-      outline: none;
-      tab-size: 4;
-    }
-
-    .editor-panel .panel-header {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .btn-group { display: flex; gap: 6px; }
-
-    .btn {
-      padding: 4px 12px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--surface2);
-      color: var(--text);
-      font-size: 11px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .btn:hover { border-color: var(--accent); }
-
-    .btn-run {
-      background: #1a3a1a;
-      border-color: var(--green);
-      color: var(--green);
-      font-weight: 600;
-    }
-
-    .btn-run:hover { background: #2a4a2a; }
-    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .btn-clear {
-      background: #3a1a1a;
-      border-color: var(--red);
-      color: var(--red);
-    }
-
-    .btn-clear:hover { background: #4a2a2a; }
-
-    /* Result & State panels */
-    .result-section {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .result-section:last-child { border-bottom: none; }
-
-    .result-label {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim);
-      margin-bottom: 4px;
-    }
-
-    .result-value {
-      font-family: var(--mono);
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: var(--green);
-    }
-
-    .result-error {
-      font-family: var(--mono);
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: var(--red);
-    }
-
-    .result-print {
-      font-family: var(--mono);
-      font-size: 12px;
-      white-space: pre-wrap;
-      color: var(--text-dim);
-    }
-
-    /* State panel */
-    .state-entry {
-      padding: 4px 12px;
-      font-family: var(--mono);
-      font-size: 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 8px;
-    }
-
-    .state-key {
-      color: var(--cyan);
-      font-weight: 600;
-      min-width: 80px;
-    }
-
-    .state-val {
-      color: var(--text);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Events panel */
-    .event-entry {
-      padding: 4px 12px;
-      font-family: var(--mono);
-      font-size: 11px;
-      border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: 100px 1fr;
-      gap: 8px;
-      align-items: baseline;
-    }
-
-    .event-type {
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .event-type-run { color: var(--green); }
-    .event-type-tool { color: var(--purple); }
-    .event-type-os { color: var(--cyan); }
-    .event-type-text { color: var(--yellow); }
-    .event-type-error { color: var(--red); }
-    .event-type-step { color: var(--orange); }
-    .event-type-waiting { color: var(--red); font-weight: 600; }
-    .event-type-resumed { color: var(--green); font-weight: 600; }
-    .event-type-emitted { color: var(--cyan); }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    #waitingBanner {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      background: rgba(247, 118, 142, 0.12);
-      border-top: 1px solid var(--red);
-      font-size: 12px;
-      color: var(--red);
-      font-weight: 600;
-    }
-    #waitingBanner span.arrow { color: var(--cyan); }
-
-    .event-detail {
-      color: var(--text-dim);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Tools panel */
-    .tool-entry {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .tool-name {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--purple);
-      font-weight: 600;
-    }
-
-    .tool-desc {
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-top: 2px;
-    }
-
-    .tool-params {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-dim);
-      margin-top: 4px;
-    }
-
-    .tool-param-name { color: var(--cyan); }
-    .tool-param-type { color: var(--orange); }
-
-    .empty-state {
-      padding: 24px;
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 13px;
-    }
-
-    /* Examples dropdown */
-    select {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 4px 8px;
-      font-size: 11px;
-      cursor: pointer;
-      outline: none;
-    }
-
-    /* Bottom panel sub-tabs */
-    .tab-bar {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .tab-btn {
-      padding: 6px 14px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim);
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .tab-btn:hover { color: var(--text); }
-    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-    .tab-content { display: none; flex: 1; overflow: auto; }
-    .tab-content.active { display: block; }
-  </style>
+  <title>dart_monty MontyRuntime Demo</title>
+<link rel="stylesheet" href="site.css"><script defer src="site.js"></script>
 </head>
-<body>
+<body data-page="agent"><div id="site-nav"></div>
   <header>
     <a href="index.html" style="color:#565f89;text-decoration:none;font-size:13px;">&larr; Home</a>
-    <h1>AgentSession Demo</h1>
-    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;">v0.110.0-dev.4 &middot; dart_monty_core 29d1f4ae9ebaab15c4f4a3b90a1750ae5a34b8dc</span>
+    <h1>MontyRuntime Demo</h1>
+    <span class="version-badge" style="color:#565f89;font-size:12px;margin-left:10px;white-space:nowrap;"></span>
     <span class="tag tag-agent">Agent</span>
     <span class="tag tag-wasm">WASM</span>
     <span class="tag tag-stateful">Stateful</span>
-    <select id="examples">
-      <option value="">Load example...</option>
-      <option value="stateful">Stateful Variables</option>
-      <option value="tools">Host Functions</option>
-      <option value="kvstore">Key-Value Store</option>
-      <option value="fetch">HTTP Fetch</option>
-      <option value="filesystem">Filesystem I/O</option>
-      <option value="sandbox">Child Sandboxes</option>
-      <option value="gather">Parallel Sandbox Gather</option>
-      <option value="asyncgather">asyncio.gather</option>
-      <option value="output">Sandbox Print Capture</option>
-      <option value="lifecycle">Sandbox Lifecycle</option>
-      <option value="error">Sandbox Error Handling</option>
-      <option value="childfs">Child Filesystem Isolation</option>
-    </select>
+    <select id="examples"><option value="">Load example...</option><option value="tools">tools</option><option value="child-granted">child-granted</option><option value="isolation">isolation</option><option value="agent-stateful">Stateful Variables</option><option value="agent-tools">Host Functions</option><option value="agent-kvstore">Key-Value Store</option><option value="agent-fetch">HTTP Fetch</option><option value="agent-filesystem">Filesystem I/O</option><option value="agent-sandbox">Child Sandboxes</option><option value="agent-gather">Parallel Sandbox Gather</option><option value="agent-asyncgather">asyncio.gather</option><option value="agent-output">Sandbox Print Capture</option><option value="agent-lifecycle">Sandbox Lifecycle</option><option value="agent-error">Sandbox Error Handling</option><option value="agent-childfs">Child Filesystem Isolation</option></select>
     <span id="status">Initializing WASM...</span>
   </header>
 
@@ -391,7 +24,7 @@
       <div class="panel-header">
         <span>Python Code</span>
         <div class="btn-group">
-          <button class="btn btn-clear" id="clearBtn">Clear State</button>
+          <button class="btn btn-clear" id="clearBtn">Clear State</button><button id="resetBtn">Reset workspace</button>
           <button class="btn btn-run" id="runBtn" disabled>Execute</button>
         </div>
       </div>
@@ -447,7 +80,7 @@ x</textarea>
       </div>
       <div class="tab-content" id="tab-help">
         <div style="padding: 16px; font-size: 13px; line-height: 1.6;">
-          <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">AgentSession</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
+          <p style="margin-bottom: 12px;"><strong style="color: var(--accent);">MontyRuntime</strong> combines a Monty bridge, host functions, OS providers, and variable persistence into one API.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--cyan);">Stateful:</strong> Variables defined in one execution persist to the next. Click "Clear State" to reset.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--purple);">Host Functions:</strong> Python can call Dart-defined tools: <code style="color: var(--purple);">echo(msg)</code>, <code style="color: var(--purple);">add_numbers(a, b)</code>, <code style="color: var(--purple);">get_time()</code>.</p>
           <p style="margin-bottom: 12px; color: var(--text-dim);"><strong style="color: var(--orange);">Plugins:</strong> <code style="color: var(--orange);">sandbox_spawn()/sandbox_await()</code> (child interpreters).</p>
@@ -486,7 +119,8 @@ x</textarea>
       el.scrollTop = el.scrollHeight;
     };
 
-    window._onReady = function() {
+    window._onReady = async function() {
+      await catalogReady;
       _ready = true;
       const s = document.getElementById('status');
       const b = document.getElementById('runBtn');
@@ -534,7 +168,8 @@ x</textarea>
   </script>
 
   <!-- Load WASM bridge, then compiled Dart agent demo -->
-  <script src="agent_demo.dart.js"></script>
+
+  <script defer src="agent_demo.dart.js"></script>
 
   <!-- UI wiring -->
   <script>
@@ -561,6 +196,7 @@ x</textarea>
         const resultPromise = window.AgentDemo.execute(editor.value);
         const resultJson = await resultPromise;
         const result = JSON.parse(resultJson);
+        window.__lastResult = result;
 
         if (result.ok) {
           let html = '';
@@ -674,57 +310,16 @@ x</textarea>
     });
 
     // Examples
-    const examples = {
-      stateful: "# STATE PERSISTENCE\n# Variables survive across Execute clicks. Run this,\n# then switch to another example and type: x + 1\n# The result will be 43 — x persisted from this run.\n\nx = 42\ngreeting = 'hello'\ndata = [1, 2, 3]\n\n# Try clicking Execute again with just: greeting.upper()\nx",
+    const examples = {};
+    const exampleData = {};
+    const catalogReady = fetch('examples.json').then(r => r.json()).then(all => {
+      for (const e of all.filter(e => e.pages.includes(document.body.dataset.page))) {
+        examples[e.id] = e.code;
+        exampleData[e.id] = e;
+      }
+    });
 
-      tools: "# HOST FUNCTIONS — defined in Dart, called from Python\n# Execution pauses, Dart runs the handler, Python resumes.\n\nmsg = echo('hello from python')     # Dart uppercases it\nresult = add_numbers(17, 25)        # Dart does the math\ntimestamp = get_time()              # Dart reads system clock\n\n# Prove these came from Dart: echo always uppercases,\n# add_numbers returns exact int, time is ISO format\n{\n    'echo_uppercased': msg,\n    'sum_is_exact': result,\n    'time_from_host': timestamp\n}",
-
-      kvstore: "# KEY-VALUE STORE (demo host functions, not a plugin)\n# kv_set/kv_get are defined in agent_demo.dart, backed\n# by a Dart Map. NOT inherited by child sandboxes.\n\n# Store values of different types\nkv_set('user', 'Alice')\nkv_set('score', 95)\nkv_set('tags', ['python', 'dart'])\n\n# Read them back — values round-trip through Dart\nuser = kv_get('user')\nscore = kv_get('score')\nkeys = kv_list()\n\n# Prove round-trip: types and values preserved\n{\n    'keys': keys,\n    'user': user,\n    'score': score,\n    'types_preserved': type(user).__name__ + ', ' + type(score).__name__\n}",
-
-      fetch: "# SIMULATED HTTP FETCH\n# fetch_json() is a Dart host function. In a real app,\n# Dart would make the HTTP request. Here it returns\n# canned data to show the pattern.\n\nusers = fetch_json('https://api.example.com/users')\nweather = fetch_json('https://api.example.com/weather')\n\n# Python works with the result as native dicts/lists\n{\n    'user_count': len(users),\n    'first_user': users[0],\n    'weather': weather,\n    'is_native_list': type(users).__name__\n}",
-
-      filesystem: "# IN-MEMORY VIRTUAL FILESYSTEM\n# pathlib works normally but all I/O goes to memory.\n# No real disk access. Files persist within the session.\nfrom pathlib import Path\n\n# Write two files\nPath('/data').mkdir(parents=True, exist_ok=True)\nPath('/data/hello.txt').write_text('hello world')\nPath('/data/nums.csv').write_text('a,b\\n1,2\\n3,4')\n\n# Prove they exist and contain what we wrote\n{\n    'hello': Path('/data/hello.txt').read_text(),\n    'csv': Path('/data/nums.csv').read_text(),\n    'files_exist': [p.name for p in Path('/data').iterdir()]\n}",
-
-
-
-      sandbox: "# CHILD SANDBOXES — isolated interpreters\n# Each child runs in its own WASM Worker with separate\n# memory and state. Prove it: parent's variable is\n# invisible to children.\n\nsecret = 'parent_only'\n\n# Child tries to access parent's variable\nh1 = sandbox_spawn(code='''\ntry:\n    x = secret\n    saw_parent = True\nexcept NameError:\n    saw_parent = False\n{\"saw_parent_var\": saw_parent, \"computed\": 2 + 3}\n''')\n\n# Second child does independent work\nh2 = sandbox_spawn(code='import math\\nmath.factorial(5)')\n\nr1 = sandbox_await(handle=h1)\nr2 = sandbox_await(handle=h2)\nsandbox_free(handle=h1)\nsandbox_free(handle=h2)\n\n{\n    'child_1': r1,\n    'child_2_factorial': r2,\n    'parent_secret_intact': secret\n}",
-
-      gather: "# PARALLEL SANDBOX GATHER\n# 3 children run in parallel WASM Workers.\n# gather() collects all results in one call.\n\nh1 = sandbox_spawn(code='sum(range(1000))')\nh2 = sandbox_spawn(code='sum(range(2000))')\nh3 = sandbox_spawn(code='sum(range(3000))')\n\n# All 3 execute concurrently — gather waits for all\nresults = sandbox_gather(handles=[h1, h2, h3])\n\n# Each result dict has: handle, value, output\nsums = [r['value'] for r in results]\nfor h in (h1, h2, h3):\n    sandbox_free(handle=h)\n\n{\n    'sums': sums,\n    'expected': [499500, 1999000, 4498500],\n    'all_correct': sums == [499500, 1999000, 4498500]\n}",
-
-      asyncgather: "# ASYNCIO.GATHER — concurrent host calls in ONE interpreter\n# Python's asyncio.gather dispatches multiple host function\n# calls as futures. The bridge resolves them in parallel,\n# not one at a time.\nimport asyncio\n\nasync def fetch_users():\n    return fetch_json('https://api.example.com/users')\n\nasync def fetch_weather():\n    return fetch_json('https://api.example.com/weather')\n\nasync def get_timestamp():\n    return get_time()\n\nasync def main():\n    # All 3 host functions dispatched concurrently\n    users, weather, ts = await asyncio.gather(\n        fetch_users(),\n        fetch_weather(),\n        get_timestamp(),\n    )\n    return {\n        'user_count': len(users),\n        'temp': weather['temp'],\n        'time': ts,\n        'all_resolved': True\n    }\n\nasyncio.run(main())",
-
-      output: "# PRINT() CAPTURE\n# Return value and print output are separate streams.\n\nh = sandbox_spawn(code='print(\"debug: starting\")\\nprint(\"debug: done\")\\n99')\n\n# sandbox_await -> return value only\nvalue = sandbox_await(handle=h)\n\n# sandbox_get_output -> captured print() text\nprinted = sandbox_get_output(handle=h)\nsandbox_free(handle=h)\n\n{\n    'return_value': value,\n    'print_output': printed,\n    'they_are_different': value != printed\n}",
-
-      lifecycle: "# HANDLE LIFECYCLE: spawn -> alive? -> await -> free\n\n# 1. Spawn returns a handle (int)\nh = sandbox_spawn(code='42')\nhandle_type = type(h).__name__\n\n# 2. Check if still running\nalive_before = sandbox_is_alive(handle=h)\n\n# 3. Await blocks until done, returns the value\nresult = sandbox_await(handle=h)\n\n# 4. Now it's finished\nalive_after = sandbox_is_alive(handle=h)\n\n# 5. Free releases resources\nsandbox_free(handle=h)\n\n{\n    'handle_type': handle_type,\n    'result': result,\n    'alive_before_await': alive_before,\n    'alive_after_await': alive_after\n}",
-
-      error: "# ERROR PROPAGATION — parent survives child crash\n\nparent_state = 'running'\n\n# Child crashes with ZeroDivisionError\nh = sandbox_spawn(code='1 / 0')\ntry:\n    r = sandbox_await(handle=h)\n    crashed = False\nexcept Exception as e:\n    r = str(e)\n    crashed = True\n\n# Prove: parent is still alive and can do math\nproof = 40 + 2\nsandbox_free(handle=h)\n\n{\n    'child_crashed': crashed,\n    'error': r,\n    'parent_still_works': proof,\n    'parent_state': parent_state\n}",
-
-
-
-
-      childfs: "# FILESYSTEM ISOLATION\n# Prove: parent, child A, child B each have their own VFS.\n# None can see the others' files.\nfrom pathlib import Path\n\nPath('/data').mkdir(exist_ok=True)\nPath('/data/parent.txt').write_text('parent data')\n\n# Child A checks for parent's file, writes its own\na = sandbox_spawn(code='''\nfrom pathlib import Path\ntry:\n    can_see_parent = Path(\"/data/parent.txt\").exists()\nexcept PermissionError:\n    can_see_parent = False\nPath(\"/work/child_a.txt\").write_text(\"from child A\")\n{\"parent_visible\": can_see_parent, \"wrote\": Path(\"/work/child_a.txt\").read_text()}\n''')\n\n# Child B checks for child A's file, writes its own\nb = sandbox_spawn(code='''\nfrom pathlib import Path\ncan_see_sibling = Path(\"/work/child_a.txt\").exists()\nPath(\"/work/child_b.txt\").write_text(\"from child B\")\n{\"sibling_visible\": can_see_sibling, \"wrote\": Path(\"/work/child_b.txt\").read_text()}\n''')\n\na_r = sandbox_await(handle=a)\nb_r = sandbox_await(handle=b)\nsandbox_free(handle=a)\nsandbox_free(handle=b)\n\n# Parent checks for children's files\n{\n    'child_a': a_r,\n    'child_b': b_r,\n    'parent_sees_child_a': Path('/work/child_a.txt').exists(),\n    'parent_sees_child_b': Path('/work/child_b.txt').exists(),\n    'parent_file_intact': Path('/data/parent.txt').read_text()\n}",
-
-
-
-
-
-
-    };
-
-    const descriptions = {
-      stateful: 'Variables defined here persist across executions. Run this first, then try other examples that reference x and greeting.',
-      tools: 'Call Dart host functions from Python. echo() uppercases, add_numbers() sums, get_time() returns ISO timestamp.',
-      kvstore: 'Persistent key-value store backed by Dart. Data survives across execute() calls.',
-      fetch: 'Simulated HTTP fetch — demonstrates host functions returning complex JSON structures.',
-      filesystem: 'Python pathlib backed by an in-memory VFS. Write and read files without touching the host disk.',
-      sandbox: 'Spawn 3 isolated child interpreters, each in its own WASM Worker. Await their results independently.',
-      gather: 'Spawn 3 children in parallel WASM Workers. sandbox_gather waits for all at once and returns attributed results with handle, value, and output.',
-      asyncgather: 'Python asyncio.gather within a single interpreter. Multiple host function calls dispatched as futures and resolved concurrently by the bridge.',
-      output: 'Children capture print() output separately. sandbox_get_output retrieves it after the child completes.',
-      lifecycle: 'Full handle lifecycle: spawn, check if alive, await result, then free the handle to release resources.',
-      error: 'Child errors propagate cleanly as ChildSandboxException. Parent catches it without crashing.',
-      childfs: 'Each child gets its own isolated VFS. Children write files independently; parent filesystem is unaffected.',
-    };
+    const descriptions = {};
 
 
     // ---------------------------------------------------------------------
@@ -745,6 +340,7 @@ x</textarea>
     // adding an example covers it automatically; this function only has to
     // know how to run one and how to read the verdict.
     window.__montyRunExample = async function (key) {
+      await catalogReady;
       const sel = $('examples');
       // CLEARED FIRST, or an unknown key silently re-runs whatever the last
       // example left behind. Observed while falsifying this gate: a new
@@ -758,7 +354,20 @@ x</textarea>
         return JSON.stringify({ ok: false, status: 'no-code',
           detail: 'selecting "' + key + '" loaded no code into the editor' });
       }
-      await run();
+      const e = exampleData[key];
+      if (window.VfsDemo) {
+        window.VfsDemo.clearMounts();
+        for (const [path, content] of Object.entries(e.stagedFiles || {})) await window.VfsDemo.mountFile(path, content);
+      }
+      runBtn.click(); await window.__lastRun;
+      const events = window.__lastResult?.events || [];
+      if (!events.some(e => e.type === 'RunStarted') || !events.some(e => e.type === 'RunFinished')) throw Error('Missing terminal event sequence');
+      // External-module callbacks run in core and do not emit bridge function events.
+      if (key === 'tools' && (window.__lastResult.toolCalls !== 1 || events.filter(e => e.type === 'FunctionCallStart').length !== 0)) throw Error('Expected one module tool call and zero bridge function calls');
+      if (key === 'child-granted' && !events.some(e => e.type === 'ChildEvent')) throw Error('Child event missing');
+      if (!e.legacy && (!window.__lastResult?.ok || JSON.stringify(window.__lastResult.value) !== JSON.stringify(e.expected))) {
+        return JSON.stringify({ok:false,status:'Output mismatch',detail:JSON.stringify(window.__lastResult)});
+      }
       const errEl = resultArea.querySelector('.result-error');
       return JSON.stringify({
         ok: status.textContent === 'Done' && !errEl,
@@ -773,8 +382,8 @@ x</textarea>
         editor.value = examples[key];
       }
       const descEl = $('exampleDesc');
-      if (key && descriptions[key]) {
-        descEl.textContent = descriptions[key];
+      if (key && exampleData[key]?.description) {
+        descEl.textContent = exampleData[key].description;
         descEl.style.display = 'block';
       } else {
         descEl.style.display = 'none';
@@ -782,10 +391,11 @@ x</textarea>
       this.value = '';
     };
 
+    $('resetBtn').onclick = async () => { if (runBtn.disabled) return; await window.AgentDemo.reset(); refreshState(); };
     // Clear state button
-    $('clearBtn').onclick = function() {
-      if (!window.AgentDemo) return;
-      window.AgentDemo.clearState();
+    $('clearBtn').onclick = async function() {
+      if (!window.AgentDemo || runBtn.disabled) return;
+      await window.AgentDemo.clearState();
       refreshState();
     };
 
@@ -800,7 +410,21 @@ x</textarea>
       }
     });
 
-    runBtn.onclick = run;
+    runBtn.onclick = () => { window.__lastRun = run(); };
+
+    window.__montyCheckControls = async () => {
+      editor.value='x = 77\nx'; runBtn.click(); await window.__lastRun;
+      if (window.__lastResult.value !== 77 || !stateList.textContent.includes('x')) throw Error('State inspector failed');
+      document.querySelector('[data-tab="help"]').click();
+      if (!$('tab-help').classList.contains('active')) throw Error('Help tab failed');
+      document.querySelector('[data-tab="tools"]').click();
+      if (!$('tab-tools').textContent.includes('echo')) throw Error('Tool schemas missing');
+      await window.AgentDemo.reset(); refreshState();
+      editor.value='40 + 2'; runBtn.click(); await window.__lastRun;
+      if (window.__lastResult.value !== 42) throw Error('Reset recovery failed');
+      return true;
+    };
+
 
   </script>
 </body>
