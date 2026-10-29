@@ -164,6 +164,9 @@ jobs:
         with:
           sdk: 3.13.5
       - run: dart pub get
+      - name: Resolve nested packages
+        # check_page_versions.sh reads example/web's resolved core checkout.
+        run: bash tool/resolve_packages.sh
       - name: Checks that otherwise run nowhere
         run: |
           set -uo pipefail
@@ -662,7 +665,7 @@ jobs:
           n=0
           for f in bin/*.dart; do echo "--- $f"; n=$((n+1)); done
           echo "found $n entrypoint(s)"
-          [ "$n" -eq 7 ] || { echo "FAIL: expected 7 web entrypoints, found $n."; \
+          [ "$n" -eq 8 ] || { echo "FAIL: expected 8 web entrypoints, found $n."; \
             echo "  Adding one is fine — raise this number in the same commit."; \
             echo "  Losing one silently is the failure this catches."; exit 1; }
 
