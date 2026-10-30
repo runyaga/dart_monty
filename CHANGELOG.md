@@ -1,4 +1,4 @@
-## Unreleased
+## 0.120.1 - 2026-10-30
 
 - Fix `example/web/run.sh` and the Pages/ladder tooling on Windows: the
   dart_monty_core root read from `package_config.json` came out as `/C:/...`,
