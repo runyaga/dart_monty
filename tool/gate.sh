@@ -174,6 +174,10 @@ run_check "pages inputs" bash tool/check_pages_inputs.sh
 # placeholder that stops matching fails silently, which is exactly how a
 # __BUILD_DATE__ sed sat in pages.yaml substituting nothing.
 run_check "page versions" bash tool/check_page_versions.sh
+# The core root that run.sh, the ladder and Pages tooling copy assets from.
+# Not -I: the test imports tool/core_root.py beside it. CI also runs it on
+# windows-2025, where a bare file-URI path (`/C:/...`) is not a usable path.
+run_check "core root" python3 tool/core_root_test.py
 run_check "html escaping" bash tool/check_html_escaping.sh
 # Every published demo must actually RUN. Measured 2026-09-16: the four native
 # examples were executed, the seven web entrypoints were COMPILED AND NEVER

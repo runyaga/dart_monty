@@ -183,6 +183,9 @@ jobs:
           run python3 -I tool/check_workflow_tokens.py
           run bash tool/check_pages_inputs.sh
           run bash tool/check_page_versions.sh
+          # Not -I: the test imports tool/core_root.py beside it. The
+          # Windows half is job tooling-windows.
+          run python3 tool/core_root_test.py
           run bash tool/check_html_escaping.sh
           # ADDED 2026-09-17. tool/check_api_exercised.sh landed in 4b5c7b4
           # wired into tool/gate.sh ONLY, so a PR that broke it passed CI —
@@ -199,7 +202,7 @@ jobs:
           # The counter catches a DELETED invocation line; it cannot catch a
           # missing script, because `run` increments before executing. The exit
           # code catches that one. Both are needed.
-          [ "$RAN" -eq 11 ] || { echo "FAIL: expected 11 checks, ran $RAN"; RC=1; }
+          [ "$RAN" -eq 12 ] || { echo "FAIL: expected 12 checks, ran $RAN"; RC=1; }
           echo "ran $RAN checks, rc=$RC"
 
           # REQUIRED, not decoration. Setting RC=1 in a variable and falling off
@@ -251,6 +254,46 @@ jobs:
               - 'requirements-docs.lock'
               - 'requirements-zensical.txt'
               - '.github/workflows/ci.yaml'
+
+  # ---------------------------------------------------------------------------
+  # tooling-windows — the asset-path tooling on Windows
+  # ---------------------------------------------------------------------------
+  # example/web/run.sh, tool/test_python_ladder.sh and the Pages tooling find
+  # dart_monty_core's assets through tool/core_root.py. On Windows a file URI's
+  # bare path is `/C:/...`, which is not a usable path, and run.sh failed with
+  # "could not locate dart_monty_core assets". No other job runs on Windows.
+  # Needs no worker: it resolves packages and reads paths, nothing executes.
+  tooling-windows:
+    name: Asset-path tooling (Windows)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
+        with:
+          sdk: 3.13.5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+      - name: Resolve example/web
+        working-directory: example/web
+        run: dart pub get
+      - name: core_root unit tests
+        run: python tool/core_root_test.py -v
+      - name: example/web's core root holds the worker assets
+        run: |
+          root=$(python tool/core_root.py example/web/.dart_tool/package_config.json)
+          echo "core root: $root"
+          test -n "$root"
+          test -f "$root/lib/assets/dart_monty_core_worker.js"
+          test -f "$root/lib/assets/dart_monty_core_worker.wasm"
 
   markdown:
     name: Markdown lint

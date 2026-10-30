@@ -65,18 +65,7 @@ else
   # Resolve dart_monty_core's root from package_config.json — works for path,
   # git, and hosted deps uniformly (`dart pub cache dir` was removed in newer
   # SDKs). Run from $EXAMPLE so this reads the example's resolution.
-  CORE_ROOT=$(python3 - <<'PY'
-import json, urllib.parse
-try:
-    cfg = json.load(open(".dart_tool/package_config.json"))
-except OSError:
-    raise SystemExit(0)
-for p in cfg.get("packages", []):
-    if p["name"] == "dart_monty_core":
-        print(urllib.parse.unquote(urllib.parse.urlparse(p["rootUri"]).path))
-        break
-PY
-)
+  CORE_ROOT=$(python3 "$ROOT/tool/core_root.py" .dart_tool/package_config.json)
   CORE_ASSETS="${CORE_ROOT%/}/lib/assets"
 fi
 

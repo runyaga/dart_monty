@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Fix `example/web/run.sh` and the Pages/ladder tooling on Windows: the
+  dart_monty_core root read from `package_config.json` came out as `/C:/...`,
+  so `run.sh` stopped with "could not locate dart_monty_core assets". The four
+  scripts now share `tool/core_root.py`, which converts the root with
+  `url2pathname` and resolves it against the config file, so a relative
+  (path-dependency) `rootUri` resolves correctly too. Its tests run in the gate
+  and in a new `windows-2025` CI job.
+
 ## 0.120.0 - 2026-10-29
 
 - Overhaul the runtime Pages site with shared navigation/theme, resolved build

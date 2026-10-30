@@ -29,20 +29,9 @@ if [ -n "${DART_MONTY_CORE_DIR:-}" ] && [ -d "$DART_MONTY_CORE_DIR/lib/assets" ]
   CORE_ASSETS="$DART_MONTY_CORE_DIR/lib/assets"
   echo "--- Using DART_MONTY_CORE_DIR: $CORE_ASSETS ---"
 else
-  # Resolve dart_monty_core's root from package_config.json (works for path,
-  # git, and hosted deps; `dart pub cache dir` was removed in newer SDKs).
-  CORE_ROOT=$(python3 - <<'PY'
-import json, urllib.parse
-try:
-    cfg = json.load(open(".dart_tool/package_config.json"))
-except OSError:
-    raise SystemExit(0)
-for p in cfg.get("packages", []):
-    if p["name"] == "dart_monty_core":
-        print(urllib.parse.unquote(urllib.parse.urlparse(p["rootUri"]).path))
-        break
-PY
-)
+  # Resolve dart_monty_core's root from package_config.json (see
+  # tool/core_root.py: hosted, git and path deps, and Windows paths).
+  CORE_ROOT=$(python3 "$ROOT/tool/core_root.py" .dart_tool/package_config.json)
   CORE_ASSETS="${CORE_ROOT%/}/lib/assets"
   if [ ! -d "$CORE_ASSETS" ]; then
     echo "FATAL: could not locate dart_monty_core assets ($CORE_ASSETS)." >&2

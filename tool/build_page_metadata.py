@@ -4,15 +4,14 @@ import argparse
 import json
 from pathlib import Path
 import re
-from urllib.parse import urljoin, urlparse
+
+from core_root import core_root
 
 
 def metadata():
     version = re.search(r'^version:\s*(\S+)', Path('pubspec.yaml').read_text(), re.M)[1]
-    config = Path('example/web/.dart_tool/package_config.json').resolve()
-    packages = json.loads(config.read_text())['packages']
-    core = next(p for p in packages if p['name'] == 'dart_monty_core')
-    directory = Path(urlparse(urljoin(config.as_uri(), core['rootUri'])).path)
+    directory = core_root('example/web/.dart_tool/package_config.json')
+    assert directory is not None, 'dart_monty_core is not resolved in example/web'
     core_version = re.search(r'^version:\s*(\S+)', (directory / 'pubspec.yaml').read_text(), re.M)[1]
     # Release provenance is recorded here because hosted core omits tool/.
     assert core_version == '0.120.0', f'Update release provenance for core {core_version}'
