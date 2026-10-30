@@ -24,17 +24,8 @@ if [ "$MODE" != --smoke-only ]; then
     dart compile js --packages=example/web/.dart_tool/package_config.json \
       "$entry" -o "$SITE/$base.dart.js" --no-source-maps
   done
-  CORE=$(python3 - <<'PY'
-import json
-from pathlib import Path
-from urllib.parse import urljoin, urlparse
-from urllib.request import url2pathname
-p = Path('example/web/.dart_tool/package_config.json').resolve()
-pkg = next(x for x in json.loads(p.read_text())['packages'] if x['name'] == 'dart_monty_core')
-# url2pathname: `/C:/...` is not a usable path on Windows.
-print(url2pathname(urlparse(urljoin(p.as_uri(), pkg['rootUri'])).path))
-PY
-)
+  CORE=$(python3 tool/core_root.py example/web/.dart_tool/package_config.json)
+  [ -n "$CORE" ] || { echo "FAIL: dart_monty_core is not resolved in example/web" >&2; exit 1; }
   cp "$CORE"/lib/assets/dart_monty_core_worker.{js,wasm} "$SITE/"
   mkdir -p "$SITE/fixtures" "$SITE/assets"
   cp test/fixtures/python_ladder/tier_*.json "$SITE/fixtures/"
