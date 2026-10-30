@@ -14,7 +14,7 @@ def metadata():
     assert directory is not None, 'dart_monty_core is not resolved in example/web'
     core_version = re.search(r'^version:\s*(\S+)', (directory / 'pubspec.yaml').read_text(), re.M)[1]
     # Release provenance is recorded here because hosted core omits tool/.
-    assert core_version == '0.120.0', f'Update release provenance for core {core_version}'
+    assert core_version == '0.120.1', f'Update release provenance for core {core_version}'
     import yaml
     lock = yaml.safe_load(Path('example/web/pubspec.lock').read_text())
     resolved = lock['packages']['dart_monty_core']

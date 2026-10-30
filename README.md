@@ -23,7 +23,7 @@ Or add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_monty: ^0.120.0
+  dart_monty: ^0.120.1
 ```
 
 ## Quick start
