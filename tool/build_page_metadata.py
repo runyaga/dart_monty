@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urljoin, urlparse
+from urllib.request import url2pathname
 
 
 def metadata():
@@ -12,7 +13,8 @@ def metadata():
     config = Path('example/web/.dart_tool/package_config.json').resolve()
     packages = json.loads(config.read_text())['packages']
     core = next(p for p in packages if p['name'] == 'dart_monty_core')
-    directory = Path(urlparse(urljoin(config.as_uri(), core['rootUri'])).path)
+    # url2pathname: `/C:/...` is not a usable path on Windows.
+    directory = Path(url2pathname(urlparse(urljoin(config.as_uri(), core['rootUri'])).path))
     core_version = re.search(r'^version:\s*(\S+)', (directory / 'pubspec.yaml').read_text(), re.M)[1]
     # Release provenance is recorded here because hosted core omits tool/.
     assert core_version == '0.120.0', f'Update release provenance for core {core_version}'

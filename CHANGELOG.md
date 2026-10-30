@@ -1,5 +1,11 @@
 ## Unreleased
 
+- Fix `example/web/run.sh` and the Pages/ladder tooling on Windows: the
+  dart_monty_core root read from `package_config.json` came out as `/C:/...`,
+  so `run.sh` stopped with "could not locate dart_monty_core assets". The root
+  is now converted with `url2pathname` and resolved against the config file,
+  which also makes a relative (path-dependency) `rootUri` resolve correctly.
+
 ## 0.120.0 - 2026-10-29
 
 - Overhaul the runtime Pages site with shared navigation/theme, resolved build

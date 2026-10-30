@@ -65,15 +65,21 @@ else
   # Resolve dart_monty_core's root from package_config.json — works for path,
   # git, and hosted deps uniformly (`dart pub cache dir` was removed in newer
   # SDKs). Run from $EXAMPLE so this reads the example's resolution.
+  # rootUri is relative to the config file for path deps, and url2pathname
+  # turns `/C:/...` into `C:\...` on Windows.
   CORE_ROOT=$(python3 - <<'PY'
-import json, urllib.parse
+import json
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
+from urllib.request import url2pathname
+config = Path(".dart_tool/package_config.json").resolve()
 try:
-    cfg = json.load(open(".dart_tool/package_config.json"))
+    cfg = json.loads(config.read_text())
 except OSError:
     raise SystemExit(0)
 for p in cfg.get("packages", []):
     if p["name"] == "dart_monty_core":
-        print(urllib.parse.unquote(urllib.parse.urlparse(p["rootUri"]).path))
+        print(url2pathname(urlparse(urljoin(config.as_uri(), p["rootUri"])).path))
         break
 PY
 )

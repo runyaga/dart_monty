@@ -28,9 +28,11 @@ if [ "$MODE" != --smoke-only ]; then
 import json
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
+from urllib.request import url2pathname
 p = Path('example/web/.dart_tool/package_config.json').resolve()
 pkg = next(x for x in json.loads(p.read_text())['packages'] if x['name'] == 'dart_monty_core')
-print(urlparse(urljoin(p.as_uri(), pkg['rootUri'])).path)
+# url2pathname: `/C:/...` is not a usable path on Windows.
+print(url2pathname(urlparse(urljoin(p.as_uri(), pkg['rootUri'])).path))
 PY
 )
   cp "$CORE"/lib/assets/dart_monty_core_worker.{js,wasm} "$SITE/"
