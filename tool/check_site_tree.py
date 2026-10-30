@@ -31,7 +31,7 @@ meta = json.loads((root / 'build-meta.json').read_text())
 pubspec = Path('pubspec.yaml').read_text()
 assert meta['runtime'] == re.search(r'^version:\s*(\S+)', pubspec, re.M)[1]
 assert meta['coreRef'] == 'hosted'
-assert meta['coreVersion'] == '0.120.0'
+assert meta['coreVersion'] == json.loads(Path('example/web/web/build-meta.json').read_text())['coreVersion']
 assert json.loads((root / 'examples.json').read_text()) == json.loads(Path('example/web/web/examples.json').read_text())
 for required in ['nav.inc', 'site.css', 'site.js', 'runtime-page.js', 'dart_monty_core_worker.js', 'dart_monty_core_worker.wasm', 'search/search_index.json', 'llms.txt', 'llms-full.txt']:
     assert (root / required).is_file(), f'Missing artifact input: {required}'
