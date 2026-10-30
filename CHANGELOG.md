@@ -1,5 +1,7 @@
 ## 0.120.1 - 2026-10-30
 
+- Require dart_monty_core 0.120.1, which fixes the Windows build hook when
+  the hooks runner filters `LOCALAPPDATA` from its environment.
 - Fix `example/web/run.sh` and the Pages/ladder tooling on Windows: the
   dart_monty_core root read from `package_config.json` came out as `/C:/...`,
   so `run.sh` stopped with "could not locate dart_monty_core assets". The four

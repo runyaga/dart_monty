@@ -10,12 +10,12 @@ Or add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_monty: ^0.120.0
+  dart_monty: ^0.120.1
 ```
 
 `dart_monty` depends on `dart_monty_core 0.120.0` from pub.dev, wrapping
 upstream pydantic/monty 1.2.0. If you import core directly, also declare
-`dart_monty_core: ^0.120.0` under `dependencies`.
+`dart_monty_core: ^0.120.1` under `dependencies`.
 
 Run `dart pub get` after editing `pubspec.yaml`.
 

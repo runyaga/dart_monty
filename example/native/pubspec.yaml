@@ -8,4 +8,4 @@ environment:
 dependencies:
   dart_monty:
     path: ../..
-  dart_monty_core: ^0.120.0
+  dart_monty_core: ^0.120.1

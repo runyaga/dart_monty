@@ -1,6 +1,6 @@
 {
   "runtime": "0.120.1",
-  "coreVersion": "0.120.0",
+  "coreVersion": "0.120.1",
   "coreRef": "hosted",
   "upstream": "1.2.0",
   "upstreamCommit": "e8db9aef41aa73f4f709c15a4bc8a2d198be5ead"
