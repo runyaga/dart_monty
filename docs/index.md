@@ -8,7 +8,7 @@
 `dart_monty_core` with stateful runtimes, Dart host functions, extensions,
 execution events, and OS-call policy.
 
-This documentation covers `dart_monty 0.120.0` with `dart_monty_core 0.120.0`
+This documentation covers `dart_monty 0.120.1` with `dart_monty_core 0.120.0`
 from pub.dev and upstream pydantic/monty 1.2.0.
 
 Use `MontyRuntime` when Python needs application capabilities or state that
